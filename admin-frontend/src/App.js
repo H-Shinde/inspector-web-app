@@ -1,6 +1,19 @@
 import './App.css';
 import logo from './bison_logo__login.png';
+import ForgotPassword from './Forgot_pass';
+import UpdatePass from './Forgot_continue';
 function App() {
+  
+ if (window.location.pathname === '/ForgotPassword') {
+    return <ForgotPassword />;
+  };
+
+  if (window.location.pathname === '/UpdatePass') {
+    return <UpdatePass />;
+  };
+  const handleForgotPasswordClick = () => {
+    window.location.href= '/ForgotPassword';
+  };
   return (
     <div className="frame">
           <img
@@ -17,17 +30,19 @@ function App() {
                   <p className='register_email_typography'>Registered Email Address</p>
               </div>
               <div className='enter_email'>
-                <p className='email_type'>Email@gmail.com</p>
+                <input className='email_type' type="email" placeholder="Email@gmail.com" />
               </div>
             </div>
             <div className='password_frame'>
               <div className='password_box'>
-                <p className='password_type'>Password</p>
+                <p className='password_actual'>Password</p>
               </div>
               <div className='password_place'>
-                <p className='password_actual'>••••••••••••</p>
+                <input className='password_actual' type="password" placeholder="••••••••••••" />
               </div>
-              <p className='forgot_password'>forgot password</p>
+              <p onClick={handleForgotPasswordClick} className='forgot_password'>
+                forgot password
+                </p>
             </div>
           </div>
            <button className='login_button'>
@@ -39,3 +54,5 @@ function App() {
 }
 
 export default App;
+
+

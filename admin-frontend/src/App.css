@@ -21,8 +21,7 @@ body {
 }
 
 .login_image {
-  width: 260px;
-  max-width: 30vw;
+  width: 160px;
   height: auto;
   align-self: flex-start;
 }
@@ -105,13 +104,16 @@ body {
 .email_type,
 .password_actual {
   margin: 0;
-
+  width: 100%;
   color: #0F172A;
+  border:none;
   font-size: 26px;
   font-weight: 400;
+  background: #F8FAFC;
 }
 
 .forgot_password {
+  cursor: pointer;
   margin: 0;
   padding: 0 12px;
 
@@ -120,10 +122,36 @@ body {
   font-weight: 500;
   text-transform: uppercase;
 }
+.remember_password {
+  display:inline-block;
+  margin: 0;
+  padding: 0 12px;
+
+  font-size: 23px;
+  font-weight: 500;
+}
+.password_constraint {
+  display:inline-block;
+  margin: 0;
+  padding: 0 12px;
+  color: #94A3BB;
+  font-size: 23px;
+  font-weight: 500;
+}
+.sign_in  {
+  display:inline-block;
+  cursor: pointer;
+  margin: 0;
+  padding: 0 12px;
+
+  color: #005581;
+  font-size: 23px;
+  font-weight: 500;
+}
 
 .login_button {
   position: static;
-
+  cursor: pointer;
   width: min(367px, 100%);
   height: 88px;
 
