@@ -2,6 +2,7 @@ import './App.css';
 import logo from './bison_logo__login.png';
 import ForgotPassword from './Forgot_pass';
 import UpdatePass from './Forgot_continue';
+import Homepage from './BidsJobsHomepage';
 function App() {
   
  if (window.location.pathname === '/ForgotPassword') {
@@ -11,9 +12,17 @@ function App() {
   if (window.location.pathname === '/UpdatePass') {
     return <UpdatePass />;
   };
+  
+  if (window.location.pathname === '/Homepage') {
+    return <Homepage />;
+  };
   const handleForgotPasswordClick = () => {
     window.location.href= '/ForgotPassword';
   };
+  const handleloginClick = () => {
+    window.location.href = '/Homepage';
+  };
+  
   return (
     <div className="frame">
           <img
@@ -45,7 +54,7 @@ function App() {
                 </p>
             </div>
           </div>
-           <button className='login_button'>
+           <button onClick={handleloginClick} className='login_button'>
               <p className='login_type'>Login</p>
             </button>
           
