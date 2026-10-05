@@ -89,7 +89,6 @@
     right: 20px;
     top: 50%;
     transform: translateY(-50%);
-    cursor: pointer;
 }
 
 .burger_icon_frame {
@@ -249,8 +248,8 @@ table.bids_table tbody tr:hover td {
     cursor: pointer;
 }
 
-.bidsbox,
-.jobsbox {
+.bidsbox_job,
+.jobsbox_job {
     display: flex;
     width: 254px;
     height: 71px;
@@ -265,17 +264,18 @@ table.bids_table tbody tr:hover td {
     cursor: pointer;
 }
 
-.bidsbox {
-    background: #005581;
-    color: white;
-}
-
-.jobsbox {
+.bidsbox_job {
     background: #EBF0F5;
+
     color: #000;
 }
 
-.jobsbox:hover{
+.jobsbox_job {
+    background: #005581;
+    color: #fff;
+}
+
+.jobsbox_job:hover{
     background: #d2d2d2;
 }
 
@@ -385,68 +385,4 @@ table.bids_table tbody tr:hover td {
 
 .add_bid_button {
     margin-left: auto;
-}
-
-.delete_icon {
-    background: transparent ; /* navy trash can */
-    border: none;
-    outline: none;
-    cursor: pointer;
-}
-.view{
-    background: transparent ; /* navy trash can */
-    border: none;
-    outline: none;
-    cursor: pointer;
-}
-.edit{
-    background: transparent ; /* navy trash can */
-    border: none;
-    outline: none;
-    cursor: pointer;   
-}
-
-.hamburger_dropdown {
-    position: absolute;
-
-    top: 35px;
-    right: 0;
-
-    width: 140px;
-
-    padding: 8px;
-
-    background: white;
-
-    border: 1px solid #C8D4E0;
-    border-radius: 6px;
-
-    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.20);
-
-    z-index: 1000;
-}
-
-.logout_button {
-    width: 100%;
-
-    padding: 10px 14px;
-
-    border: none;
-    border-radius: 4px;
-
-    background: transparent;
-
-    color: #C62828;
-
-    font-family: Geist, sans-serif;
-    font-size: 14px;
-    font-weight: 600;
-
-    text-align: left;
-
-    cursor: pointer;
-}
-
-.logout_button:hover {
-    background: #FDECEC;
 }

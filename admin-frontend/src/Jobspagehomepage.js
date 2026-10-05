@@ -1,4 +1,4 @@
-import './BidsJobsHomepage.css';
+import './Jobspagehomepage.css';
 import logo_2 from './bison_logo__login.png';
 import DataTable from 'datatables.net-react';
 import DT from 'datatables.net-dt';
@@ -11,12 +11,10 @@ import { FaEye } from "react-icons/fa";
 import { FaEdit } from "react-icons/fa";
 
 DataTable.use(DT);
-function Homepage() {
+function JobHomepage() {
     const [menuOpen, setMenuOpen] = useState(false);
-    
-        
-    const handleJobsClick = () => {
-        window.location.href= '/JobHomepage';
+    const handleBidsClick = () => {
+        window.location.href= '/Homepage';
     };
     const [filterColumn, setFilterColumn] = useState("all");
     const [filterValue, setFilterValue] = useState("");
@@ -30,56 +28,56 @@ function Homepage() {
             name: "John Doe",
             date: "08/10/2006",
             businessName: "Vertex Logistics",
-            status: "Pending"
+            status: "Accepted"
         },
         {
             id: 2,
             name: "Saige Fuentes",
             date: "01/12/2016",
             businessName: "Lumina Marketing",
-            status: "Declined"
+            status: "Accepted"
         },
         {
             id: 3,
             name: "Bowen Higgins",
             date: "02/10/2006",
             businessName: "BlueWave Digital",
-            status: "Pending"
+            status: "Accepted"
         },
         {
             id: 4,
             name: "Kylan Gentry",
             date: "03/10/2016",
             businessName: "Apex Financial Group",
-            status: "Declined"
+            status: "Accepted"
         },
         {
             id: 5,
             name: "Aaron Paul",
             date: "04/10/2017",
             businessName: "Ironclad Security Services",
-            status: "Pending"
+            status: "Accepted"
         },
         {
             id: 6,
             name: "Sarah Hopkins",
             date: "02/15/2012",
             businessName: "Zenith Healthcare",
-            status: "Declined"
+            status: "Accepted"
         },
         {
             id: 7,
             name: "Xavier Pace",
             date: "03/10/2012",
             businessName: "Vanguard Consulting",
-            status: "Pending"
+            status: "Accepted"
         },
         {
             id: 8,
             name: "Charles Xavier",
             date: "04/12/2026",
             businessName: "Horizon Eco Solutions",
-            status: "Declined"
+            status: "Accepted"
         }
         ]);
 
@@ -133,12 +131,12 @@ function Homepage() {
             // Search selected column
             api.column(Number(column)).search(value).draw();
         }
-    };    
+    };
     const handleDelete = (id) => {
     setTableData((prevData) =>
         prevData.filter((row) => row.id !== id)
     );
-    };
+    };    
   return (
     <div className='frame_home'>
         <div className = 'nav_bar'>
@@ -185,6 +183,7 @@ function Homepage() {
                     </button>
                 </div>
             )}
+
             
         </div>
 
@@ -193,10 +192,10 @@ function Homepage() {
         </div>
         <main className="main_content">
             <div className='bidsjobsbox'>
-                <div className= "bidsbox">
+                <div onClick={handleBidsClick} className= "bidsbox_job">
                     Bids
                 </div>
-                <div onClick={handleJobsClick} className='jobsbox'>
+                <div className='jobsbox_job'>
                     Jobs
                 </div>
             </div>
@@ -232,9 +231,6 @@ function Homepage() {
             </div>
 
 
-            <button className="add_bid_button">
-                + Add Bid
-            </button>
 
         </div>
             <DataTable
@@ -244,12 +240,12 @@ function Homepage() {
             className="bids_table"
             slots={{
                 5: (data, type, row) => (
-                    <div>
+                <div>
                     <button
                         className="delete_icon"
                         onClick={() => handleDelete(row.id)}
                     >
-                        <FaTrash className='delete_icon' />
+                        <FaTrash className='delete_icon'/>
 
                     </button>
                     <button className='view'>
@@ -258,7 +254,7 @@ function Homepage() {
                     <button className='edit'>
                         <FaEdit />
                     </button>
-                    </div>
+                </div>
                 )
             }}
             options={{
@@ -277,4 +273,4 @@ function Homepage() {
   );
 }
 
-export default Homepage;
+export default JobHomepage;

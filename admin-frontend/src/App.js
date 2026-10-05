@@ -3,6 +3,7 @@ import logo from './bison_logo__login.png';
 import ForgotPassword from './Forgot_pass';
 import UpdatePass from './Forgot_continue';
 import Homepage from './BidsJobsHomepage';
+import JobHomepage from './Jobspagehomepage';
 function App() {
   
  if (window.location.pathname === '/ForgotPassword') {
@@ -16,6 +17,11 @@ function App() {
   if (window.location.pathname === '/Homepage') {
     return <Homepage />;
   };
+  if (window.location.pathname === '/JobHomepage') {
+    return <JobHomepage />;
+  };
+
+  
   const handleForgotPasswordClick = () => {
     window.location.href= '/ForgotPassword';
   };
