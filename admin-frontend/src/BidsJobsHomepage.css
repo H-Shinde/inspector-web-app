@@ -437,8 +437,7 @@ table.bids_table tbody tr:hover td {
     border-radius: 4px;
 
     background: transparent;
-
-    color: #C62828;
+    
 
     font-family: Geist, sans-serif;
     font-size: 14px;
@@ -450,7 +449,7 @@ table.bids_table tbody tr:hover td {
 }
 
 .logout_button:hover {
-    background: #FDECEC;
+    background: #dfdfdf;
 }
 .inline_edit_input {
     width: 100%;
