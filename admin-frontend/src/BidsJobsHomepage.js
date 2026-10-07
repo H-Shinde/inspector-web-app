@@ -9,9 +9,11 @@ import 'datatables.net-dt/css/dataTables.dataTables.css';
 import { FaTrash } from "react-icons/fa";
 import { FaEye } from "react-icons/fa";
 import { FaEdit } from "react-icons/fa";
+import { FaSave } from "react-icons/fa";
 
 DataTable.use(DT);
 function Homepage() {
+    const [editingId, setEditingId] = useState(null);
     const [menuOpen, setMenuOpen] = useState(false);
     
         
@@ -139,6 +141,15 @@ function Homepage() {
         prevData.filter((row) => row.id !== id)
     );
     };
+    const handleEditChange = (id, field, value) => {
+    setTableData(prevData =>
+        prevData.map(row =>
+            row.id === id
+                ? { ...row, [field]: value }
+                : row
+        )
+    );
+    };
   return (
     <div className='frame_home'>
         <div className = 'nav_bar'>
@@ -238,26 +249,99 @@ function Homepage() {
 
         </div>
             <DataTable
+            key={editingId ?? "normal"}
             ref={table}
             data={tableData}
             columns={columns}
             className="bids_table"
             slots={{
-                5: (data, type, row) => (
-                    <div>
-                    <button
-                        className="delete_icon"
-                        onClick={() => handleDelete(row.id)}
-                    >
-                        <FaTrash className='delete_icon' />
+                1: (data, type, row) =>
+                    editingId === row.id ? (
+                        <input
+                            className="inline_edit_input"
+                            value={row.name}
+                            onChange={(e) =>
+                                handleEditChange(row.id, "name", e.target.value)
+                            }
+                        />
+                    ) : (
+                        row.name
+                    ),
 
-                    </button>
-                    <button className='view'>
-                        <FaEye className='view'/>
-                    </button>
-                    <button className='edit'>
-                        <FaEdit />
-                    </button>
+                2: (data, type, row) =>
+                    editingId === row.id ? (
+                        <input
+                            className="inline_edit_input"
+                            value={row.date}
+                            onChange={(e) =>
+                                handleEditChange(row.id, "date", e.target.value)
+                            }
+                        />
+                    ) : (
+                        row.date
+                    ),
+
+                3: (data, type, row) =>
+                    editingId === row.id ? (
+                        <input
+                            className="inline_edit_input"
+                            value={row.businessName}
+                            onChange={(e) =>
+                                handleEditChange(row.id, "businessName", e.target.value)
+                            }
+                        />
+                    ) : (
+                        row.businessName
+                    ),
+
+                4: (data, type, row) =>
+                    editingId === row.id ? (
+                        <select
+                            className="inline_edit_input"
+                            value={row.status}
+                            onChange={(e) =>
+                                handleEditChange(row.id, "status", e.target.value)
+                            }
+                        >
+                            <option value="Pending">Pending</option>
+                            <option value="Accepted">Accepted</option>
+                            <option value="Declined">Declined</option>
+                        </select>
+                    ) : (
+                        row.status
+                    ),
+
+                5: (data, type, row) => (
+                    <div className="action_buttons">
+
+                        <button className="view">
+                            <FaEye />
+                        </button>
+
+                        {editingId === row.id ? (
+                        <button
+                            className="save"
+                            onClick={() => setEditingId(null)}
+                            title="Save"
+                        >
+                            <FaSave />
+                        </button>
+                        ) : (
+                            <button
+                                className="edit"
+                                onClick={() => setEditingId(row.id)}
+                            >
+                                <FaEdit />
+                            </button>
+                        )}
+
+                        <button
+                            className="delete_icon"
+                            onClick={() => handleDelete(row.id)}
+                        >
+                            <FaTrash />
+                        </button>
+
                     </div>
                 )
             }}
