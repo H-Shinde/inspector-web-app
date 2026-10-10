@@ -215,9 +215,7 @@ function Jobspage() {
                     <span className="bid_back_icon" aria-hidden="true">←</span> Back
                 </button>
                 <h1 className="bidspage_header">Job Information</h1>
-                <button type="button" className="bid_add_button" onClick={() => { window.location.href = '/AddJob'; }}>
-                    <span className="bid_back_icon" aria-hidden="true">+</span> Add Job
-                </button>
+
             </div>
         </header>
         <main className="job_details_layout">

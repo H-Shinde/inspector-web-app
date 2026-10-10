@@ -1,53 +1,22 @@
-import './App.css';
-import logo from './bison_logo__login.png';
-function ForgotPassword() {
-    
-  const handleRememberPasswordClick = () => {
-    window.location.href= '/App';
-  };
-  
-  const handleContinueClick = () => {
-    window.location.href= '/UpdatePass';
-  };
-  return (
-    <div className="frame">
-          <img
-            className="login_image"
-            src={logo}
-            alt="Bison Valuation"
-          />
-          <p className="welcome_back">Forgot Password?</p>
-          <p className="verify_personal_info">Enter your registered email below to receive password reset instructions</p>
+import AuthLayout from './AuthLayout';
 
-          <div className="enter_password_frame">
-            <div className='register_email_frame'>
-              <div className='register_email_frame_second'>
-                  <p className='register_email_typography'>Full Professional Name</p>
-              </div>
-              <div className='enter_email'>
-                <input className='email_type' type="name" placeholder="Coline Size" />
-              </div>
-            </div>
-            <div className='password_frame'>
-              <div className='password_box'>
-                <p className='password_type'>Registered Email Address</p>
-              </div>
-              <div className='password_place'>
-                <input className='email_type' type="email" placeholder="Email@gmail.com" />
-              </div>
-             <div style={{whitespace: 'nowrap' }}>
-             <p className='remember_password'>Remember Password?</p>
-             <p onClick={handleRememberPasswordClick} className='sign_in'>Sign in</p>
-             </div>
-            </div>
-          </div>
-           <button onClick={handleContinueClick}  className='login_button'>
-              <p className='login_type'>Continue</p>
-            </button>
-          
-    </div>
+function ForgotPassword() {
+  return (
+    <AuthLayout title="Forgot password?" description="Enter your registered email to continue resetting your password.">
+      <form className="auth_form" onSubmit={(event) => { event.preventDefault(); window.location.href = '/UpdatePass'; }}>
+        <div className="auth_field">
+          <label htmlFor="reset-name">Full professional name</label>
+          <input id="reset-name" name="name" type="text" autoComplete="name" placeholder="Your full name" />
+        </div>
+        <div className="auth_field">
+          <label htmlFor="reset-email">Registered email address</label>
+          <input id="reset-email" name="email" type="email" autoComplete="email" placeholder="you@example.com" />
+        </div>
+        <button className="auth_submit" type="submit">Continue <span aria-hidden="true">→</span></button>
+        <p className="auth_secondary">Remember your password? <a href="/">Sign in</a></p>
+      </form>
+    </AuthLayout>
   );
 }
-
 
 export default ForgotPassword;

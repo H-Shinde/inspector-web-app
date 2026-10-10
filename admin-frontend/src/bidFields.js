@@ -35,17 +35,6 @@ export function createBid(draft) {
     sessionStorage.setItem('createdBids', JSON.stringify([...created, bid]));
     sessionStorage.setItem('availableBids', JSON.stringify([...available, bid]));
     sessionStorage.setItem('selectedBid', JSON.stringify(bid));
+    sessionStorage.setItem('createdBidMessage', String(bid.id));
     return bid;
-}
-
-export function createJob(draft) {
-    const created = readBidList('createdJobs');
-    const available = readBidList('availableJobs');
-    const accepted = readBidList('acceptedJobs');
-    const id = Math.max(20, ...[...created, ...available, ...accepted].map((job) => Number(job.id) || 0)) + 1;
-    const job = { ...draft, id, status: draft.status.trim() || 'Accepted', isCreatedJob: true, items: [] };
-    sessionStorage.setItem('createdJobs', JSON.stringify([...created, job]));
-    sessionStorage.setItem('availableJobs', JSON.stringify([...available, job]));
-    sessionStorage.setItem('selectedJob', JSON.stringify(job));
-    return job;
 }

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { bidFields } from './bidFields';
 import { moveBidToJobs } from './bidTransfers';
 import './Bidspage.css';
@@ -6,6 +6,18 @@ import navLogo from './bison_logo_nav.png';
 
 function Bidspage() {
     const [menuOpen, setMenuOpen] = useState(false);
+    const [createdBidId, setCreatedBidId] = useState(() => sessionStorage.getItem('createdBidMessage'));
+    useEffect(() => {
+        if (!createdBidId) return;
+        sessionStorage.removeItem('createdBidMessage');
+        const dismissMessage = () => setCreatedBidId(null);
+        document.addEventListener('click', dismissMessage);
+        document.addEventListener('keydown', dismissMessage);
+        return () => {
+            document.removeEventListener('click', dismissMessage);
+            document.removeEventListener('keydown', dismissMessage);
+        };
+    }, [createdBidId]);
     const [bid, setBid] = useState(() => {
         try {
             const saved = JSON.parse(sessionStorage.getItem('selectedBid') || 'null');
@@ -123,6 +135,7 @@ function Bidspage() {
         </div>
         </header>
         <main className="fieldsframe" aria-label="Bid details">
+            {createdBidId === String(bid?.id) && <p className="bid_creation_message" role="status">Bid has been created.</p>}
             <div className="bid_selector">
                 <label htmlFor="bid-selector">Bids</label>
                 <select id="bid-selector" value={bid ? String(bid.id) : ''} onChange={selectBid} disabled={!availableBids.length}>

@@ -457,7 +457,7 @@ function JobHomepage() {
                 />
 
             </div>
-            <button type="button" className="add_bid_button" onClick={() => { window.location.href = '/AddJob'; }}>+ Add Job</button>
+
 
 
 
