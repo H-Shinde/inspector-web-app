@@ -1,0 +1,36 @@
+@import './BidsJobsHomepage.css';
+@import './Bidspage.css';
+
+.reports_page .main_content { flex: 1; }
+.reports_page .nav_bar_text,
+.reports_page .logout_button { text-decoration: none; }
+.reports_page .logout_button { display: block; box-sizing: border-box; }
+.reports_hint { margin: 0 0 20px; color: #526477; font-size: 13px; }
+.reports_page table.reports_table { width: 100%; min-width: 720px; }
+.reports_page table.reports_table tfoot th { padding: 14px 20px; background: #EBF0F5; color: #005581; font-weight: 700; border-top: 2px solid #005581; }
+.reports_page table.reports_table tbody td:last-child { font-weight: 700; }
+
+.reports_bottom_actions { display: flex; justify-content: flex-end; margin-top: 20px; }
+.reports_next_button {
+    padding: 10px 20px;
+    border: 1px solid #005581;
+    border-radius: 6px;
+    background: #005581;
+    color: white;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.reports_next_button:hover:not(:disabled) { background: #004469; }
+.reports_next_button:disabled { opacity: 0.5; cursor: not-allowed; }
+.reports_next_button:focus-visible { outline: 2px solid #005581; outline-offset: 3px; }
+
+.reports_chart {
+    margin: 24px 0 0;
+    padding: 24px;
+    border: 1px solid #C8D4E0;
+    border-radius: 12px;
+    background: white;
+}
+.reports_chart img { display: block; width: 100%; height: auto; }

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { bidFields, readBidList } from './bidFields';
 import './Jobspage.css';
+import { assignInspectorToJob, getInspectors, selectGlobalInspector, useSelectedInspector } from './inspectorSelection';
 import { withJobDemoData, seedJobDemoSections } from './jobDemoData';
 import navLogo from './bison_logo_nav.png';
 import { FaEye, FaEdit, FaTrash } from 'react-icons/fa';
@@ -27,8 +28,6 @@ const itemDetailFields = [
 ];
 
 const sections = ['Job Information', 'Appraised Items', 'Non Appraised Items', 'Asset Valuation', 'Inspection Fees', 'Items'];
-// Demo inspectors until an inspector directory is connected.
-const inspectors = ['Alex Morgan', 'Jordan Lee', 'Taylor Brooks', 'Casey Rivera'];
 
 const rateFields = [
     ['inspectionRate', 'Inspection rate'],
@@ -62,6 +61,8 @@ const sectionFields = {
 };
 
 function Jobspage() {
+    const selectedInspector = useSelectedInspector();
+    const inspectors = getInspectors().map((inspector) => inspector.name);
     const [menuOpen, setMenuOpen] = useState(false);
     const [viewedItemId, setViewedItemId] = useState(null);
     const [itemEditor, setItemEditor] = useState(null);
@@ -108,6 +109,15 @@ function Jobspage() {
         return jobs.some((job) => String(job.id) === requested) ? requested : String(jobs[0]?.id ?? '');
     });
     const job = jobs.find((item) => String(item.id) === selectedId);
+    useEffect(() => {
+        if (!job) return;
+        if (selectedInspector && job.inspector !== selectedInspector.name) {
+            const updated = assignInspectorToJob(job, selectedInspector.name);
+            setJobs((current) => current.map((entry) => entry.id === job.id ? updated : entry));
+        } else {
+            sessionStorage.setItem('selectedJob', JSON.stringify(job));
+        }
+    }, [job, selectedInspector?.id, selectedInspector?.name]);
     const [acceptedJobId, setAcceptedJobId] = useState(() => sessionStorage.getItem('acceptedBidMessage'));
     useEffect(() => {
         if (acceptedJobId === selectedId) sessionStorage.removeItem('acceptedBidMessage');
@@ -165,6 +175,7 @@ function Jobspage() {
     const assignInspector = (event) => {
         if (!job) return;
         const inspector = event.target.value;
+        selectGlobalInspector(getInspectors().find((entry) => entry.name === inspector)?.id ?? null);
         const updated = { ...job, inspector };
         const updatedJobs = jobs.map((item) => item.id === job.id ? updated : item);
         sessionStorage.setItem('jobAssignments', JSON.stringify([
@@ -193,19 +204,19 @@ function Jobspage() {
                   <p className='nav_bar_text'>Bids</p>
                 </div>
                 <div className='history_box'>
-                  <p className='nav_bar_text'>History</p>
+                  <a className='nav_bar_text' href='/History' style={{ textDecoration: 'none' }}>History</a>
                 </div>
                 <div className='inspector_box'>
-                  <p className='nav_bar_text'>Inspector</p>
+                  <a className='nav_bar_text' href='/Inspector' style={{ textDecoration: 'none' }}>Inspector</a>
                 </div>
                 <div className='clients_box'>
-                  <p className='nav_bar_text'>Clients</p>
+                  <a className='nav_bar_text' href='/Clients' style={{ textDecoration: 'none' }}>Clients</a>
                 </div>
                 <div className='reports_box'>
-                  <p className='nav_bar_text'>Reports</p>
+                  <a className='nav_bar_text' href='/Reports' style={{ textDecoration: 'none' }}>Reports</a>
                 </div>
                 <div className='messaging'>
-                  <p className='nav_bar_text'>Messaging</p>
+                  <a className='nav_bar_text' href='/Messaging' style={{ textDecoration: 'none' }}>Messaging</a>
                 </div>
             </div>
             <button type="button" className='burger_icon_position' aria-label="Account menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>
@@ -257,7 +268,7 @@ function Jobspage() {
                     </div>
                     <div>
                         <label htmlFor="inspector-selector">Assign inspector</label>
-                        <select id="inspector-selector" value={job?.inspector || ''} onChange={assignInspector} disabled={!job}>
+                        <select id="inspector-selector" value={selectedInspector?.name ?? job?.inspector ?? ''} onChange={assignInspector} disabled={!job}>
                             <option value="">Unassigned</option>
                             {job?.inspector && !inspectors.includes(job.inspector) && <option>{job.inspector}</option>}
                             {inspectors.map((name) => <option key={name} value={name}>{name}</option>)}

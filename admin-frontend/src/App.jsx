@@ -7,7 +7,39 @@ import JobHomepage from './Jobspagehomepage';
 import Bidspage from './Bidspage';
 import AddBidpage from './AddBidpage';
 import Jobspage from './Jobspage';
+import History from './history';
+import Inspector from './inspector';
+import InspectorView from './inspector_view';
+import Messaging from './messaging';
+import Clients from './clients';
+import Clientspage from './Clientspage';
+import Reports from './reports';
+import ReportsNext from './reports_next';
 function App() {
+  if (window.location.pathname === '/ReportsNext') {
+    return <ReportsNext />;
+  }
+  if (['/Reports', '/reports'].includes(window.location.pathname)) {
+    return <Reports />;
+  }
+  if (['/Clientspage', '/clientspage'].includes(window.location.pathname)) {
+    return <Clientspage />;
+  }
+  if (['/Clients', '/clients'].includes(window.location.pathname)) {
+    return <Clients />;
+  }
+  if (['/Messaging', '/messaging'].includes(window.location.pathname)) {
+    return <Messaging />;
+  }
+  if (['/InspectorView', '/inspector_view'].includes(window.location.pathname)) {
+    return <InspectorView />;
+  }
+  if (['/Inspector', '/inspector'].includes(window.location.pathname)) {
+    return <Inspector />;
+  }
+  if (['/History', '/history'].includes(window.location.pathname)) {
+    return <History />;
+  }
 
   if (window.location.pathname === '/Jobspage') {
     return <Jobspage />;

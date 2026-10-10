@@ -1,5 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import Jobspage from './Jobspage';
+import { selectGlobalInspector } from './inspectorSelection';
+import { act } from '@testing-library/react';
 
 jest.mock('datatables.net-react', () => {
     const Table = ({ data }) => <div>{data.map((item) => <p key={item.itemId}>{item.name}</p>)}</div>;
@@ -46,4 +48,16 @@ test('canceling an item draft leaves the list unchanged', () => {
     expect(screen.queryByText('Unsaved item')).toBeNull();
     expect(screen.queryByRole('status')).toBeNull();
     expect(sessionStorage.getItem('jobItems')).toBeNull();
+});
+
+test('shows global selection in the dropdown and assigns changes directly', () => {
+    selectGlobalInspector(2);
+    render(<Jobspage />);
+    expect(screen.getByLabelText('Assign inspector').value).toBe('Jordan Lee');
+    act(() => selectGlobalInspector(3));
+    expect(screen.getByLabelText('Assign inspector').value).toBe('Taylor Brooks');
+    expect(screen.queryByRole('button', { name: 'Assign selected inspector' })).toBeNull();
+    fireEvent.change(screen.getByLabelText('Assign inspector'), { target: { value: 'Alex Morgan' } });
+    expect(sessionStorage.getItem('selectedInspectorId')).toBe('1');
+    expect(JSON.parse(sessionStorage.getItem('jobAssignments'))[0].inspector).toBe('Alex Morgan');
 });

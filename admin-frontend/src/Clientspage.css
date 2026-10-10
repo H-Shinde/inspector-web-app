@@ -1,0 +1,6 @@
+@import './clients.css';
+
+.clients_details_page .nav_bar_text,
+.clients_details_page .logout_button,
+.clients_details_page .bid_back_button { text-decoration: none; }
+.clients_details_page .logout_button { display: block; box-sizing: border-box; }

@@ -1,0 +1,101 @@
+@import './BidsJobsHomepage.css';
+@import './Bidspage.css';
+
+.messaging_page .main_content { flex: 1; }
+.messaging_page .nav_bar_text,
+.messaging_page .logout_button { text-decoration: none; }
+.messaging_page .logout_button { display: block; box-sizing: border-box; }
+
+.messaging_layout {
+    display: grid;
+    grid-template-columns: 280px minmax(0, 1fr);
+    gap: 24px;
+    font-family: Geist, sans-serif;
+}
+
+.messaging_sidebar,
+.messaging_conversation {
+    min-width: 0;
+    border: 1px solid #C8D4E0;
+    border-radius: 12px;
+    background: white;
+}
+
+.messaging_sidebar { padding: 16px; }
+.messaging_sidebar h2 { margin: 0 0 16px; color: #005581; font-size: 18px; }
+.messaging_recipients { display: flex; flex-direction: column; gap: 6px; }
+.messaging_recipients button {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: #334155;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    overflow-wrap: anywhere;
+}
+.messaging_recipients button:hover { background: #EBF0F5; }
+.messaging_recipients button.active { background: #005581; color: white; }
+.messaging_recipients button:focus-visible { outline: 2px solid #005581; outline-offset: 3px; }
+.messaging_recipient_name { font-size: 14px; font-weight: 600; }
+.messaging_recipient_company { font-size: 12px; opacity: 0.8; }
+.messaging_conversation { min-height: 400px; display: flex; flex-direction: column; }
+.messaging_conversation_header { padding: 20px 24px; border-bottom: 1px solid #C8D4E0; }
+.messaging_conversation_header h2 { margin: 0; color: #005581; font-size: 18px; }
+.messaging_conversation_header p { margin: 6px 0 0; color: #526477; font-size: 14px; overflow-wrap: anywhere; }
+.messaging_empty { padding: 24px; margin: 0; color: #526477; font-size: 14px; }
+
+.messaging_messages {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    flex: 1;
+    padding: 20px 24px;
+    max-height: 450px;
+    overflow-y: auto;
+}
+.messaging_messages .messaging_empty { padding: 0; }
+.messaging_message {
+    align-self: flex-end;
+    max-width: 85%;
+    padding: 12px 16px;
+    border-radius: 12px;
+    background: #EBF0F5;
+    color: #334155;
+    overflow-wrap: anywhere;
+}
+.messaging_message_sender { font-size: 12px; font-weight: 600; color: #005581; }
+.messaging_message_reply { align-self: flex-start; background: #F8FAFC; border: 1px solid #C8D4E0; }
+.messaging_message p { margin: 6px 0 8px; white-space: pre-wrap; font-size: 14px; }
+.messaging_message time { color: #526477; font-size: 11px; }
+.messaging_composer { padding: 20px 24px; border-top: 1px solid #C8D4E0; }
+.messaging_composer label { display: block; margin-bottom: 8px; font-size: 14px; font-weight: 600; color: #334155; }
+.messaging_composer textarea {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 12px;
+    border: 1px solid #C8D4E0;
+    border-radius: 6px;
+    background: #F8FAFC;
+    color: #334155;
+    font: inherit;
+    font-size: 14px;
+    resize: vertical;
+}
+.messaging_composer_actions { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-top: 12px; }
+.messaging_composer_actions small { color: #526477; }
+.messaging_composer button { padding: 10px 18px; border: 1px solid #005581; border-radius: 6px; background: #005581; color: white; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+.messaging_composer button:hover:not(:disabled) { background: #004469; }
+.messaging_composer button:disabled { opacity: 0.5; cursor: not-allowed; }
+.messaging_composer textarea:focus-visible,
+.messaging_composer button:focus-visible { outline: 2px solid #005581; outline-offset: 3px; }
+
+@media (max-width: 760px) {
+    .messaging_layout { grid-template-columns: 1fr; gap: 16px; }
+    .messaging_recipients { max-height: 240px; overflow-y: auto; }
+}

@@ -1,0 +1,21 @@
+@import './inspector.css';
+
+.inspector_view_page .nav_bar_text,
+.inspector_view_page .logout_button,
+.inspector_view_page .bid_back_button { text-decoration: none; }
+.inspector_view_page .logout_button { display: block; box-sizing: border-box; }
+.inspector_view_page textarea,
+.inspector_page .popup textarea {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px 12px;
+    border: 1px solid #C8D4E0;
+    border-radius: 6px;
+    background: #F8FAFC;
+    color: #1F2937;
+    font: inherit;
+    font-size: 14px;
+    resize: vertical;
+}
+.inspector_view_page .fieldsframe { margin-bottom: 40px; }
+.inspector_view_page textarea:focus-visible { outline: 2px solid #005581; outline-offset: 3px; }

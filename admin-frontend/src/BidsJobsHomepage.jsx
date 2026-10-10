@@ -180,7 +180,7 @@ function Homepage() {
         },
         {
             id: 15,
-            name: "Sophia Patel",
+            name: "Karen Patel",
             date: "08/05/2026",
             businessName: "Maple Leaf Retail",
             status: "Pending"
@@ -397,19 +397,19 @@ function Homepage() {
                   <p className='nav_bar_text'>Bids</p>
                 </div>
                 <div className='history_box'>
-                  <p className='nav_bar_text'>History</p>
+                  <a className='nav_bar_text' href='/History' style={{ textDecoration: 'none' }}>History</a>
                 </div>
                 <div className='inspector_box'>
-                  <p className='nav_bar_text'>Inspector</p>
+                  <a className='nav_bar_text' href='/Inspector' style={{ textDecoration: 'none' }}>Inspector</a>
                 </div>
                 <div className='clients_box'>
-                  <p className='nav_bar_text'>Clients</p>
+                  <a className='nav_bar_text' href='/Clients' style={{ textDecoration: 'none' }}>Clients</a>
                 </div>
                 <div className='reports_box'>
-                  <p className='nav_bar_text'>Reports</p>
+                  <a className='nav_bar_text' href='/Reports' style={{ textDecoration: 'none' }}>Reports</a>
                 </div>
                 <div className='messaging'>
-                  <p className='nav_bar_text'>Messaging</p>
+                  <a className='nav_bar_text' href='/Messaging' style={{ textDecoration: 'none' }}>Messaging</a>
                 </div>
             </div>
             <button type="button" className='burger_icon_position' aria-label="Account menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>
