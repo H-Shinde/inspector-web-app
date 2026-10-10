@@ -65,6 +65,13 @@ function Jobspage() {
     const [menuOpen, setMenuOpen] = useState(false);
     const [viewedItemId, setViewedItemId] = useState(null);
     const [itemEditor, setItemEditor] = useState(null);
+    const [itemAdded, setItemAdded] = useState(false);
+    useEffect(() => {
+        if (!itemAdded) return;
+        const dismissMessage = () => setItemAdded(false);
+        document.addEventListener('click', dismissMessage, true);
+        return () => document.removeEventListener('click', dismissMessage, true);
+    }, [itemAdded]);
     const itemDialog = useRef(null);
     useEffect(() => {
         if (itemEditor && !itemDialog.current.open) itemDialog.current.showModal();
@@ -131,8 +138,20 @@ function Jobspage() {
     };
     const editItemField = (field, value) => {
         const updated = { ...itemEditor.item, [field]: value };
-        persistItems(items.map((item) => item.itemId === updated.itemId ? updated : item));
+        if (itemEditor.mode === 'edit') {
+            persistItems(items.map((item) => item.itemId === updated.itemId ? updated : item));
+        }
         setItemEditor({ ...itemEditor, item: updated });
+    };
+    const addItem = (event) => {
+        event.preventDefault();
+        if (itemEditor.mode !== 'add') return;
+        const name = itemEditor.item.name?.trim();
+        if (!name) return;
+        persistItems([...items, { ...itemEditor.item, name, itemId: crypto.randomUUID() }]);
+        setViewedItemId(null);
+        closeItem();
+        setItemAdded(true);
     };
     const viewedItem = items.find((item) => item.itemId === viewedItemId);
     const selectJob = (event) => {
@@ -322,7 +341,11 @@ function Jobspage() {
                     </div>
                 ) : activeSection === 'Items' ? (
                     <div className="job_items_section">
-                        <h2>Items</h2>
+                        <div className="job_items_header">
+                            <h2>Items</h2>
+                            <button type="button" className="add_bid_button" onClick={() => setItemEditor({ mode: 'add', item: {} })}>+ Add item</button>
+                        </div>
+                        {itemAdded && <p className="job_acceptance_message" role="status">Item has been added.</p>}
                         {viewedItem ? (
                             <div>
                                 <button type="button" className="bid_back_button" onClick={() => setViewedItemId(null)}>← Back to Items</button>
@@ -365,9 +388,9 @@ function Jobspage() {
         </main>
         <dialog ref={itemDialog} className="popup" aria-labelledby="item-dialog-title" onCancel={(event) => { event.preventDefault(); closeItem(); }}>
             {itemEditor && (
-                <div>
+                <form onSubmit={addItem}>
                     <div className="bid_form_header">
-                        <h2 id="item-dialog-title">{itemEditor.mode === 'edit' ? 'Edit item' : 'Item information'}</h2>
+                        <h2 id="item-dialog-title">{itemEditor.mode === 'add' ? 'Add item' : 'Edit item'}</h2>
                         <button type="button" className="bid_form_close" aria-label="Close item" onClick={closeItem}>×</button>
                     </div>
                     <div className="bid_form_body bid_form_grid">
@@ -375,12 +398,16 @@ function Jobspage() {
                             <div className="bid_form_field" key={field}>
                                 <label htmlFor={`item-${field}`}>{title}</label>
                                 <input id={`item-${field}`} type="text" value={itemEditor.item[field] ?? ''}
+                                    required={itemEditor.mode === 'add' && field === 'name'}
                                     readOnly={itemEditor.mode === 'view'} onChange={(event) => editItemField(field, event.target.value)} />
                             </div>
                         ))}
                     </div>
-                    <div className="actions"><button type="button" className="bid_form_cancel" onClick={closeItem}>Done</button></div>
-                </div>
+                    <div className="actions">
+                        <button type="button" className="bid_form_cancel" onClick={closeItem}>{itemEditor.mode === 'add' ? 'Cancel' : 'Done'}</button>
+                        {itemEditor.mode === 'add' && <button type="submit" className="bid_form_save" disabled={!itemEditor.item.name?.trim()}>Add item</button>}
+                    </div>
+                </form>
             )}
         </dialog>
         <footer className="bid_page_footer" />

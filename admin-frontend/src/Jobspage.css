@@ -1,5 +1,18 @@
 @import './Bidspage.css';
 
+.job_items_header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin: 24px 0 16px;
+}
+
+.job_items_section .job_items_header h2 {
+    margin: 0;
+}
+
 .job_items_section h2 {
     margin: 24px 0 16px;
     color: #005581;
