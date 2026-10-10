@@ -60,6 +60,11 @@
     background: rgba(255, 255, 255, 0.1);
 }
 
+.frame_home .nav_links > div:hover,
+.frame_home .nav_links > div:hover .nav_bar_text {
+    cursor: pointer;
+}
+
 .frame_home .nav_links .bids_box_selected {
     background: #EBF0F5;
 }
@@ -465,6 +470,9 @@
 }
 
 .bid_form_header {
+    position: sticky;
+    top: 0;
+    z-index: 1;
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
@@ -486,6 +494,7 @@
 }
 
 .bid_form_header .bid_form_eyebrow {
+    overflow-wrap: anywhere;
     font-size: 12px;
     font-weight: 700;
     letter-spacing: 1px;

@@ -111,6 +111,90 @@ function Homepage() {
             date: "04/12/2026",
             businessName: "Horizon Eco Solutions",
             status: "Declined"
+        },
+        {
+            id: 9,
+            name: "Maya Bennett",
+            date: "05/06/2026",
+            businessName: "Cedar Grove Realty",
+            status: "Pending"
+        },
+        {
+            id: 10,
+            name: "Ethan Brooks",
+            date: "05/14/2026",
+            businessName: "Summit Manufacturing",
+            status: "Declined"
+        },
+        {
+            id: 11,
+            name: "Olivia Chen",
+            date: "06/02/2026",
+            businessName: "Harborview Hospitality",
+            status: "Pending"
+        },
+        {
+            id: 12,
+            name: "Noah Carter",
+            date: "06/18/2026",
+            businessName: "Pinecrest Construction",
+            status: "Declined"
+        },
+        {
+            id: 13,
+            name: "Amara Williams",
+            date: "07/08/2026",
+            businessName: "BrightPath Education",
+            status: "Pending"
+        },
+        {
+            id: 14,
+            name: "Lucas Rivera",
+            date: "07/22/2026",
+            businessName: "Stonebridge Auto Services",
+            status: "Declined"
+        },
+        {
+            id: 15,
+            name: "Sophia Patel",
+            date: "08/05/2026",
+            businessName: "Maple Leaf Retail",
+            status: "Pending"
+        },
+        {
+            id: 16,
+            name: "Jackson Reed",
+            date: "08/19/2026",
+            businessName: "Northstar Warehousing",
+            status: "Declined"
+        },
+        {
+            id: 17,
+            name: "Isabella Morgan",
+            date: "09/03/2026",
+            businessName: "Willow Creek Wellness",
+            status: "Pending"
+        },
+        {
+            id: 18,
+            name: "Elijah Foster",
+            date: "09/16/2026",
+            businessName: "Clearwater Engineering",
+            status: "Declined"
+        },
+        {
+            id: 19,
+            name: "Ava Thompson",
+            date: "10/01/2026",
+            businessName: "Oakridge Food Services",
+            status: "Pending"
+        },
+        {
+            id: 20,
+            name: "Liam Hayes",
+            date: "10/08/2026",
+            businessName: "Silverline Technology",
+            status: "Declined"
         }
         ]);
 
@@ -203,7 +287,7 @@ function Homepage() {
                 <form onSubmit={handleSubmit}>
                     <div className="bid_form_header">
                         <div>
-                            <p className="bid_form_eyebrow">BID #{editingId}</p>
+                            <p className="bid_form_eyebrow">{draft.name || 'Unnamed contact'}</p>
                             <h2 id="form-title">Edit bid details</h2>
                             <p>Update the details below, then save your changes.</p>
                         </div>
@@ -397,7 +481,7 @@ function Homepage() {
                 searching: true,
                 ordering: true,
                 info: true,
-                pageLength: 5
+                pageLength: 10
             }}
 
             />
