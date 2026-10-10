@@ -1,20 +1,51 @@
 import './Jobspagehomepage.css';
-import logo_2 from './bison_logo__login.png';
+import navLogo from './bison_logo_nav.png';
 import DataTable from 'datatables.net-react';
 import DT from 'datatables.net-dt';
 import 'datatables.net-select-dt';
 import 'datatables.net-responsive-dt';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import 'datatables.net-dt/css/dataTables.dataTables.css';
 import { FaTrash } from "react-icons/fa";
 import { FaEye } from "react-icons/fa";
 import { FaEdit } from "react-icons/fa";
-import { FaSave } from "react-icons/fa";
+import { FaSave, FaFilter } from "react-icons/fa";
 
 DataTable.use(DT);
 function JobHomepage() {
     const [editingId, setEditingId] = useState(null);
     const [menuOpen, setMenuOpen] = useState(false);
+    const [isOpen, setIsOpen] = useState(false);
+    const [draft, setDraft] = useState({});
+    const dialog = useRef(null);
+
+    useEffect(() => {
+        if (isOpen) dialog.current.showModal();
+    }, [isOpen]);
+
+    const closeEditor = () => {
+        dialog.current.close();
+        setIsOpen(false);
+        setEditingId(null);
+        setDraft({});
+    };
+
+    const openEditor = (row) => {
+        const [month, day, year] = row.date.split('/');
+        setDraft({ ...row, inspectionRequestDate: `${year}-${month}-${day}` });
+        setEditingId(row.id);
+        setIsOpen(true);
+    };
+
+    function handleSubmit(event) {
+        event.preventDefault();
+        const [year, month, day] = draft.inspectionRequestDate.split('-');
+        setTableData((rows) => rows.map((row) => row.id === editingId
+            ? { ...row, ...draft, date: `${month}/${day}/${year}` }
+            : row));
+        closeEditor();
+    }
+
     const handleBidsClick = () => {
         window.location.href= '/Homepage';
     };
@@ -133,26 +164,103 @@ function JobHomepage() {
             // Search selected column
             api.column(Number(column)).search(value).draw();
         }
-    };
+    };    
     const handleDelete = (id) => {
     setTableData((prevData) =>
         prevData.filter((row) => row.id !== id)
     );
-    };    
-    const handleEditChange = (id, field, value) => {
-    setTableData(prevData =>
-        prevData.map(row =>
-            row.id === id
-                ? { ...row, [field]: value }
-                : row
-        )
-    );
     };
+    const handleEditChange = (field, value) => {
+        setDraft((previous) => ({ ...previous, [field]: value }));
+    };
+    const formSections = [
+        { title: 'Inspection details', fields: [
+            ['appraisalType', 'Appraisal type'],
+            ['inspectionRequestDate', 'Inspection request date', 'date'],
+            ['propertyType', 'Type of property'],
+            ['status', 'Status', 'select'],
+        ] },
+        { title: 'Subject contact', fields: [
+            ['name', 'Subject contact name'],
+            ['subjectContactPhone', 'Subject contact phone', 'tel'],
+            ['subjectContactEmail', 'Subject contact email', 'email'],
+        ] },
+        { title: 'Business & property address', fields: [
+            ['businessName', 'Business name'],
+            ['businessAddress', 'Business address'],
+            ['city', 'City'],
+            ['state', 'State'],
+            ['zipCode', 'ZIP code'],
+        ] },
+    ];
   return (
     <div className='frame_home'>
+        <dialog ref={dialog} className="popup" aria-labelledby="form-title" onCancel={(event) => {
+            event.preventDefault();
+            closeEditor();
+        }}>
+            {isOpen && (
+                <form onSubmit={handleSubmit}>
+                    <div className="bid_form_header">
+                        <div>
+                            <p className="bid_form_eyebrow">JOB #{editingId}</p>
+                            <h2 id="form-title">Edit job details</h2>
+                            <p>Update the details below, then save your changes.</p>
+                        </div>
+                        <button type="button" className="bid_form_close" aria-label="Close editor" onClick={closeEditor}>×</button>
+                    </div>
+                    <div className="bid_form_body">
+                        {formSections.map((section) => (
+                            <fieldset className="bid_form_section" key={section.title}>
+                                <legend>{section.title}</legend>
+                                <div className="bid_form_grid">
+                                    {section.fields.map(([field, label, type = 'text']) => (
+                                        <div className="bid_form_field" key={field}>
+                                            <label htmlFor={`bid-${field}`}>{label}</label>
+                                            {type === 'select' ? (
+                                                <select id={`bid-${field}`} value={draft[field] || 'Pending'} onChange={(event) => handleEditChange(field, event.target.value)}>
+                                                    <option>Pending</option>
+                                                    <option>Accepted</option>
+                                                    <option>Declined</option>
+                                                </select>
+                                            ) : (
+                                                <input id={`bid-${field}`} type={type} value={draft[field] || ''} required={field === 'name' || field === 'inspectionRequestDate'} onChange={(event) => handleEditChange(field, event.target.value)} />
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            </fieldset>
+                        ))}
+                        <fieldset className="bid_form_section">
+                            <legend>Additional details</legend>
+                            <div className="bid_form_grid">
+                                <div className="bid_form_field">
+                                    <label htmlFor="bid-discount">Discount</label>
+                                    <input id="bid-discount" type="number" min="0" step="0.01" value={draft.discount ?? ''} onChange={(event) => handleEditChange('discount', event.target.value)} />
+                                </div>
+                                <label className="bid_form_checkbox">
+                                    <input type="checkbox" checked={Boolean(draft.rush)} onChange={(event) => handleEditChange('rush', event.target.checked)} />
+                                    Rush inspection
+                                </label>
+                                <div className="bid_form_field bid_form_full">
+                                    <label htmlFor="bid-pdf">PDF attachment</label>
+                                    <input id="bid-pdf" type="file" accept=".pdf,application/pdf" onChange={(event) => handleEditChange('pdf', event.target.files[0] || draft.pdf)} />
+                                    {draft.pdf && <span className="bid_form_hint">Selected: {draft.pdf.name}</span>}
+                                </div>
+                            </div>
+                        </fieldset>
+                    </div>
+                    <div className="actions">
+                        <button type="button" className="bid_form_cancel" onClick={closeEditor}>Cancel</button>
+                        <button type="submit" className="bid_form_save"><FaSave /> Save</button>
+                    </div>
+                </form>
+            )}
+        </dialog>
+
         <div className = 'nav_bar'>
             <img
-                className="bison_logo_nav"
+                className="bison_logo_nav" src={navLogo} alt="Bison"
               
             />
             <div className='nav_links'>
@@ -175,13 +283,13 @@ function JobHomepage() {
                   <p className='nav_bar_text'>Messaging</p>
                 </div>
             </div>
-            <div className='burger_icon_position' onClick={() => setMenuOpen(!menuOpen)}>
+            <button type="button" className='burger_icon_position' aria-label="Account menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>
                 <div className = 'burger_icon_frame'>
                     <div className = 'top_bun'></div>
                     <div className = 'patty'></div>
                     <div className = 'bottom_bun'></div>
                 </div>
-            </div>
+            </button>
             {menuOpen && (
                 <div className="hamburger_dropdown">
                     <button
@@ -194,43 +302,49 @@ function JobHomepage() {
                     </button>
                 </div>
             )}
-
             
         </div>
 
-        <div className='header'>
-            
-        </div>
         <main className="main_content">
-            <div className='bidsjobsbox'>
-                <div onClick={handleBidsClick} className= "bidsbox_job">
-                    Bids
+            <div className="table_header">
+                <div>
+                    <h1>Bids &amp; Jobs</h1>
+                    <p>Review accepted requests and manage your inspection jobs.</p>
                 </div>
-                <div className='jobsbox_job'>
+            </div>
+            <div className='bidsjobsbox'>
+                <button type="button" onClick={handleBidsClick} className='jobsbox'>
+                    Bids
+                </button>
+                <div className="bidsbox" aria-current="page">
                     Jobs
                 </div>
             </div>
+        <section className="bids_panel" aria-label="Jobs">
         <div className="table_top_header">
 
             <div className="filter_controls">
 
-                <select
-                    className="filter_column"
-                    value={filterColumn}
-                    onChange={(e) =>
-                        handleFilter(e.target.value, filterValue)
-                    }
-                >
-                    <option value="all">All Columns</option>
-                    <option value="0">ID</option>
-                    <option value="1">Name</option>
-                    <option value="2">Date</option>
-                    <option value="3">Business Name</option>
-                    <option value="4">Status</option>
-                </select>
+                <details className="bid_filter">
+                    <summary className="filter_button"><FaFilter aria-hidden="true" /> Filter</summary>
+                    <fieldset className="filter_menu">
+                        <legend>Search in</legend>
+                        {[
+                            ['all', 'All columns'], ['0', 'ID'], ['1', 'Name'],
+                            ['2', 'Date'], ['3', 'Business name'], ['4', 'Status'],
+                        ].map(([value, label]) => (
+                            <label key={value}>
+                                <input type="radio" name="job-filter-column" value={value}
+                                    checked={filterColumn === value}
+                                    onChange={() => handleFilter(value, filterValue)} />
+                                {label}
+                            </label>
+                        ))}
+                    </fieldset>
+                </details>
 
                 <input
-                    className="filter_input"
+                    className="filter_input" aria-label="Filter jobs"
                     type="text"
                     placeholder="Filter..."
                     value={filterValue}
@@ -243,96 +357,31 @@ function JobHomepage() {
 
 
 
+
         </div>
+            <div className="bids_table_container">
             <DataTable
-            key={editingId ?? "normal"}
             ref={table}
             data={tableData}
             columns={columns}
             className="bids_table"
             slots={{
-                1: (data, type, row) =>
-                    editingId === row.id ? (
-                        <input
-                            className="inline_edit_input"
-                            value={row.name}
-                            onChange={(e) =>
-                                handleEditChange(row.id, "name", e.target.value)
-                            }
-                        />
-                    ) : (
-                        row.name
-                    ),
-
-                2: (data, type, row) =>
-                    editingId === row.id ? (
-                        <input
-                            className="inline_edit_input"
-                            value={row.date}
-                            onChange={(e) =>
-                                handleEditChange(row.id, "date", e.target.value)
-                            }
-                        />
-                    ) : (
-                        row.date
-                    ),
-
-                3: (data, type, row) =>
-                    editingId === row.id ? (
-                        <input
-                            className="inline_edit_input"
-                            value={row.businessName}
-                            onChange={(e) =>
-                                handleEditChange(row.id, "businessName", e.target.value)
-                            }
-                        />
-                    ) : (
-                        row.businessName
-                    ),
-
-                4: (data, type, row) =>
-                    editingId === row.id ? (
-                        <select
-                            className="inline_edit_input"
-                            value={row.status}
-                            onChange={(e) =>
-                                handleEditChange(row.id, "status", e.target.value)
-                            }
-                        >
-                            <option value="Pending">Pending</option>
-                            <option value="Accepted">Accepted</option>
-                            <option value="Declined">Declined</option>
-                        </select>
-                    ) : (
-                        row.status
-                    ),
-
+                4: (data, type, row) => (
+                    <span className={`bid_status bid_status_${row.status.toLowerCase()}`}>{row.status}</span>
+                ),
                 5: (data, type, row) => (
                     <div className="action_buttons">
 
-                        <button className="view">
+                        <button className="view" title="View job" aria-label={`View job ${row.id}`}>
                             <FaEye />
                         </button>
 
-                        {editingId === row.id ? (
-                        <button
-                            className="save"
-                            onClick={() => setEditingId(null)}
-                            title="Save"
-                        >
-                            <FaSave />
+                        <button className="edit" title="Edit job" aria-label={`Edit job ${row.id}`} onClick={() => openEditor(row)}>
+                            <FaEdit />
                         </button>
-                        ) : (
-                            <button
-                                className="edit"
-                                onClick={() => setEditingId(row.id)}
-                            >
-                                <FaEdit />
-                            </button>
-                        )}
 
                         <button
-                            className="delete_icon"
+                            className="delete_icon" title="Delete job" aria-label={`Delete job ${row.id}`}
                             onClick={() => handleDelete(row.id)}
                         >
                             <FaTrash />
@@ -350,6 +399,8 @@ function JobHomepage() {
             }}
 
             />
+            </div>
+        </section>
         </main>
         <div className='footer'></div>
 
