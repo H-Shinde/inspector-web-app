@@ -1,4 +1,6 @@
 import './BidsJobsHomepage.css';
+import { moveBidToJobs } from './bidTransfers';
+import { readBidList } from './bidFields';
 import navLogo from './bison_logo_nav.png';
 import DataTable from 'datatables.net-react';
 import DT from 'datatables.net-dt';
@@ -40,11 +42,26 @@ function Homepage() {
     function handleSubmit(event) {
         event.preventDefault();
         const [year, month, day] = draft.inspectionRequestDate.split('-');
+        if (draft.status === 'Accepted') {
+            const acceptedJob = moveBidToJobs({ ...draft, date: `${month}/${day}/${year}` });
+            setTableData((rows) => rows.filter((row) => row.id !== editingId));
+            closeEditor();
+            window.location.href = `/Jobspage?jobId=${encodeURIComponent(acceptedJob.id)}`;
+            return;
+        }
         setTableData((rows) => rows.map((row) => row.id === editingId
             ? { ...row, ...draft, date: `${month}/${day}/${year}` }
             : row));
         closeEditor();
     }
+    const handleView = (row) => {
+        const selectedBid = { ...row, pdf: row.pdf?.name ?? row.pdf ?? '' };
+        sessionStorage.setItem('availableBids', JSON.stringify(tableData.map((bid) => ({
+            ...bid, pdf: bid.pdf?.name ?? bid.pdf ?? '',
+        }))));
+        sessionStorage.setItem('selectedBid', JSON.stringify(selectedBid));
+        window.location.href = `/Bidspage?bidId=${encodeURIComponent(row.id)}`;
+    };
 
     const handleJobsClick = () => {
         window.location.href= '/JobHomepage';
@@ -55,6 +72,13 @@ function Homepage() {
 
 
     
+    const [savedStatuses] = useState(() => {
+        try {
+            return JSON.parse(sessionStorage.getItem('bidStatuses') || '{}') || {};
+        } catch {
+            return {};
+        }
+    });
     const [tableData, setTableData] = useState([
         {
             id: 1,
@@ -196,8 +220,29 @@ function Homepage() {
             businessName: "Silverline Technology",
             status: "Declined"
         }
-        ]);
+        ].map((row) => ({
+            // Fictional details for the demo bids; table columns stay unchanged.
+            appraisalType: ['Commercial appraisal', 'Market valuation', 'Property assessment'][(row.id - 1) % 3],
+            subjectContactPhone: `202-555-${String(100 + row.id).padStart(4, '0')}`,
+            propertyType: ['Office', 'Retail', 'Warehouse', 'Mixed-use'][(row.id - 1) % 4],
+            rush: row.id % 3 === 0,
+            businessAddress: `${100 + row.id * 10} Example Avenue`,
+            pdf: `sample-bid-${row.id}.pdf`,
+            discount: String(row.id % 4 * 25),
+            subjectContactEmail: `${row.name.toLowerCase().replace(/\s+/g, '.')}@example.com`,
+            city: ['Washington', 'Arlington', 'Alexandria'][(row.id - 1) % 3],
+            state: ['DC', 'VA', 'VA'][(row.id - 1) % 3],
+            zipCode: ['20001', '22201', '22301'][(row.id - 1) % 3],
+            ...row,
+            status: savedStatuses[row.id] ?? row.status,
+        })).concat(readBidList('createdBids').map((row) => ({ ...row, status: savedStatuses[row.id] ?? row.status }))).filter((row) => row.status !== 'Accepted'));
 
+
+    useEffect(() => {
+        const serializable = tableData.map((bid) => ({ ...bid, pdf: bid.pdf?.name ?? bid.pdf ?? '' }));
+        sessionStorage.setItem('availableBids', JSON.stringify(serializable));
+        sessionStorage.setItem('createdBids', JSON.stringify(serializable.filter((bid) => bid.id > 20)));
+    }, [tableData]);
 
     const columns = [
     {
@@ -329,7 +374,7 @@ function Homepage() {
                                 <div className="bid_form_field bid_form_full">
                                     <label htmlFor="bid-pdf">PDF attachment</label>
                                     <input id="bid-pdf" type="file" accept=".pdf,application/pdf" onChange={(event) => handleEditChange('pdf', event.target.files[0] || draft.pdf)} />
-                                    {draft.pdf && <span className="bid_form_hint">Selected: {draft.pdf.name}</span>}
+                                    {draft.pdf && <span className="bid_form_hint">Selected: {draft.pdf.name ?? draft.pdf}</span>}
                                 </div>
                             </div>
                         </fieldset>
@@ -440,7 +485,7 @@ function Homepage() {
             </div>
 
 
-            <button className="add_bid_button">
+            <button className="add_bid_button" onClick={() => { window.location.href = '/AddBid'; }}>
                 + Add Bid
             </button>
 
@@ -458,7 +503,7 @@ function Homepage() {
                 5: (data, type, row) => (
                     <div className="action_buttons">
 
-                        <button className="view" title="View bid" aria-label={`View bid ${row.id}`}>
+                        <button className="view" title="View bid" aria-label={`View bid ${row.id}`} onClick={() => handleView(row)}>
                             <FaEye />
                         </button>
 

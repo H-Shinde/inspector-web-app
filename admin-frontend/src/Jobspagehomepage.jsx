@@ -1,4 +1,7 @@
 import './Jobspagehomepage.css';
+import { readBidList } from './bidFields';
+import { readAcceptedJobs } from './bidTransfers';
+import { withJobDemoData, seedJobDemoSections } from './jobDemoData';
 import navLogo from './bison_logo_nav.png';
 import DataTable from 'datatables.net-react';
 import DT from 'datatables.net-dt';
@@ -55,6 +58,12 @@ function JobHomepage() {
 
 
     
+    const handleView = (row) => {
+        const jobs = tableData.map((job) => ({ ...job, pdf: job.pdf?.name ?? job.pdf ?? '' }));
+        sessionStorage.setItem('availableJobs', JSON.stringify(jobs));
+        sessionStorage.setItem('selectedJob', JSON.stringify(jobs.find((job) => job.id === row.id)));
+        window.location.href = `/Jobspage?jobId=${encodeURIComponent(row.id)}`;
+    };
     const [tableData, setTableData] = useState([
         {
             id: 1,
@@ -196,8 +205,18 @@ function JobHomepage() {
             businessName: "Silverline Technology",
             status: "Accepted"
         }
-        ]);
+        ].concat(readAcceptedJobs(), readBidList('createdJobs')).map(withJobDemoData).map((job) => ({
+            ...job,
+            inspector: readBidList('jobAssignments').find((assignment) => assignment.jobId === job.id)?.inspector ?? job.inspector ?? '',
+        })));
 
+
+    useEffect(() => {
+        seedJobDemoSections(tableData);
+        sessionStorage.setItem('availableJobs', JSON.stringify(tableData.map((job) => ({ ...job, pdf: job.pdf?.name ?? job.pdf ?? '' }))));
+        sessionStorage.setItem('createdJobs', JSON.stringify(tableData.filter((job) => job.isCreatedJob).map((job) => ({ ...job, pdf: job.pdf?.name ?? job.pdf ?? '' }))));
+        sessionStorage.setItem('acceptedJobs', JSON.stringify(tableData.filter((row) => row.sourceBidId !== undefined)));
+    }, [tableData]);
 
     const columns = [
     {
@@ -329,7 +348,7 @@ function JobHomepage() {
                                 <div className="bid_form_field bid_form_full">
                                     <label htmlFor="bid-pdf">PDF attachment</label>
                                     <input id="bid-pdf" type="file" accept=".pdf,application/pdf" onChange={(event) => handleEditChange('pdf', event.target.files[0] || draft.pdf)} />
-                                    {draft.pdf && <span className="bid_form_hint">Selected: {draft.pdf.name}</span>}
+                                    {draft.pdf && <span className="bid_form_hint">Selected: {draft.pdf.name ?? draft.pdf}</span>}
                                 </div>
                             </div>
                         </fieldset>
@@ -438,6 +457,7 @@ function JobHomepage() {
                 />
 
             </div>
+            <button type="button" className="add_bid_button" onClick={() => { window.location.href = '/AddJob'; }}>+ Add Job</button>
 
 
 
@@ -456,7 +476,7 @@ function JobHomepage() {
                 5: (data, type, row) => (
                     <div className="action_buttons">
 
-                        <button className="view" title="View job" aria-label={`View job ${row.id}`}>
+                        <button className="view" title="View job" aria-label={`View job ${row.id}`} onClick={() => handleView(row)}>
                             <FaEye />
                         </button>
 

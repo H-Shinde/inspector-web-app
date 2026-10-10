@@ -4,7 +4,22 @@ import ForgotPassword from './Forgot_pass';
 import UpdatePass from './Forgot_continue';
 import Homepage from './BidsJobsHomepage';
 import JobHomepage from './Jobspagehomepage';
+import Bidspage from './Bidspage';
+import AddJobpage from './AddJobpage';
+import AddBidpage from './AddBidpage';
+import Jobspage from './Jobspage';
 function App() {
+  if (window.location.pathname === '/AddJob') {
+    return <AddJobpage />;
+  }
+  if (window.location.pathname === '/Jobspage') {
+    return <Jobspage />;
+  }
+
+  if (window.location.pathname === '/AddBid') {
+    return <AddBidpage />;
+  }
+
   
  if (window.location.pathname === '/ForgotPassword') {
     return <ForgotPassword />;
@@ -19,6 +34,9 @@ function App() {
   };
   if (window.location.pathname === '/JobHomepage') {
     return <JobHomepage />;
+  };
+  if (window.location.pathname === '/Bidspage') {
+    return <Bidspage/>;
   };
 
   
@@ -69,5 +87,4 @@ function App() {
 }
 
 export default App;
-
 
