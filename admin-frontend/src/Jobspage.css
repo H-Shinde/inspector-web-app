@@ -193,6 +193,11 @@
     cursor: text;
 }
 
+.job_combined_group { padding: 20px 0; border-top: 1px solid #C8D4E0; }
+.job_combined_group h3 { margin: 0 0 12px; color: #334155; font-size: 16px; }
+.job_combined_group .fieldsframe { margin-top: 16px; }
+.job_combined_group .valuation_controls { margin-bottom: 16px; }
+
 .valuation_controls {
     display: flex;
     align-items: center;

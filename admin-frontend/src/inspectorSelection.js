@@ -8,6 +8,17 @@ export const demoInspectors = [
     { id: 4, name: 'Casey Rivera', distance: 36, company: 'Rivera Field Services', status: 'Inactive', focus: 'Inspection', email: 'casey.rivera@example.com' },
     { id: 5, name: 'Morgan Ellis', distance: 18, company: 'Ellis Appraisal Group', status: 'Active', focus: 'Appraisal', email: 'morgan.ellis@example.com' },
     { id: 6, name: 'Jamie Parker', distance: 42, company: 'Parker Equipment Services', status: 'Invited', focus: 'Appraisal, Inspection', email: 'jamie.parker@example.com' },
+    ...[
+        ['Avery Wilson', 'Wilson Field Services', 15, 'Inspection'],
+        ['Sam Bennett', 'Bennett Valuations', 29, 'Appraisal'],
+        ['Drew Hayes', 'Hayes Asset Group', 33, 'Appraisal, Inspection'],
+        ['Quinn Foster', 'Foster Inspections', 21, 'Inspection'],
+        ['Reese Kim', 'Kim Equipment Appraisals', 47, 'Appraisal'],
+        ['Dakota Lewis', 'Lewis Field Services', 10, 'Inspection'],
+        ['Jamie Chen', 'Chen Valuation Partners', 26, 'Appraisal, Inspection'],
+        ['Riley Carter', 'Carter Asset Services', 39, 'Inspection'],
+        ['Skyler Reed', 'Reed Appraisal Group', 19, 'Appraisal'],
+    ].map(([name, company, distance, focus], index) => ({ id: 101 + index, name, company, distance, focus, status: 'Active', email: `${name.toLowerCase().replace(/ /g, '.')}@example.com` })),
 ].map((inspector, index) => ({
     ...inspector,
     phone: `202-555-${String(101 + index).padStart(4, '0')}`,
@@ -15,8 +26,8 @@ export const demoInspectors = [
     cityStateZip: ['Washington, DC 20001', 'Arlington, VA 22201', 'Alexandria, VA 22301'][index % 3],
     region: ['Mid-Atlantic', 'Northern Virginia', 'Washington Metro'][index % 3],
     notes: 'Sample inspector profile. Available for equipment appraisals and on-site inspections by appointment.',
-    numberOfJobs: [24, 18, 32, 11, 27, 0][index],
-    lastJobDate: ['2026-10-02', '2026-09-28', '2026-10-05', '2026-08-19', '2026-09-30', '2026-09-15'][index],
+    numberOfJobs: [24, 18, 32, 11, 27, 0][index % 6],
+    lastJobDate: ['2026-10-02', '2026-09-28', '2026-10-05', '2026-08-19', '2026-09-30', '2026-09-15'][index % 6],
 }));
 export function getInspectors() {
     return [...demoInspectors, ...readBidList('invitedInspectors')];

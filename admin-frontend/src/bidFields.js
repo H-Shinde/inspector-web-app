@@ -25,6 +25,13 @@ export function readBidList(key) {
     }
 }
 
+export function readBidEdits() {
+    try {
+        const saved = JSON.parse(localStorage.getItem('bidEdits') || '{}');
+        return saved && typeof saved === 'object' && !Array.isArray(saved) ? saved : {};
+    } catch { return {}; }
+}
+
 export function createBid(draft) {
     const created = readBidList('createdBids');
     const available = readBidList('availableBids');

@@ -1,6 +1,6 @@
 import './BidsJobsHomepage.css';
 import { moveBidToJobs } from './bidTransfers';
-import { readBidList } from './bidFields';
+import { bidFields, readBidList, readBidEdits } from './bidFields';
 import navLogo from './bison_logo_nav.png';
 import DataTable from 'datatables.net-react';
 import DT from 'datatables.net-dt';
@@ -42,6 +42,9 @@ function Homepage() {
     function handleSubmit(event) {
         event.preventDefault();
         const [year, month, day] = draft.inspectionRequestDate.split('-');
+        const updatedBid = { ...draft, date: `${month}/${day}/${year}` };
+        const edits = Object.fromEntries(bidFields.filter(([field]) => field !== 'status').map(([field]) => [field, updatedBid[field] ?? '']));
+        localStorage.setItem('bidEdits', JSON.stringify({ ...readBidEdits(), [editingId]: edits }));
         if (draft.status === 'Accepted') {
             const acceptedJob = moveBidToJobs({ ...draft, date: `${month}/${day}/${year}` });
             setTableData((rows) => rows.filter((row) => row.id !== editingId));
@@ -235,7 +238,7 @@ function Homepage() {
             zipCode: ['20001', '22201', '22301'][(row.id - 1) % 3],
             ...row,
             status: savedStatuses[row.id] ?? row.status,
-        })).concat(readBidList('createdBids').map((row) => ({ ...row, status: savedStatuses[row.id] ?? row.status }))).filter((row) => row.status !== 'Accepted'));
+        })).concat(readBidList('createdBids').map((row) => ({ ...row, status: savedStatuses[row.id] ?? row.status }))).map((row) => ({ ...row, ...readBidEdits()[row.id] })).filter((row) => row.status !== 'Accepted'));
 
 
     useEffect(() => {

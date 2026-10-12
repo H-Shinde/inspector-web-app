@@ -9,6 +9,7 @@ export default function Clientspage() {
     const client = rows.find((row) => String(row.id) === clientId);
     const [menuOpen, setMenuOpen] = useState(false);
     const [draft, setDraft] = useState(null);
+    const [editDraft, setEditDraft] = useState(null);
     const [notice, setNotice] = useState('');
     const dialog = useRef(null);
     useEffect(() => { if (draft && !dialog.current.open) dialog.current.showModal(); }, [draft]);
@@ -18,6 +19,13 @@ export default function Clientspage() {
         return () => window.removeEventListener('storage', reload);
     }, []);
     const close = () => { dialog.current.close(); setDraft(null); };
+    const selectClient = (id) => {
+        setClientId(String(id));
+        setNotice('');
+        const url = new URL(window.location.href);
+        url.searchParams.set('clientId', String(id));
+        window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
+    };
     const save = (event) => {
         event.preventDefault();
         if (!draft.name.trim()) return;
@@ -26,6 +34,20 @@ export default function Clientspage() {
         saveClients(updated); setRows(updated); setClientId(String(added.id));
         window.history.replaceState(null, '', `/Clientspage?clientId=${added.id}`);
         close(); setNotice('Client has been added.');
+    };
+    const saveEdits = (event) => {
+        event.preventDefault();
+        if (!editDraft?.name.trim()) return;
+        const updatedClient = { ...editDraft, name: editDraft.name.trim(), totalBids: Number(editDraft.totalBids || 0) };
+        const updated = loadClients().map((row) => row.id === updatedClient.id ? updatedClient : row);
+        try {
+            saveClients(updated);
+            setRows(updated);
+            setEditDraft(null);
+            setNotice('Client information has been saved.');
+        } catch {
+            setNotice('Unable to save changes. Please try again.');
+        }
     };
     return <div className="frame_home bid_details_page clients_details_page">
             <nav className="nav_bar" aria-label="Main navigation">
@@ -45,13 +67,40 @@ export default function Clientspage() {
         <header className="bid_page_header"><div className="bid_details_toolbar">
             <a href="/Clients" className="bid_back_button">← Back</a>
             <h1 className="bidspage_header">Client Information</h1>
-            <button type="button" className="bid_add_button" onClick={() => setDraft(newClient())}>+ Add Client</button>
+            <button type="button" className="bid_add_button" disabled={!!editDraft} onClick={() => setDraft(newClient())}>+ Add Client</button>
         </div></header>
+        <div className="client_information_layout">
+            <aside className="client_information_sidebar" aria-label="Client selection">
+                <h2>Clients <span>{rows.length}</span></h2>
+                <ul>
+                    {[...rows].sort((a, b) => a.name.localeCompare(b.name)).map((row) => <li key={row.id}>
+                        <button type="button" disabled={!!editDraft} aria-pressed={String(row.id) === clientId} onClick={() => selectClient(row.id)}>{row.name}</button>
+                    </li>)}
+                </ul>
+                {!rows.length && <p>No clients added yet.</p>}
+            </aside>
+            <div className="client_information_content">
+                {client && <div className="client_edit_controls">
+                    {editDraft ? <><span>Editing client information</span><button type="button" className="bid_form_cancel" onClick={() => { setEditDraft(null); setNotice(''); }}>Cancel</button><button type="submit" form="client-inline-edit" className="bid_form_save" disabled={!editDraft.name?.trim()}>Save Changes</button></>
+                        : <button type="button" className="bid_form_save" onClick={() => { setEditDraft({ ...client }); setNotice(''); }}>Edit</button>}
+                </div>}
         <main className="fieldsframe" aria-label="Client information">
             {notice && <p className="bid_creation_message" role="status">{notice}</p>}
-            {!client && <p className="bid_details_empty">Select View from the Clients table to open a client.</p>}
-            {detailFields.map(([field, label]) => <div className="bid_detail_field" key={field}><label htmlFor={`view-client-${field}`}>{label}</label><input id={`view-client-${field}`} readOnly value={client?.[field] === '' || client?.[field] == null ? 'Not provided' : client[field]} /></div>)}
+            {!client && <p className="bid_details_empty">Select a client from the sidebar to view their information.</p>}
+            <form id="client-inline-edit" className="client_inline_form" onSubmit={saveEdits}>
+                {detailFields.map(([field, label]) => <div className="bid_detail_field" key={field}>
+                    <label htmlFor={`view-client-${field}`}>{label}</label>
+                    {editDraft && field === 'status' ? <select id={`view-client-${field}`} value={editDraft.status ?? 'Pending'} onChange={(event) => setEditDraft({ ...editDraft, status: event.target.value })}><option>Accepted</option><option>Pending</option></select>
+                        : <input id={`view-client-${field}`} readOnly={!editDraft || field === 'id'} required={!!editDraft && field === 'name'}
+                            type={!editDraft ? 'text' : field === 'email' ? 'email' : ['phone', 'fax'].includes(field) ? 'tel' : field === 'totalBids' ? 'number' : 'text'}
+                            min={field === 'totalBids' ? '0' : undefined} step={field === 'totalBids' ? '1' : undefined}
+                            value={editDraft ? editDraft[field] ?? '' : client?.[field] === '' || client?.[field] == null ? 'Not provided' : client[field]}
+                            onChange={(event) => setEditDraft({ ...editDraft, [field]: event.target.value })} />}
+                </div>)}
+            </form>
         </main>
+            </div>
+        </div>
         <dialog ref={dialog} className="popup" aria-labelledby="add-client-title" onCancel={(event) => { event.preventDefault(); close(); }}>
             {draft && <form onSubmit={save}>
                 <div className="bid_form_header"><h2 id="add-client-title">Add Client</h2><button type="button" className="bid_form_close" aria-label="Close dialog" onClick={close}>×</button></div>

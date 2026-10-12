@@ -16,6 +16,20 @@ test('shows twelve inspector detail fields and a back link', () => {
     expect(screen.getByRole('link', { name: '← Back' }).getAttribute('href')).toBe('/Inspector');
 });
 
+test('switches profiles from the expanded sidebar and restores the profile on reload', () => {
+    const { unmount } = render(<InspectorView />);
+    const sidebar = within(screen.getByRole('complementary', { name: 'Inspector list' }));
+    expect(sidebar.getAllByRole('button')).toHaveLength(15);
+    fireEvent.click(sidebar.getByRole('button', { name: /Skyler Reed/ }));
+    expect(screen.getByLabelText('Inspector')).toHaveValue('Skyler Reed');
+    expect(screen.getByLabelText('E-mail')).toHaveValue('skyler.reed@example.com');
+    expect(sidebar.getByRole('button', { name: /Skyler Reed/ })).toHaveAttribute('aria-pressed', 'true');
+    expect(sessionStorage.getItem('selectedInspectorId')).toBeNull();
+    unmount();
+    render(<InspectorView />);
+    expect(screen.getByLabelText('Inspector')).toHaveValue('Skyler Reed');
+});
+
 test('adds all inspector details to the shared directory and shows demo confirmation', () => {
     render(<InspectorView />);
     fireEvent.click(screen.getByRole('button', { name: '+ Add Inspector' }));
@@ -28,4 +42,5 @@ test('adds all inspector details to the shared directory and shows demo confirma
     expect(getInspectors().find((entry) => entry.name === 'Riley Stone')).toMatchObject({ email: 'riley@example.com', region: 'Northeast', numberOfJobs: 12, status: 'Invited' });
     expect(screen.getByRole('status').textContent).toContain('an invite has been sent to riley@example.com');
     expect(screen.getByLabelText('Inspector').value).toBe('Riley Stone');
+    expect(within(screen.getByRole('complementary')).getByRole('button', { name: 'Riley Stone' })).toHaveAttribute('aria-pressed', 'true');
 });

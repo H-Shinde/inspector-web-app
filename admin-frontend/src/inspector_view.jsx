@@ -7,6 +7,7 @@ import './inspector_view.css';
 export default function InspectorView() {
     const requestedId = new URLSearchParams(window.location.search).get('inspectorId');
     const [inspector, setInspector] = useState(() => getInspectors().find((entry) => String(entry.id) === requestedId));
+    const [inspectors, setInspectors] = useState(getInspectors);
     const [menuOpen, setMenuOpen] = useState(false);
     const [adding, setAdding] = useState(false);
     const [draft, setDraft] = useState({ ...emptyInspector });
@@ -20,10 +21,16 @@ export default function InspectorView() {
         return () => document.removeEventListener('click', dismiss, true);
     }, [notice]);
     const close = () => { dialog.current.close(); setAdding(false); };
+    const openInspector = (entry) => {
+        setInspector(entry);
+        setNotice('');
+        window.history.replaceState(null, '', `/InspectorView?inspectorId=${encodeURIComponent(entry.id)}`);
+    };
     const submit = (event) => {
         event.preventDefault();
         if (!draft.name.trim() || !draft.email.trim()) return;
         const added = addInvitedInspector(draft);
+        setInspectors(getInspectors());
         setInspector(added);
         window.history.replaceState(null, '', `/InspectorView?inspectorId=${added.id}`);
         close();
@@ -54,15 +61,24 @@ export default function InspectorView() {
             <h1 className="bidspage_header">Inspector Information</h1>
             <button type="button" className="bid_add_button" onClick={() => { setDraft({ ...emptyInspector }); setAdding(true); }}>+ Add Inspector</button>
         </div></header>
+        <div className="inspector_profile_layout">
+            <aside className="inspector_profile_sidebar" aria-label="Inspector list">
+                <h2>Inspectors <span>{inspectors.length}</span></h2>
+                <ul>{[...inspectors].sort((a, b) => a.name.localeCompare(b.name)).map((entry) => <li key={entry.id}>
+                    <button type="button" aria-pressed={inspector?.id === entry.id} onClick={() => openInspector(entry)}>{entry.name}<small>{entry.company}</small></button>
+                </li>)}</ul>
+                {!inspectors.length && <p>No inspectors available.</p>}
+            </aside>
         <main className="fieldsframe" aria-label="Inspector information">
             {notice && <p className="bid_creation_message" role="status">{notice}</p>}
-            {!inspector && <p className="bid_details_empty">Select View from the inspector table to open an inspector.</p>}
+            {!inspector && <p className="bid_details_empty">Select an inspector from the sidebar to view their information.</p>}
             {inspectorFields.map(([field, label]) => <div className="bid_detail_field" key={field}>
                 <label htmlFor={`inspector-view-${field}`}>{label}</label>
                 {field === 'notes' ? <textarea id={`inspector-view-${field}`} readOnly rows={3} value={display(field)} />
                     : <input id={`inspector-view-${field}`} readOnly value={display(field)} />}
             </div>)}
         </main>
+        </div>
         <dialog ref={dialog} className="popup" aria-labelledby="add-inspector-title" onCancel={(event) => { event.preventDefault(); close(); }}>
             {adding && <form onSubmit={submit}>
                 <div className="bid_form_header"><h2 id="add-inspector-title">Add Inspector</h2><button type="button" className="bid_form_close" aria-label="Close dialog" onClick={close}>×</button></div>

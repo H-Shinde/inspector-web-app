@@ -19,3 +19,25 @@
 }
 .inspector_view_page .fieldsframe { margin-bottom: 40px; }
 .inspector_view_page textarea:focus-visible { outline: 2px solid #005581; outline-offset: 3px; }
+
+.inspector_view_page .bid_details_toolbar { width: min(960px, calc(100% - 48px)); }
+.inspector_profile_layout { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 24px; align-items: start; width: min(1224px, calc(100% - 48px)); margin: 0 auto 40px; }
+.inspector_profile_layout .fieldsframe { width: 100%; margin: 0; grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 28px; gap: 24px; }
+.inspector_profile_sidebar { padding: 16px 10px; border: 1px solid #C8D4E0; border-radius: 12px; background: white; font-family: Geist, sans-serif; }
+.inspector_profile_sidebar h2 { display: flex; justify-content: space-between; align-items: center; margin: 0 10px 12px; color: #005581; font-size: 18px; }
+.inspector_profile_sidebar h2 span { color: #526477; font-size: 14px; }
+.inspector_profile_sidebar ul { list-style: none; margin: 0; padding: 0; max-height: 65vh; overflow-y: auto; }
+.inspector_profile_sidebar button { width: 100%; min-height: 44px; padding: 10px; border: 0; border-radius: 8px; background: transparent; color: #334155; font: inherit; font-size: 14px; text-align: left; overflow-wrap: anywhere; cursor: pointer; }
+.inspector_profile_sidebar button small { display: block; margin-top: 4px; color: #526477; font-size: 12px; }
+.inspector_profile_sidebar button:hover { background: #F1F5F9; }
+.inspector_profile_sidebar button[aria-pressed="true"] { background: #E0F2FE; color: #005581; font-weight: 600; }
+.inspector_profile_sidebar button:focus-visible { outline: 2px solid #005581; outline-offset: -2px; }
+@media (max-width: 1000px) {
+    .inspector_profile_layout .fieldsframe { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 760px) {
+    .inspector_view_page .bid_details_toolbar { width: calc(100% - 32px); }
+    .inspector_profile_layout { grid-template-columns: minmax(0, 1fr); width: calc(100% - 32px); gap: 16px; }
+    .inspector_profile_layout .fieldsframe { grid-template-columns: minmax(0, 1fr); padding: 20px; }
+    .inspector_profile_sidebar ul { max-height: 220px; }
+}

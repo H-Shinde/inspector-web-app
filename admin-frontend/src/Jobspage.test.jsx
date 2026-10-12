@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import Jobspage from './Jobspage';
 import { selectGlobalInspector } from './inspectorSelection';
 import { act } from '@testing-library/react';
@@ -13,11 +13,39 @@ jest.mock('datatables.net-dt', () => ({}));
 beforeEach(() => {
     sessionStorage.clear();
     sessionStorage.setItem('availableJobs', JSON.stringify([
-        { id: 1, name: 'Test job', isCreatedJob: true, items: [] },
+        { id: 1, name: 'Test job', status: 'Accepted', isCreatedJob: true, items: [] },
     ]));
     HTMLDialogElement.prototype.showModal = function () { this.open = true; };
     HTMLDialogElement.prototype.close = function () { this.open = false; };
     Object.defineProperty(global, 'crypto', { configurable: true, value: { randomUUID: () => 'new-item-id' } });
+});
+
+test('combines appraisal groups and keeps their rate edits separate', () => {
+    const { unmount } = render(<Jobspage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Item Appraisal' }));
+    const appraised = within(screen.getByRole('region', { name: 'Appraised Items' }));
+    const nonAppraised = within(screen.getByRole('region', { name: 'Non Appraised Items' }));
+    fireEvent.change(appraised.getByLabelText('Inspection rate'), { target: { value: '45' } });
+    fireEvent.change(nonAppraised.getByLabelText('Inspection rate'), { target: { value: '25' } });
+    unmount();
+    render(<Jobspage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Item Appraisal' }));
+    expect(within(screen.getByRole('region', { name: 'Appraised Items' })).getByLabelText('Inspection rate')).toHaveValue(45);
+    expect(within(screen.getByRole('region', { name: 'Non Appraised Items' })).getByLabelText('Inspection rate')).toHaveValue(25);
+});
+
+test('shows valuation and fees together with shared history controls', () => {
+    render(<Jobspage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Valuation & Fees' }));
+    fireEvent.change(screen.getByLabelText('FMV in Continued Use'), { target: { value: '10000' } });
+    fireEvent.blur(screen.getByLabelText('FMV in Continued Use'));
+    fireEvent.change(screen.getByLabelText('Total'), { target: { value: '500' } });
+    fireEvent.blur(screen.getByLabelText('Total'));
+    fireEvent.click(screen.getByRole('button', { name: 'History' }));
+    expect(screen.getAllByRole('button', { name: 'Current' })).toHaveLength(1);
+    expect(screen.getByLabelText('FMV in Continued Use')).toHaveValue('10000');
+    expect(screen.getByLabelText('Total')).toHaveValue('500');
+    expect(JSON.parse(sessionStorage.getItem('jobValuationHistory')).map((entry) => entry.section)).toEqual(['Inspection Fees', 'Asset Valuation']);
 });
 
 test('adds and persists an item, then dismisses confirmation on the next click', () => {

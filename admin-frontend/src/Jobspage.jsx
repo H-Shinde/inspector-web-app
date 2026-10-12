@@ -27,7 +27,11 @@ const itemDetailFields = [
     ['photoNumber', 'Photo#'], ['referenceNumber', 'Ref#'], ['comments', 'Comments'],
 ];
 
-const sections = ['Job Information', 'Appraised Items', 'Non Appraised Items', 'Asset Valuation', 'Inspection Fees', 'Items'];
+const sectionGroups = {
+    'Item Appraisal': ['Appraised Items', 'Non Appraised Items'],
+    'Valuation & Fees': ['Asset Valuation', 'Inspection Fees'],
+};
+const sections = ['Job Information', ...Object.keys(sectionGroups), 'Items'];
 
 const rateFields = [
     ['inspectionRate', 'Inspection rate'],
@@ -83,19 +87,19 @@ function Jobspage() {
     const [historyStatus, setHistoryStatus] = useState('Accepted');
     const [details, setDetails] = useState(() => seedJobDemoSections(readBidList('availableJobs').map(withJobDemoData)));
     const [valuationHistory, setValuationHistory] = useState(() => readBidList('jobValuationHistory'));
-    const updateField = (field, value) => {
+    const updateField = (sectionName, field, value) => {
         const updated = { ...details, [selectedId]: {
-            ...details[selectedId], [activeSection]: { ...details[selectedId]?.[activeSection], [field]: value },
+            ...details[selectedId], [sectionName]: { ...details[selectedId]?.[sectionName], [field]: value },
         } };
         sessionStorage.setItem('jobSectionDetails', JSON.stringify(updated));
         setDetails(updated);
     };
-    const recordValuation = () => {
-        if (!['Asset Valuation', 'Inspection Fees'].includes(activeSection)) return;
-        const values = details[selectedId]?.[activeSection] || {};
-        const latest = valuationHistory.find((entry) => entry.jobId === selectedId && (entry.section || 'Asset Valuation') === activeSection);
+    const recordValuation = (sectionName) => {
+        if (!['Asset Valuation', 'Inspection Fees'].includes(sectionName)) return;
+        const values = details[selectedId]?.[sectionName] || {};
+        const latest = valuationHistory.find((entry) => entry.jobId === selectedId && (entry.section || 'Asset Valuation') === sectionName);
         if (!Object.keys(values).length || (latest && JSON.stringify(latest.values) === JSON.stringify(values))) return;
-        const history = [{ jobId: selectedId, section: activeSection, status: job.status,
+        const history = [{ jobId: selectedId, section: sectionName, status: job.status,
             savedAt: new Date().toISOString(), values: { ...values } }, ...valuationHistory];
         sessionStorage.setItem('jobValuationHistory', JSON.stringify(history));
         setValuationHistory(history);
@@ -286,10 +290,13 @@ function Jobspage() {
                             </div>
                         ))}
                     </div>
-                ) : sectionFields[activeSection] ? (
+                ) : sectionGroups[activeSection] ? (
                     <div className="job_section_fields">
                         <h2>{activeSection}</h2>
-                        {['Asset Valuation', 'Inspection Fees'].includes(activeSection) && (
+                        {sectionGroups[activeSection].map((sectionName, groupIndex) => (
+                        <section className="job_combined_group" key={sectionName} aria-label={sectionName}>
+                        <h3>{sectionName}</h3>
+                        {groupIndex === 0 && ['Asset Valuation', 'Inspection Fees'].includes(sectionName) && (
                             <div className="valuation_controls">
                                 <div className="valuation_switch" aria-label="Valuation view">
                                     {['Current', 'History'].map((view) => (
@@ -307,28 +314,28 @@ function Jobspage() {
                                 )}
                             </div>
                         )}
-                        {['Asset Valuation', 'Inspection Fees'].includes(activeSection) && valuationView === 'History' ? (
+                        {['Asset Valuation', 'Inspection Fees'].includes(sectionName) && valuationView === 'History' ? (
                             <div>
-                                {valuationHistory.filter((entry) => entry.jobId === selectedId && entry.status === historyStatus && (entry.section || 'Asset Valuation') === activeSection).length === 0 && (
+                                {valuationHistory.filter((entry) => entry.jobId === selectedId && entry.status === historyStatus && (entry.section || 'Asset Valuation') === sectionName).length === 0 && (
                                     <div>
-                                    <p className="job_empty">No {historyStatus.toLowerCase()} {activeSection.toLowerCase()} history for this job.</p>
+                                    <p className="job_empty">No {historyStatus.toLowerCase()} {sectionName.toLowerCase()} history for this job.</p>
                                     <div className="fieldsframe">
-                                        {sectionFields[activeSection].map(([field, label]) => (
+                                        {sectionFields[sectionName].map(([field, label]) => (
                                             <div className="bid_detail_field" key={field}>
-                                                <label htmlFor={`history-empty-${field}`}>{label}</label>
-                                                <input id={`history-empty-${field}`} type="text" readOnly value="" placeholder="No history available" />
+                                                <label htmlFor={`history-empty-${sectionName}-${field}`}>{label}</label>
+                                                <input id={`history-empty-${sectionName}-${field}`} type="text" readOnly value="" placeholder="No history available" />
                                             </div>
                                         ))}
                                     </div>
                                     </div>
                                 )}
-                                {valuationHistory.filter((entry) => entry.jobId === selectedId && entry.status === historyStatus && (entry.section || 'Asset Valuation') === activeSection).map((entry, index) => (
+                                {valuationHistory.filter((entry) => entry.jobId === selectedId && entry.status === historyStatus && (entry.section || 'Asset Valuation') === sectionName).map((entry, index) => (
                                     <article className="valuation_history_entry" key={`${entry.savedAt}-${index}`}>
                                         <p>{new Date(entry.savedAt).toLocaleString()} · {entry.status}{entry.demo ? ' · Sample data' : ''}</p>
-                                        <div className="fieldsframe">{sectionFields[activeSection].map(([field, label]) => (
+                                        <div className="fieldsframe">{sectionFields[sectionName].map(([field, label]) => (
                                             <div className="bid_detail_field" key={field}>
-                                                <label htmlFor={`history-${index}-${field}`}>{label}</label>
-                                                <input id={`history-${index}-${field}`} type="text" readOnly value={entry.values[field] ?? ''} placeholder="Not provided" />
+                                                <label htmlFor={`history-${sectionName}-${index}-${field}`}>{label}</label>
+                                                <input id={`history-${sectionName}-${index}-${field}`} type="text" readOnly value={entry.values[field] ?? ''} placeholder="Not provided" />
                                             </div>
                                         ))}</div>
                                     </article>
@@ -337,18 +344,20 @@ function Jobspage() {
                         ) : (
                             <div>
                                 <div className="fieldsframe">
-                                    {sectionFields[activeSection].map(([field, label]) => (
+                                    {sectionFields[sectionName].map(([field, label]) => (
                                         <div className="bid_detail_field" key={field}>
-                                            <label htmlFor={`section-${field}`}>{label}</label>
-                                            <input id={`section-${field}`} type={['other', 'additionalLocations', 'rush', 'meNote'].includes(field) ? 'text' : 'number'}
+                                            <label htmlFor={`section-${sectionName}-${field}`}>{label}</label>
+                                            <input id={`section-${sectionName}-${field}`} type={['other', 'additionalLocations', 'rush', 'meNote'].includes(field) ? 'text' : 'number'}
                                                 min="0" step={['count', 'totalInspectedItems', 'totalNonInspectedItems'].includes(field) ? '1' : '0.01'}
-                                                value={details[selectedId]?.[activeSection]?.[field] ?? ''}
-                                                onChange={(event) => updateField(field, event.target.value)} onBlur={recordValuation} />
+                                                value={details[selectedId]?.[sectionName]?.[field] ?? ''}
+                                                onChange={(event) => updateField(sectionName, field, event.target.value)} onBlur={() => recordValuation(sectionName)} />
                                         </div>
                                     ))}
                                 </div>
                             </div>
                         )}
+                        </section>
+                        ))}
                     </div>
                 ) : activeSection === 'Items' ? (
                     <div className="job_items_section">

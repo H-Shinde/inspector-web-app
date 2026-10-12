@@ -490,3 +490,32 @@
     outline: 2px solid #005581;
     outline-offset: 3px;
 }
+
+.bid_information_layout { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 20px; align-items: start; width: min(1240px, calc(100% - 48px)); margin: 0 auto 24px; }
+.bid_information_content { min-width: 0; }
+.bid_information_content .fieldsframe { width: 100%; margin: 0; padding: 20px; gap: 16px; align-content: start; }
+.bid_information_sidebar { padding: 16px 10px; border: 1px solid #C8D4E0; border-radius: 12px; background: white; font-family: Geist, sans-serif; }
+.bid_information_sidebar h2 { display: flex; justify-content: space-between; margin: 0 8px 12px; color: #005581; font-size: 18px; }
+.bid_information_sidebar h2 span { font-size: 14px; color: #526477; }
+.bid_information_sidebar ul { list-style: none; padding: 0; margin: 0; max-height: 65vh; overflow-y: auto; }
+.bid_information_sidebar button { width: 100%; padding: 10px; border: 0; border-radius: 8px; background: transparent; color: #334155; font: inherit; font-size: 14px; text-align: left; overflow-wrap: anywhere; cursor: pointer; }
+.bid_information_sidebar button small { display: block; margin-top: 4px; color: #526477; font-size: 12px; }
+.bid_information_sidebar button:hover { background: #F1F5F9; }
+.bid_information_sidebar button[aria-pressed="true"] { background: #E0F2FE; color: #005581; font-weight: 600; }
+.bid_information_sidebar button:focus-visible { outline: 2px solid #005581; outline-offset: -2px; }
+.bid_information_sidebar p { margin: 12px 8px; color: #526477; }
+.bid_inline_controls { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 10px; margin-bottom: 12px; }
+.bid_inline_controls span { margin-right: auto; color: #526477; font-size: 14px; }
+.bid_inline_form { display: contents; }
+.bid_information_layout button:disabled { opacity: 0.6; cursor: default; }
+.bid_information_content input:not([readonly]), .bid_information_content select { background: white; border: 1px solid #005581; }
+.bid_information_content select { width: 100%; min-height: 44px; padding: 10px 12px; border-radius: 6px; color: #1F2937; font: inherit; font-size: 14px; }
+.bid_information_content select:focus-visible { outline: 2px solid #005581; outline-offset: 2px; }
+@media (max-width: 1000px) {
+    .bid_information_content .fieldsframe { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 760px) {
+    .bid_information_layout { grid-template-columns: minmax(0, 1fr); width: calc(100% - 32px); gap: 16px; }
+    .bid_information_content .fieldsframe { grid-template-columns: minmax(0, 1fr); }
+    .bid_information_sidebar ul { max-height: 220px; }
+}
