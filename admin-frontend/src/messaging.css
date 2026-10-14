@@ -21,10 +21,26 @@
     background: white;
 }
 
-.messaging_sidebar { padding: 16px; }
-.messaging_sidebar h2 { margin: 0 0 16px; color: #005581; font-size: 18px; }
-.messaging_recipients { display: flex; flex-direction: column; gap: 6px; }
+.messaging_sidebar {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    max-height: clamp(280px, calc(100dvh - 240px), 650px);
+    padding: 16px;
+    box-sizing: border-box;
+}
+.messaging_sidebar h2 { flex-shrink: 0; margin: 0 0 16px; color: #005581; font-size: 18px; }
+.messaging_recipients {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-height: 0;
+    overflow-y: auto;
+    scrollbar-gutter: stable;
+    padding: 4px;
+}
 .messaging_recipients button {
+    flex-shrink: 0;
     display: flex;
     flex-direction: column;
     gap: 5px;

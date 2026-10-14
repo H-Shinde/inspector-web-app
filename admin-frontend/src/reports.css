@@ -33,4 +33,10 @@
     border-radius: 12px;
     background: white;
 }
-.reports_chart img { display: block; width: 100%; height: auto; }
+.reports_chart_plot { width: 100%; height: clamp(320px, 60vw, 603px); min-width: 0; }
+.reports_chart_legend_label { color: rgba(0, 0, 0, 0.7); }
+
+@media (max-width: 600px) {
+    .reports_chart { padding: 12px; }
+    .reports_chart .recharts-legend-item { margin-bottom: 4px; }
+}

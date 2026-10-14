@@ -1,10 +1,11 @@
-// Sample counts until report data is connected.
+// Categories and valuation counts from the original BarLineChart.svg.
+// Client counts use the total of the disjoint False and True counts.
 export const reportRows = [
-    [1, 8, 5, 3], [2, 12, 4, 8], [3, 6, 4, 2], [4, 15, 6, 9],
-    [5, 9, 7, 2], [6, 18, 8, 10], [7, 7, 3, 4], [8, 11, 6, 5],
-    [9, 5, 2, 3], [10, 14, 9, 5], [11, 10, 4, 6], [12, 13, 7, 6],
-].map(([id, clientCount, valuationFalse, valuationTrue]) => ({
-    id, clientCount, valuationFalse, valuationTrue,
+    [400, 0, 1], [500, 0, 1], [1200, 3, 1], [1300, 17, 2],
+    [1400, 9, 2], [1500, 14, 0], [1600, 10, 1], [1700, 1, 0],
+    [1800, 0, 1], [2000, 0, 1],
+].map(([id, valuationFalse, valuationTrue]) => ({
+    id, clientCount: valuationFalse + valuationTrue, valuationFalse, valuationTrue,
     valuationTotal: valuationFalse + valuationTrue,
     // False and True are disjoint counts; don't add the subtotal again.
     grandTotal: valuationFalse + valuationTrue,

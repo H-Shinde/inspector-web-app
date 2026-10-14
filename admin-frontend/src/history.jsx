@@ -22,7 +22,6 @@ const fields = [
 ];
 const columns = fields.map(([data, title]) => ({
     data, title, defaultContent: '', render: DT.render.text(),
-    ...(['id', 'discount'].includes(data) ? { width: '3%' } : data === 'rush' ? { width: '4%' } : {}),
 }));
 
 function readHistory() {
@@ -85,8 +84,8 @@ export default function History() {
                     <h1>History</h1>
                     <p>Review past bids and inspector assignments.</p>
                 </div>
-                <section className="history_table_container" aria-label="History table">
-                <div className="history_filter_controls">
+                <section className="bids_panel history_table_container" aria-label="History table">
+                <div className="table_top_header history_filter_controls">
                     <details className="history_filter">
                         <summary className="history_filter_button"><FaFilter aria-hidden="true" /> Filter</summary>
                         <fieldset className="history_filter_menu">
@@ -103,14 +102,16 @@ export default function History() {
                         onChange={(event) => handleFilter(filterColumn, event.target.value)} />
                     {filterValue && <button type="button" className="history_filter_button" onClick={() => handleFilter('all', '')}>Clear filter</button>}
                 </div>
-                <DataTable ref={table} data={rows} columns={columns} className="history_table"
+                <div className="bids_table_container" role="region" aria-label="Scrollable history table" tabIndex={0}>
+                <DataTable ref={table} data={rows} columns={columns} className="bids_table history_table"
                     options={{
                         paging: true, searching: true, ordering: true, info: true,
                         scrollX: false, autoWidth: false, pageLength: 10, lengthMenu: [10, 25, 50, 100],
                         order: [[0, 'desc']],
-                        layout: { topStart: 'pageLength', topEnd: 'search', bottomStart: 'info', bottomEnd: 'paging' },
+                        layout: { topStart: 'pageLength', topEnd: null, bottomStart: 'info', bottomEnd: 'paging' },
                         language: { emptyTable: 'No bid history is available yet.', search: 'Search:' },
                     }} />
+                </div>
                 </section>
             </main>
             <footer className="bid_page_footer" />
