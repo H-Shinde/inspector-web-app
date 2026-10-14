@@ -1,0 +1,545 @@
+import './BidsJobsHomepage.css';
+import { moveBidToJobs } from './bidTransfers';
+import { bidFields, readBidList, readBidEdits } from './bidFields';
+import navLogo from './bison_logo_nav.png';
+import DataTable from 'datatables.net-react';
+import DT from 'datatables.net-dt';
+import 'datatables.net-select-dt';
+import 'datatables.net-responsive-dt';
+import { useEffect, useRef, useState } from 'react';
+import 'datatables.net-dt/css/dataTables.dataTables.css';
+import { FaTrash } from "react-icons/fa";
+import { FaEye } from "react-icons/fa";
+import { FaEdit } from "react-icons/fa";
+import { FaSave, FaFilter } from "react-icons/fa";
+
+DataTable.use(DT);
+function Homepage() {
+    const [editingId, setEditingId] = useState(null);
+    const [menuOpen, setMenuOpen] = useState(false);
+    const [isOpen, setIsOpen] = useState(false);
+    const [draft, setDraft] = useState({});
+    const dialog = useRef(null);
+
+    useEffect(() => {
+        if (isOpen) dialog.current.showModal();
+    }, [isOpen]);
+
+    const closeEditor = () => {
+        dialog.current.close();
+        setIsOpen(false);
+        setEditingId(null);
+        setDraft({});
+    };
+
+    const openEditor = (row) => {
+        const [month, day, year] = row.date.split('/');
+        setDraft({ ...row, inspectionRequestDate: `${year}-${month}-${day}` });
+        setEditingId(row.id);
+        setIsOpen(true);
+    };
+
+    function handleSubmit(event) {
+        event.preventDefault();
+        const [year, month, day] = draft.inspectionRequestDate.split('-');
+        const updatedBid = { ...draft, date: `${month}/${day}/${year}` };
+        const edits = Object.fromEntries(bidFields.filter(([field]) => field !== 'status').map(([field]) => [field, updatedBid[field] ?? '']));
+        localStorage.setItem('bidEdits', JSON.stringify({ ...readBidEdits(), [editingId]: edits }));
+        if (draft.status === 'Accepted') {
+            const acceptedJob = moveBidToJobs({ ...draft, date: `${month}/${day}/${year}` });
+            setTableData((rows) => rows.filter((row) => row.id !== editingId));
+            closeEditor();
+            window.location.href = `/Jobspage?jobId=${encodeURIComponent(acceptedJob.id)}`;
+            return;
+        }
+        setTableData((rows) => rows.map((row) => row.id === editingId
+            ? { ...row, ...draft, date: `${month}/${day}/${year}` }
+            : row));
+        closeEditor();
+    }
+    const handleView = (row) => {
+        const selectedBid = { ...row, pdf: row.pdf?.name ?? row.pdf ?? '' };
+        sessionStorage.setItem('availableBids', JSON.stringify(tableData.map((bid) => ({
+            ...bid, pdf: bid.pdf?.name ?? bid.pdf ?? '',
+        }))));
+        sessionStorage.setItem('selectedBid', JSON.stringify(selectedBid));
+        window.location.href = `/Bidspage?bidId=${encodeURIComponent(row.id)}`;
+    };
+
+    const handleJobsClick = () => {
+        window.location.href= '/JobHomepage';
+    };
+    const [filterColumn, setFilterColumn] = useState("all");
+    const [filterValue, setFilterValue] = useState("");
+    const table = useRef(null);
+
+
+    
+    const [savedStatuses] = useState(() => {
+        try {
+            return JSON.parse(sessionStorage.getItem('bidStatuses') || '{}') || {};
+        } catch {
+            return {};
+        }
+    });
+    const [tableData, setTableData] = useState([
+        {
+            id: 1,
+            name: "John Doe",
+            date: "08/10/2006",
+            businessName: "Vertex Logistics",
+            status: "Pending"
+        },
+        {
+            id: 2,
+            name: "Saige Fuentes",
+            date: "01/12/2016",
+            businessName: "Lumina Marketing",
+            status: "Declined"
+        },
+        {
+            id: 3,
+            name: "Bowen Higgins",
+            date: "02/10/2006",
+            businessName: "BlueWave Digital",
+            status: "Pending"
+        },
+        {
+            id: 4,
+            name: "Kylan Gentry",
+            date: "03/10/2016",
+            businessName: "Apex Financial Group",
+            status: "Declined"
+        },
+        {
+            id: 5,
+            name: "Aaron Paul",
+            date: "04/10/2017",
+            businessName: "Ironclad Security Services",
+            status: "Pending"
+        },
+        {
+            id: 6,
+            name: "Sarah Hopkins",
+            date: "02/15/2012",
+            businessName: "Zenith Healthcare",
+            status: "Declined"
+        },
+        {
+            id: 7,
+            name: "Xavier Pace",
+            date: "03/10/2012",
+            businessName: "Vanguard Consulting",
+            status: "Pending"
+        },
+        {
+            id: 8,
+            name: "Charles Xavier",
+            date: "04/12/2026",
+            businessName: "Horizon Eco Solutions",
+            status: "Declined"
+        },
+        {
+            id: 9,
+            name: "Maya Bennett",
+            date: "05/06/2026",
+            businessName: "Cedar Grove Realty",
+            status: "Pending"
+        },
+        {
+            id: 10,
+            name: "Ethan Brooks",
+            date: "05/14/2026",
+            businessName: "Summit Manufacturing",
+            status: "Declined"
+        },
+        {
+            id: 11,
+            name: "Olivia Chen",
+            date: "06/02/2026",
+            businessName: "Harborview Hospitality",
+            status: "Pending"
+        },
+        {
+            id: 12,
+            name: "Noah Carter",
+            date: "06/18/2026",
+            businessName: "Pinecrest Construction",
+            status: "Declined"
+        },
+        {
+            id: 13,
+            name: "Amara Williams",
+            date: "07/08/2026",
+            businessName: "BrightPath Education",
+            status: "Pending"
+        },
+        {
+            id: 14,
+            name: "Lucas Rivera",
+            date: "07/22/2026",
+            businessName: "Stonebridge Auto Services",
+            status: "Declined"
+        },
+        {
+            id: 15,
+            name: "Karen Patel",
+            date: "08/05/2026",
+            businessName: "Maple Leaf Retail",
+            status: "Pending"
+        },
+        {
+            id: 16,
+            name: "Jackson Reed",
+            date: "08/19/2026",
+            businessName: "Northstar Warehousing",
+            status: "Declined"
+        },
+        {
+            id: 17,
+            name: "Isabella Morgan",
+            date: "09/03/2026",
+            businessName: "Willow Creek Wellness",
+            status: "Pending"
+        },
+        {
+            id: 18,
+            name: "Elijah Foster",
+            date: "09/16/2026",
+            businessName: "Clearwater Engineering",
+            status: "Declined"
+        },
+        {
+            id: 19,
+            name: "Ava Thompson",
+            date: "10/01/2026",
+            businessName: "Oakridge Food Services",
+            status: "Pending"
+        },
+        {
+            id: 20,
+            name: "Liam Hayes",
+            date: "10/08/2026",
+            businessName: "Silverline Technology",
+            status: "Declined"
+        }
+        ].map((row) => ({
+            // Fictional details for the demo bids; table columns stay unchanged.
+            appraisalType: ['Commercial appraisal', 'Market valuation', 'Property assessment'][(row.id - 1) % 3],
+            subjectContactPhone: `202-555-${String(100 + row.id).padStart(4, '0')}`,
+            propertyType: ['Office', 'Retail', 'Warehouse', 'Mixed-use'][(row.id - 1) % 4],
+            rush: row.id % 3 === 0,
+            businessAddress: `${100 + row.id * 10} Example Avenue`,
+            pdf: `sample-bid-${row.id}.pdf`,
+            discount: String(row.id % 4 * 25),
+            subjectContactEmail: `${row.name.toLowerCase().replace(/\s+/g, '.')}@example.com`,
+            city: ['Washington', 'Arlington', 'Alexandria'][(row.id - 1) % 3],
+            state: ['DC', 'VA', 'VA'][(row.id - 1) % 3],
+            zipCode: ['20001', '22201', '22301'][(row.id - 1) % 3],
+            ...row,
+            status: savedStatuses[row.id] ?? row.status,
+        })).concat(readBidList('createdBids').map((row) => ({ ...row, status: savedStatuses[row.id] ?? row.status }))).map((row) => ({ ...row, ...readBidEdits()[row.id] })).filter((row) => row.status !== 'Accepted'));
+
+
+    useEffect(() => {
+        const serializable = tableData.map((bid) => ({ ...bid, pdf: bid.pdf?.name ?? bid.pdf ?? '' }));
+        sessionStorage.setItem('availableBids', JSON.stringify(serializable));
+        sessionStorage.setItem('createdBids', JSON.stringify(serializable.filter((bid) => bid.id > 20)));
+    }, [tableData]);
+
+    const columns = [
+    {
+        data: "id",
+        title: "# ID"
+    },
+    {
+        data: "name",
+        title: "Name"
+    },
+    {
+        data: "date",
+        title: "Date"
+    },
+    {
+        data: "businessName",
+        title: "Business Name"
+    },
+    {
+        data: "status",
+        title: "Status"
+    },
+    {
+        data: null,
+        title: "Actions",
+        orderable: false,
+        searchable: false
+    }
+   
+    ];
+    const handleFilter = (column, value) => {
+        setFilterColumn(column);
+        setFilterValue(value);
+        if (!table.current) return;
+
+        const api = table.current.dt();
+
+        // Clear previous column filters
+        api.columns().search("");
+
+        if (column === "all") {
+            // Search entire table
+            api.search(value).draw();
+        } else {
+            // Clear global search
+            api.search("");
+
+            // Search selected column
+            api.column(Number(column)).search(value).draw();
+        }
+    };    
+    const handleDelete = (id) => {
+    setTableData((prevData) =>
+        prevData.filter((row) => row.id !== id)
+    );
+    };
+    const handleEditChange = (field, value) => {
+        setDraft((previous) => ({ ...previous, [field]: value }));
+    };
+    const formSections = [
+        { title: 'Inspection details', fields: [
+            ['appraisalType', 'Appraisal type'],
+            ['inspectionRequestDate', 'Inspection request date', 'date'],
+            ['propertyType', 'Type of property'],
+            ['status', 'Status', 'select'],
+        ] },
+        { title: 'Subject contact', fields: [
+            ['name', 'Subject contact name'],
+            ['subjectContactPhone', 'Subject contact phone', 'tel'],
+            ['subjectContactEmail', 'Subject contact email', 'email'],
+        ] },
+        { title: 'Business & property address', fields: [
+            ['businessName', 'Business name'],
+            ['businessAddress', 'Business address'],
+            ['city', 'City'],
+            ['state', 'State'],
+            ['zipCode', 'ZIP code'],
+        ] },
+    ];
+  return (
+    <div className='frame_home'>
+        <dialog ref={dialog} className="popup" aria-labelledby="form-title" onCancel={(event) => {
+            event.preventDefault();
+            closeEditor();
+        }}>
+            {isOpen && (
+                <form onSubmit={handleSubmit}>
+                    <div className="bid_form_header">
+                        <div>
+                            <p className="bid_form_eyebrow">{draft.name || 'Unnamed contact'}</p>
+                            <h2 id="form-title">Edit bid details</h2>
+                            <p>Update the details below, then save your changes.</p>
+                        </div>
+                        <button type="button" className="bid_form_close" aria-label="Close editor" onClick={closeEditor}>×</button>
+                    </div>
+                    <div className="bid_form_body">
+                        {formSections.map((section) => (
+                            <fieldset className="bid_form_section" key={section.title}>
+                                <legend>{section.title}</legend>
+                                <div className="bid_form_grid">
+                                    {section.fields.map(([field, label, type = 'text']) => (
+                                        <div className="bid_form_field" key={field}>
+                                            <label htmlFor={`bid-${field}`}>{label}</label>
+                                            {type === 'select' ? (
+                                                <select id={`bid-${field}`} value={draft[field] || 'Pending'} onChange={(event) => handleEditChange(field, event.target.value)}>
+                                                    <option>Pending</option>
+                                                    <option>Accepted</option>
+                                                    <option>Declined</option>
+                                                </select>
+                                            ) : (
+                                                <input id={`bid-${field}`} type={type} value={draft[field] || ''} required={field === 'name' || field === 'inspectionRequestDate'} onChange={(event) => handleEditChange(field, event.target.value)} />
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            </fieldset>
+                        ))}
+                        <fieldset className="bid_form_section">
+                            <legend>Additional details</legend>
+                            <div className="bid_form_grid">
+                                <div className="bid_form_field">
+                                    <label htmlFor="bid-discount">Discount</label>
+                                    <input id="bid-discount" type="number" min="0" step="0.01" value={draft.discount ?? ''} onChange={(event) => handleEditChange('discount', event.target.value)} />
+                                </div>
+                                <label className="bid_form_checkbox">
+                                    <input type="checkbox" checked={Boolean(draft.rush)} onChange={(event) => handleEditChange('rush', event.target.checked)} />
+                                    Rush inspection
+                                </label>
+                                <div className="bid_form_field bid_form_full">
+                                    <label htmlFor="bid-pdf">PDF attachment</label>
+                                    <input id="bid-pdf" type="file" accept=".pdf,application/pdf" onChange={(event) => handleEditChange('pdf', event.target.files[0] || draft.pdf)} />
+                                    {draft.pdf && <span className="bid_form_hint">Selected: {draft.pdf.name ?? draft.pdf}</span>}
+                                </div>
+                            </div>
+                        </fieldset>
+                    </div>
+                    <div className="actions">
+                        <button type="button" className="bid_form_cancel" onClick={closeEditor}>Cancel</button>
+                        <button type="submit" className="bid_form_save"><FaSave /> Save</button>
+                    </div>
+                </form>
+            )}
+        </dialog>
+
+        <div className = 'nav_bar'>
+            <img
+                className="bison_logo_nav" src={navLogo} alt="Bison"
+              
+            />
+            <div className='nav_links'>
+                <div className='bids_box_selected'>
+                  <p className='nav_bar_text'>Bids</p>
+                </div>
+                <div className='history_box'>
+                  <a className='nav_bar_text' href='/History' style={{ textDecoration: 'none' }}>History</a>
+                </div>
+                <div className='inspector_box'>
+                  <a className='nav_bar_text' href='/Inspector' style={{ textDecoration: 'none' }}>Inspector</a>
+                </div>
+                <div className='clients_box'>
+                  <a className='nav_bar_text' href='/Clients' style={{ textDecoration: 'none' }}>Clients</a>
+                </div>
+                <div className='reports_box'>
+                  <a className='nav_bar_text' href='/Reports' style={{ textDecoration: 'none' }}>Reports</a>
+                </div>
+                <div className='messaging'>
+                  <a className='nav_bar_text' href='/Messaging' style={{ textDecoration: 'none' }}>Messaging</a>
+                </div>
+            </div>
+            <button type="button" className='burger_icon_position' aria-label="Account menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>
+                <div className = 'burger_icon_frame'>
+                    <div className = 'top_bun'></div>
+                    <div className = 'patty'></div>
+                    <div className = 'bottom_bun'></div>
+                </div>
+            </button>
+            {menuOpen && (
+                <div className="hamburger_dropdown">
+                    <button
+                        className="logout_button"
+                        onClick={() => {
+                            window.location.href = "/";
+                        }}
+                    >
+                        Logout
+                    </button>
+                </div>
+            )}
+            
+        </div>
+
+        <main className="main_content">
+            <div className="table_header">
+                <div>
+                    <h1>Bids &amp; Jobs</h1>
+                    <p>Review inspection requests and manage your bids.</p>
+                </div>
+            </div>
+            <div className='bidsjobsbox'>
+                <div className= "bidsbox">
+                    Bids
+                </div>
+                <button type="button" onClick={handleJobsClick} className='jobsbox'>
+                    Jobs
+                </button>
+            </div>
+        <section className="bids_panel" aria-label="Bids">
+        <div className="table_top_header">
+
+            <div className="filter_controls">
+
+                <details className="bid_filter">
+                    <summary className="filter_button"><FaFilter aria-hidden="true" /> Filter</summary>
+                    <fieldset className="filter_menu">
+                        <legend>Search in</legend>
+                        {[
+                            ['all', 'All columns'], ['0', 'ID'], ['1', 'Name'],
+                            ['2', 'Date'], ['3', 'Business name'], ['4', 'Status'],
+                        ].map(([value, label]) => (
+                            <label key={value}>
+                                <input type="radio" name="bid-filter-column" value={value}
+                                    checked={filterColumn === value}
+                                    onChange={() => handleFilter(value, filterValue)} />
+                                {label}
+                            </label>
+                        ))}
+                    </fieldset>
+                </details>
+
+                <input
+                    className="filter_input" aria-label="Filter bids"
+                    type="text"
+                    placeholder="Filter..."
+                    value={filterValue}
+                    onChange={(e) =>
+                        handleFilter(filterColumn, e.target.value)
+                    }
+                />
+
+            </div>
+
+
+            <button className="add_bid_button" onClick={() => { window.location.href = '/AddBid'; }}>
+                + Add Bid
+            </button>
+
+        </div>
+            <div className="bids_table_container">
+            <DataTable
+            ref={table}
+            data={tableData}
+            columns={columns}
+            className="bids_table"
+            slots={{
+                4: (data, type, row) => (
+                    <span className={`bid_status bid_status_${row.status.toLowerCase()}`}>{row.status}</span>
+                ),
+                5: (data, type, row) => (
+                    <div className="action_buttons">
+
+                        <button className="view" title="View bid" aria-label={`View bid ${row.id}`} onClick={() => handleView(row)}>
+                            <FaEye />
+                        </button>
+
+                        <button className="edit" title="Edit bid" aria-label={`Edit bid ${row.id}`} onClick={() => openEditor(row)}>
+                            <FaEdit />
+                        </button>
+
+                        <button
+                            className="delete_icon" title="Delete bid" aria-label={`Delete bid ${row.id}`}
+                            onClick={() => handleDelete(row.id)}
+                        >
+                            <FaTrash />
+                        </button>
+
+                    </div>
+                )
+            }}
+            options={{
+                paging: true,
+                searching: true,
+                ordering: true,
+                info: true,
+                pageLength: 10
+            }}
+
+            />
+            </div>
+        </section>
+        </main>
+        <div className='footer'></div>
+
+    </div>
+  );
+}
+
+export default Homepage;
