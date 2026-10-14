@@ -1,2 +1,19 @@
 /* Keep the Jobs page aligned with the shared Bids & Jobs styles. */
 @import './BidsJobsHomepage.css';
+
+/* Job statuses */
+.bid_status_assigned,
+.bid_status_in-progress,
+.bid_status_pending-review,
+.bid_status_unassigned {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+.bid_status_assigned { background: #E0F2FE; color: #005581; }
+.bid_status_in-progress { background: #FEF3C7; color: #92400E; }
+.bid_status_pending-review { background: #EDE9FE; color: #5B21B6; }
+.bid_status_unassigned { background: #E2E8F0; color: #475569; }

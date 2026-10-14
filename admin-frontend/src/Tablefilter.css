@@ -1,0 +1,114 @@
+.table_filter_toolbar {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 12px;
+}
+
+.table_filter {
+    position: relative;
+}
+
+.table_filter_button {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border: 1px solid #C8D4E0;
+    border-radius: 8px;
+    background: white;
+    color: #005581;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+.table_filter_button:hover,
+.table_filter_button.active {
+    background: #005581;
+    color: white;
+}
+
+.table_filter_button:focus-visible,
+.table_filter_field input:focus-visible,
+.table_filter_field select:focus-visible {
+    outline: 2px solid #005581;
+    outline-offset: 2px;
+}
+
+.table_filter_count {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 4px;
+    box-sizing: border-box;
+    border-radius: 9px;
+    background: #DC2626;
+    color: white;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 18px;
+    text-align: center;
+}
+
+.table_filter_panel {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 260px;
+    max-width: calc(100vw - 32px);
+    padding: 16px;
+    box-sizing: border-box;
+    border: 1px solid #C8D4E0;
+    border-radius: 12px;
+    background: white;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.table_filter_field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.table_filter_field label {
+    color: #334155;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.table_filter_field input,
+.table_filter_field select {
+    width: 100%;
+    min-height: 38px;
+    padding: 8px 10px;
+    box-sizing: border-box;
+    border: 1px solid #C8D4E0;
+    border-radius: 6px;
+    background: #F8FAFC;
+    color: #1F2937;
+    font: inherit;
+    font-size: 14px;
+}
+
+.table_filter_clear {
+    padding: 9px 12px;
+    border: 1px solid #C8D4E0;
+    border-radius: 6px;
+    background: white;
+    color: #005581;
+    font: inherit;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.table_filter_clear:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}

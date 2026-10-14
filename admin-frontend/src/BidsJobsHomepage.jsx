@@ -1,6 +1,5 @@
 import './BidsJobsHomepage.css';
-import { moveBidToJobs } from './bidTransfers';
-import { bidFields, readBidList, readBidEdits } from './bidFields';
+import { readBidList, readBidEdits } from './bidFields';
 import navLogo from './bison_logo_nav.png';
 import DataTable from 'datatables.net-react';
 import DT from 'datatables.net-dt';
@@ -9,54 +8,30 @@ import 'datatables.net-responsive-dt';
 import { useEffect, useRef, useState } from 'react';
 import 'datatables.net-dt/css/dataTables.dataTables.css';
 import { FaTrash } from "react-icons/fa";
-import { FaEye } from "react-icons/fa";
-import { FaEdit } from "react-icons/fa";
-import { FaSave, FaFilter } from "react-icons/fa";
+import TableFilter from './Tablefilter';
+import './TableFilter.css';
 
 DataTable.use(DT);
 function Homepage() {
-    const [editingId, setEditingId] = useState(null);
     const [menuOpen, setMenuOpen] = useState(false);
-    const [isOpen, setIsOpen] = useState(false);
-    const [draft, setDraft] = useState({});
-    const dialog = useRef(null);
+    const [deleteTarget, setDeleteTarget] = useState(null);
+    const confirmDialog = useRef(null);
+    const table = useRef(null);
 
     useEffect(() => {
-        if (isOpen) dialog.current.showModal();
-    }, [isOpen]);
+        if (deleteTarget && confirmDialog.current && !confirmDialog.current.open) confirmDialog.current.showModal();
+    }, [deleteTarget]);
 
-    const closeEditor = () => {
-        dialog.current.close();
-        setIsOpen(false);
-        setEditingId(null);
-        setDraft({});
+    const closeConfirm = () => {
+        if (confirmDialog.current?.open) confirmDialog.current.close();
+        setDeleteTarget(null);
     };
 
-    const openEditor = (row) => {
-        const [month, day, year] = row.date.split('/');
-        setDraft({ ...row, inspectionRequestDate: `${year}-${month}-${day}` });
-        setEditingId(row.id);
-        setIsOpen(true);
+    const confirmDelete = () => {
+        if (deleteTarget) handleDelete(deleteTarget.id);
+        closeConfirm();
     };
 
-    function handleSubmit(event) {
-        event.preventDefault();
-        const [year, month, day] = draft.inspectionRequestDate.split('-');
-        const updatedBid = { ...draft, date: `${month}/${day}/${year}` };
-        const edits = Object.fromEntries(bidFields.filter(([field]) => field !== 'status').map(([field]) => [field, updatedBid[field] ?? '']));
-        localStorage.setItem('bidEdits', JSON.stringify({ ...readBidEdits(), [editingId]: edits }));
-        if (draft.status === 'Accepted') {
-            const acceptedJob = moveBidToJobs({ ...draft, date: `${month}/${day}/${year}` });
-            setTableData((rows) => rows.filter((row) => row.id !== editingId));
-            closeEditor();
-            window.location.href = `/Jobspage?jobId=${encodeURIComponent(acceptedJob.id)}`;
-            return;
-        }
-        setTableData((rows) => rows.map((row) => row.id === editingId
-            ? { ...row, ...draft, date: `${month}/${day}/${year}` }
-            : row));
-        closeEditor();
-    }
     const handleView = (row) => {
         const selectedBid = { ...row, pdf: row.pdf?.name ?? row.pdf ?? '' };
         sessionStorage.setItem('availableBids', JSON.stringify(tableData.map((bid) => ({
@@ -66,12 +41,23 @@ function Homepage() {
         window.location.href = `/Bidspage?bidId=${encodeURIComponent(row.id)}`;
     };
 
+    // Clicking anywhere on a row (except its buttons) opens that bid.
+    const handleRowClick = (event) => {
+        if (event.target.closest('button, a, input, select')) return;
+        const tr = event.target.closest('tbody tr');
+        if (!tr || !table.current) return;
+        const row = table.current.dt().row(tr).data();
+        if (row) handleView(row);
+    };
+
+    const handleRowKeyDown = (event) => {
+        if (event.key === 'Enter' && event.target.tagName === 'TR') handleRowClick(event);
+    };
+
     const handleJobsClick = () => {
         window.location.href= '/JobHomepage';
     };
-    const [filterColumn, setFilterColumn] = useState("all");
-    const [filterValue, setFilterValue] = useState("");
-    const table = useRef(null);
+
 
 
     
@@ -276,117 +262,37 @@ function Homepage() {
     }
    
     ];
-    const handleFilter = (column, value) => {
-        setFilterColumn(column);
-        setFilterValue(value);
-        if (!table.current) return;
-
-        const api = table.current.dt();
-
-        // Clear previous column filters
-        api.columns().search("");
-
-        if (column === "all") {
-            // Search entire table
-            api.search(value).draw();
-        } else {
-            // Clear global search
-            api.search("");
-
-            // Search selected column
-            api.column(Number(column)).search(value).draw();
-        }
-    };    
+    // One filter per data column (the Actions column is skipped).
+    const filterColumns = columns
+        .map((column, index) => ({ column, index }))
+        .filter(({ column }) => column.data)
+        .map(({ column, index }) => ({
+            index,
+            label: column.title.replace('# ', ''),
+            options: column.data === 'status' ? [...new Set(tableData.map((row) => row.status))] : undefined,
+        }));
     const handleDelete = (id) => {
     setTableData((prevData) =>
         prevData.filter((row) => row.id !== id)
     );
     };
-    const handleEditChange = (field, value) => {
-        setDraft((previous) => ({ ...previous, [field]: value }));
-    };
-    const formSections = [
-        { title: 'Inspection details', fields: [
-            ['appraisalType', 'Appraisal type'],
-            ['inspectionRequestDate', 'Inspection request date', 'date'],
-            ['propertyType', 'Type of property'],
-            ['status', 'Status', 'select'],
-        ] },
-        { title: 'Subject contact', fields: [
-            ['name', 'Subject contact name'],
-            ['subjectContactPhone', 'Subject contact phone', 'tel'],
-            ['subjectContactEmail', 'Subject contact email', 'email'],
-        ] },
-        { title: 'Business & property address', fields: [
-            ['businessName', 'Business name'],
-            ['businessAddress', 'Business address'],
-            ['city', 'City'],
-            ['state', 'State'],
-            ['zipCode', 'ZIP code'],
-        ] },
-    ];
   return (
     <div className='frame_home'>
-        <dialog ref={dialog} className="popup" aria-labelledby="form-title" onCancel={(event) => {
+        <dialog ref={confirmDialog} className="popup confirm_popup" aria-labelledby="confirm-title" onCancel={(event) => {
             event.preventDefault();
-            closeEditor();
+            closeConfirm();
         }}>
-            {isOpen && (
-                <form onSubmit={handleSubmit}>
-                    <div className="bid_form_header">
-                        <div>
-                            <p className="bid_form_eyebrow">{draft.name || 'Unnamed contact'}</p>
-                            <h2 id="form-title">Edit bid details</h2>
-                            <p>Update the details below, then save your changes.</p>
-                        </div>
-                        <button type="button" className="bid_form_close" aria-label="Close editor" onClick={closeEditor}>×</button>
-                    </div>
-                    <div className="bid_form_body">
-                        {formSections.map((section) => (
-                            <fieldset className="bid_form_section" key={section.title}>
-                                <legend>{section.title}</legend>
-                                <div className="bid_form_grid">
-                                    {section.fields.map(([field, label, type = 'text']) => (
-                                        <div className="bid_form_field" key={field}>
-                                            <label htmlFor={`bid-${field}`}>{label}</label>
-                                            {type === 'select' ? (
-                                                <select id={`bid-${field}`} value={draft[field] || 'Pending'} onChange={(event) => handleEditChange(field, event.target.value)}>
-                                                    <option>Pending</option>
-                                                    <option>Accepted</option>
-                                                    <option>Declined</option>
-                                                </select>
-                                            ) : (
-                                                <input id={`bid-${field}`} type={type} value={draft[field] || ''} required={field === 'name' || field === 'inspectionRequestDate'} onChange={(event) => handleEditChange(field, event.target.value)} />
-                                            )}
-                                        </div>
-                                    ))}
-                                </div>
-                            </fieldset>
-                        ))}
-                        <fieldset className="bid_form_section">
-                            <legend>Additional details</legend>
-                            <div className="bid_form_grid">
-                                <div className="bid_form_field">
-                                    <label htmlFor="bid-discount">Discount</label>
-                                    <input id="bid-discount" type="number" min="0" step="0.01" value={draft.discount ?? ''} onChange={(event) => handleEditChange('discount', event.target.value)} />
-                                </div>
-                                <label className="bid_form_checkbox">
-                                    <input type="checkbox" checked={Boolean(draft.rush)} onChange={(event) => handleEditChange('rush', event.target.checked)} />
-                                    Rush inspection
-                                </label>
-                                <div className="bid_form_field bid_form_full">
-                                    <label htmlFor="bid-pdf">PDF attachment</label>
-                                    <input id="bid-pdf" type="file" accept=".pdf,application/pdf" onChange={(event) => handleEditChange('pdf', event.target.files[0] || draft.pdf)} />
-                                    {draft.pdf && <span className="bid_form_hint">Selected: {draft.pdf.name ?? draft.pdf}</span>}
-                                </div>
-                            </div>
-                        </fieldset>
+            {deleteTarget && (
+                <div>
+                    <div className="confirm_body">
+                        <h2 id="confirm-title">Delete this bid?</h2>
+                        <p>Are you sure you want to delete bid #{deleteTarget.id} for <strong>{deleteTarget.name}</strong> ({deleteTarget.businessName})?</p>
                     </div>
                     <div className="actions">
-                        <button type="button" className="bid_form_cancel" onClick={closeEditor}>Cancel</button>
-                        <button type="submit" className="bid_form_save"><FaSave /> Save</button>
+                        <button type="button" className="bid_form_cancel" onClick={closeConfirm}>Cancel</button>
+                        <button type="button" className="bid_form_delete" onClick={confirmDelete}>Delete bid</button>
                     </div>
-                </form>
+                </div>
             )}
         </dialog>
 
@@ -454,46 +360,12 @@ function Homepage() {
             </div>
         <section className="bids_panel" aria-label="Bids">
         <div className="table_top_header">
-
-            <div className="filter_controls">
-
-                <details className="bid_filter">
-                    <summary className="filter_button"><FaFilter aria-hidden="true" /> Filter</summary>
-                    <fieldset className="filter_menu">
-                        <legend>Search in</legend>
-                        {[
-                            ['all', 'All columns'], ['0', 'ID'], ['1', 'Name'],
-                            ['2', 'Date'], ['3', 'Business name'], ['4', 'Status'],
-                        ].map(([value, label]) => (
-                            <label key={value}>
-                                <input type="radio" name="bid-filter-column" value={value}
-                                    checked={filterColumn === value}
-                                    onChange={() => handleFilter(value, filterValue)} />
-                                {label}
-                            </label>
-                        ))}
-                    </fieldset>
-                </details>
-
-                <input
-                    className="filter_input" aria-label="Filter bids"
-                    type="text"
-                    placeholder="Filter..."
-                    value={filterValue}
-                    onChange={(e) =>
-                        handleFilter(filterColumn, e.target.value)
-                    }
-                />
-
-            </div>
-
-
+            <TableFilter tableRef={table} columns={filterColumns} />
             <button className="add_bid_button" onClick={() => { window.location.href = '/AddBid'; }}>
                 + Add Bid
             </button>
-
         </div>
-            <div className="bids_table_container">
+            <div className="bids_table_container" onClick={handleRowClick} onKeyDown={handleRowKeyDown}>
             <DataTable
             ref={table}
             data={tableData}
@@ -505,22 +377,12 @@ function Homepage() {
                 ),
                 5: (data, type, row) => (
                     <div className="action_buttons">
-
-                        <button className="view" title="View bid" aria-label={`View bid ${row.id}`} onClick={() => handleView(row)}>
-                            <FaEye />
-                        </button>
-
-                        <button className="edit" title="Edit bid" aria-label={`Edit bid ${row.id}`} onClick={() => openEditor(row)}>
-                            <FaEdit />
-                        </button>
-
                         <button
                             className="delete_icon" title="Delete bid" aria-label={`Delete bid ${row.id}`}
-                            onClick={() => handleDelete(row.id)}
+                            onClick={(event) => { event.stopPropagation(); setDeleteTarget(row); }}
                         >
                             <FaTrash />
                         </button>
-
                     </div>
                 )
             }}
@@ -529,7 +391,8 @@ function Homepage() {
                 searching: true,
                 ordering: true,
                 info: true,
-                pageLength: 10
+                pageLength: 10,
+                createdRow: (row) => { row.tabIndex = 0; }
             }}
 
             />

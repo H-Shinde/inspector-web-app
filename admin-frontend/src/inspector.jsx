@@ -2,76 +2,56 @@ import { useEffect, useRef, useState } from 'react';
 import DataTable from 'datatables.net-react';
 import DT from 'datatables.net-dt';
 import 'datatables.net-dt/css/dataTables.dataTables.css';
-import { FaCheck, FaEnvelope, FaEye, FaFilter } from 'react-icons/fa';
-import { emptyInspector, InspectorFormFields } from './inspectorFields';
+import { FaEnvelope } from 'react-icons/fa';
 import navLogo from './bison_logo_nav.png';
 import './inspector.css';
-import { addInvitedInspector, getInspectors, selectGlobalInspector, useSelectedInspector } from './inspectorSelection';
+import { buildInspectorInviteLink, createInspectorInvite, getInspectors, selectGlobalInspector } from './inspectorSelection';
 
 DataTable.use(DT);
 
-const fields = [['id', '# ID'], ['name', 'Name'], ['distance', 'Distance'], ['company', 'Company'], ['status', 'Status'], ['focus', 'Focus']];
+const fields = [['id', '# ID'], ['name', 'Name'], ['distance', 'Distance'], ['company', 'Company'], ['status', 'Status']];
 const columns = [
     ...fields.map(([data, title]) => ({ data, title, defaultContent: '', render: data === 'distance'
         ? (value, type) => type === 'display' ? (value === '' || value == null ? 'Not provided' : `${Number(value)} miles`) : value
         : DT.render.text() })),
     { data: null, title: 'Actions', orderable: false, searchable: false },
 ];
-const emptyDraft = emptyInspector;
+const ACTIONS_COLUMN = fields.length;
 
-function InspectorActions({ row, onSelect, onMessage, onView }) {
-    const selectedInspector = useSelectedInspector();
-    const selected = selectedInspector?.id === row.id;
+function InspectorActions({ row, onMessage }) {
     return <div className="action_buttons">
-        <button type="button" title={selected ? 'Deselect inspector' : 'Select inspector'} aria-label={`Select ${row.name}`} aria-pressed={selected} onClick={() => onSelect(row)}><FaCheck /></button>
         <button type="button" title="Message inspector" aria-label={`Message ${row.name}`} onClick={() => onMessage(row)}><FaEnvelope /></button>
-        <button type="button" title="View inspector" aria-label={`View ${row.name}`} onClick={() => onView(row)}><FaEye /></button>
     </div>;
 }
 
 export default function Inspector() {
     const [rows, setRows] = useState(getInspectors);
-    const [filterColumn, setFilterColumn] = useState('all');
-    const [filterValue, setFilterValue] = useState('');
     const [menuOpen, setMenuOpen] = useState(false);
-    const [modal, setModal] = useState(null);
-    const [draft, setDraft] = useState(emptyDraft);
-    const [notice, setNotice] = useState('');
-    const table = useRef(null);
+    const [inviting, setInviting] = useState(false);
+    const [email, setEmail] = useState('');
+    const [inviteLink, setInviteLink] = useState('');
+    const [copyMessage, setCopyMessage] = useState('');
     const dialog = useRef(null);
-    useEffect(() => { if (modal && !dialog.current.open) dialog.current.showModal(); }, [modal]);
-    useEffect(() => {
-        if (!notice) return;
-        const dismiss = () => setNotice('');
-        document.addEventListener('click', dismiss, true);
-        return () => document.removeEventListener('click', dismiss, true);
-    }, [notice]);
-    const closeModal = () => { dialog.current.close(); setModal(null); };
-    const handleFilter = (column, value) => {
-        setFilterColumn(column);
-        setFilterValue(value);
-        const api = table.current?.dt();
-        if (!api) return;
-        api.columns().search('');
-        api.search('');
-        if (column === 'all') api.search(value);
-        else api.column(Number(column)).search(value);
-        api.draw();
-    };
-    const selectInspector = (row) => {
-        const next = sessionStorage.getItem('selectedInspectorId') === String(row.id) ? null : String(row.id);
-        selectGlobalInspector(next);
-        setNotice(next ? `${row.name} selected and assigned to the current job, if available.` : 'Inspector selection cleared.');
-    };
-    const inviteInspector = (event) => {
+    useEffect(() => { if (inviting && !dialog.current.open) dialog.current.showModal(); }, [inviting]);
+
+    const openInvite = () => { setEmail(''); setInviteLink(''); setCopyMessage(''); setInviting(true); };
+    const closeInvite = () => { dialog.current.close(); setInviting(false); };
+    const changeEmail = (value) => { setEmail(value); setInviteLink(''); setCopyMessage(''); };
+
+    const copyInviteLink = async (event) => {
         event.preventDefault();
-        if (!draft.name.trim() || !draft.email.trim()) return;
-        const invited = addInvitedInspector(draft);
+        if (!email.trim()) return;
+        const link = buildInspectorInviteLink(createInspectorInvite(email));
         setRows(getInspectors());
-        handleFilter('all', '');
-        closeModal();
-        setNotice(`Demo: an invite has been sent to ${invited.email}. No actual email was delivered.`);
+        setInviteLink(link);
+        try {
+            await navigator.clipboard.writeText(link);
+            setCopyMessage(`Invite link copied. Send it to ${email.trim()} to open the inspector sign-up page.`);
+        } catch {
+            setCopyMessage('Could not copy automatically. Select the link above and copy it manually.');
+        }
     };
+
     return (
         <div className="frame_home bid_details_page inspector_page">
             <nav className="nav_bar" aria-label="Main navigation">
@@ -90,51 +70,42 @@ export default function Inspector() {
             </nav>
             <main className="main_content">
                 <div className="table_header"><div><h1>Inspectors</h1><p>Find inspectors and manage invitations.</p></div></div>
-                {notice && <p className="inspector_notice" role="status">{notice}</p>}
                 <section className="bids_panel" aria-label="Inspectors">
                     <div className="table_top_header">
-                        <div className="filter_controls">
-                            <details className="bid_filter">
-                                <summary className="filter_button"><FaFilter aria-hidden="true" /> Filter</summary>
-                                <fieldset className="filter_menu"><legend>Search in</legend>
-                                    {[['all', 'All columns'], ...fields.map(([, title], index) => [String(index), title])].map(([value, label]) => (
-                                        <label key={value}><input type="radio" name="inspector-filter-column" value={value} checked={filterColumn === value} onChange={() => handleFilter(value, filterValue)} />{label}</label>
-                                    ))}
-                                </fieldset>
-                            </details>
-                            <input className="filter_input" aria-label="Filter inspectors" placeholder="Filter..." value={filterValue} onChange={(event) => handleFilter(filterColumn, event.target.value)} />
-                            {filterValue && <button className="filter_button" type="button" onClick={() => handleFilter('all', '')}>Clear</button>}
-                        </div>
-                        <button type="button" className="add_bid_button" onClick={() => { setDraft({ ...emptyDraft }); setModal({ mode: 'invite' }); }}>+ Invite Inspector</button>
+                        <button type="button" className="add_bid_button" onClick={openInvite}>+ Invite Inspector</button>
                     </div>
                     <div className="bids_table_container">
-                        <DataTable ref={table} data={rows} columns={columns} className="bids_table"
-                            slots={{ 6: (data, type, row) => <InspectorActions row={row} onSelect={selectInspector}
+                        <DataTable data={rows} columns={columns} className="bids_table"
+                            slots={{ [ACTIONS_COLUMN]: (data, type, row) => <InspectorActions row={row}
                                 onMessage={(inspector) => {
                                     selectGlobalInspector(inspector.id);
                                     window.location.href = `/Messaging?inspectorId=${encodeURIComponent(inspector.id)}`;
-                                }}
-                                onView={(inspector) => { window.location.href = `/InspectorView?inspectorId=${encodeURIComponent(inspector.id)}`; }} /> }}
+                                }} /> }}
                             options={{ paging: true, searching: true, ordering: true, info: true, pageLength: 10,
                                 layout: { topStart: 'pageLength', topEnd: 'search', bottomStart: 'info', bottomEnd: 'paging' },
                                 language: { emptyTable: 'No inspectors found.' } }} />
                     </div>
                 </section>
             </main>
-            <dialog ref={dialog} className="popup" aria-labelledby="inspector-dialog-title" onCancel={(event) => { event.preventDefault(); closeModal(); }}>
-                {modal && <>
-                    <div className="bid_form_header"><h2 id="inspector-dialog-title">{modal.mode === 'invite' ? 'Invite Inspector' : modal.mode === 'message' ? `Message ${modal.inspector.name}` : 'Inspector details'}</h2><button type="button" className="bid_form_close" aria-label="Close dialog" onClick={closeModal}>×</button></div>
-                    {modal.mode === 'invite' ? <form onSubmit={inviteInspector}>
-                        <InspectorFormFields draft={draft} onChange={(field, value) => setDraft({ ...draft, [field]: value })} />
-                        <div className="actions"><button type="button" className="bid_form_cancel" onClick={closeModal}>Cancel</button><button type="submit" className="bid_form_save" disabled={!draft.name.trim() || !draft.email.trim()}>Send Invite</button></div>
-                    </form> : modal.mode === 'view' ? <>
-                        <dl className="inspector_details">{[...fields, ['email', 'Email']].map(([field, label]) => <div key={field}><dt>{label}</dt><dd>{field === 'distance' && modal.inspector[field] !== '' ? `${modal.inspector[field]} miles` : modal.inspector[field] || 'Not provided'}</dd></div>)}</dl>
-                        <div className="actions"><button type="button" className="bid_form_cancel" onClick={closeModal}>Done</button></div>
-                    </> : <>
-                        <div className="bid_form_body"><p>Open an email draft to {modal.inspector.email}.</p><p className="bid_form_hint">Sample inspectors use fictional email addresses.</p></div>
-                        <div className="actions"><button type="button" className="bid_form_cancel" onClick={closeModal}>Cancel</button><a className="bid_form_save" href={`mailto:${encodeURIComponent(modal.inspector.email)}`}>Open email draft</a></div>
-                    </>}
-                </>}
+            <dialog ref={dialog} className="popup" aria-labelledby="inspector-dialog-title" onCancel={(event) => { event.preventDefault(); closeInvite(); }}>
+                {inviting && <form onSubmit={copyInviteLink}>
+                    <div className="bid_form_header"><h2 id="inspector-dialog-title">Invite Inspector</h2><button type="button" className="bid_form_close" aria-label="Close dialog" onClick={closeInvite}>×</button></div>
+                    <div className="bid_form_body">
+                        <div className="bid_form_field">
+                            <label htmlFor="invite-email">E-mail</label>
+                            <input id="invite-email" type="email" required value={email} onChange={(event) => changeEmail(event.target.value)} />
+                        </div>
+                        {inviteLink && <div className="bid_form_field">
+                            <label htmlFor="invite-link">Invite link</label>
+                            <input id="invite-link" readOnly value={inviteLink} onFocus={(event) => event.target.select()} />
+                        </div>}
+                        {copyMessage && <p className="bid_form_hint" role="status">{copyMessage}</p>}
+                    </div>
+                    <div className="actions">
+                        <button type="button" className="bid_form_cancel" onClick={closeInvite}>Close</button>
+                        <button type="submit" className="bid_form_save" disabled={!email.trim()}>Copy invite link</button>
+                    </div>
+                </form>}
             </dialog>
             <footer className="bid_page_footer" />
         </div>

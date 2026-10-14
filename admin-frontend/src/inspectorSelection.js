@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import { readBidList } from './bidFields';
+import { emptyInspector } from './inspectorFields';
 
 export const demoInspectors = [
     { id: 1, name: 'Alex Morgan', distance: 12, company: 'Morgan Asset Services', status: 'Active', focus: 'Appraisal', email: 'alex.morgan@example.com' },
@@ -85,4 +86,23 @@ export function addInvitedInspector(draft) {
     sessionStorage.setItem('invitedInspectors', JSON.stringify([...readBidList('invitedInspectors'), inspector]));
     window.dispatchEvent(new Event('inspector-selection-changed'));
     return inspector;
+}
+
+// Change this to wherever the inspector sign-up page is routed.
+export const INSPECTOR_SIGNUP_PATH = '/InspectorSignup';
+
+export function buildInspectorInviteLink(inspector) {
+    return `${window.location.origin}${INSPECTOR_SIGNUP_PATH}?invite=${encodeURIComponent(inspector.inviteToken)}&email=${encodeURIComponent(inspector.email)}`;
+}
+
+// One unique token per email: inviting the same email again reuses its existing invite.
+export function createInspectorInvite(email) {
+    const clean = email.trim();
+    const existing = readBidList('invitedInspectors').find((entry) =>
+        entry.inviteToken && String(entry.email).toLowerCase() === clean.toLowerCase());
+    if (existing) return existing;
+    const token = typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`;
+    return addInvitedInspector({ ...emptyInspector, name: clean, email: clean, inviteToken: token });
 }

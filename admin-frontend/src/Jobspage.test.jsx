@@ -58,7 +58,7 @@ test('adds and persists an item, then dismisses confirmation on the next click',
     expect(screen.getByRole('status').textContent).toBe('Item has been added.');
     expect(screen.getByText('New forklift')).toBeTruthy();
     expect(JSON.parse(sessionStorage.getItem('jobItems'))['1'][0]).toMatchObject({ name: 'New forklift', make: 'Toyota' });
-    fireEvent.click(screen.getByRole('heading', { name: 'Items' }));
+    fireEvent.click(screen.getByRole('heading', { name: 'Items', level: 2 }));
     expect(screen.queryByRole('status')).toBeNull();
     unmount();
     render(<Jobspage />);
@@ -78,14 +78,55 @@ test('canceling an item draft leaves the list unchanged', () => {
     expect(sessionStorage.getItem('jobItems')).toBeNull();
 });
 
-test('shows global selection in the dropdown and assigns changes directly', () => {
+test('shows global selection in the dropdown and assigns only when the button is clicked', () => {
     selectGlobalInspector(2);
     render(<Jobspage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Assign Inspector' }));
     expect(screen.getByLabelText('Assign inspector').value).toBe('Jordan Lee');
     act(() => selectGlobalInspector(3));
     expect(screen.getByLabelText('Assign inspector').value).toBe('Taylor Brooks');
-    expect(screen.queryByRole('button', { name: 'Assign selected inspector' })).toBeNull();
+    const assignButton = screen.getByRole('button', { name: 'Assign inspector' });
+    expect(assignButton.disabled).toBe(true);
     fireEvent.change(screen.getByLabelText('Assign inspector'), { target: { value: 'Alex Morgan' } });
+    expect(sessionStorage.getItem('selectedInspectorId')).not.toBe('1');
+    expect(assignButton.disabled).toBe(false);
+    fireEvent.click(assignButton);
     expect(sessionStorage.getItem('selectedInspectorId')).toBe('1');
     expect(JSON.parse(sessionStorage.getItem('jobAssignments'))[0].inspector).toBe('Alex Morgan');
+    expect(screen.getByRole('button', { name: 'Assign inspector' }).disabled).toBe(true);
+});
+
+test('page title follows the selected tab and the old dropdowns are gone', () => {
+    render(<Jobspage />);
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Job Information');
+    fireEvent.click(screen.getByRole('button', { name: 'Item Appraisal' }));
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Item Appraisal');
+    expect(screen.queryByLabelText('Jobs')).toBeNull();
+    expect(screen.queryByLabelText('Assign inspector')).toBeNull();
+});
+test('uploading a CSV adds its rows as items and keeps them after reload', async () => {
+    let count = 0;
+    Object.defineProperty(global, 'crypto', { configurable: true, value: { randomUUID: () => `csv-item-${++count}` } });
+    const { unmount } = render(<Jobspage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Items' }));
+    const csv = 'Name,Make,Model,Year,Hours/Miles,Notes\nForklift,Toyota,8FGCU25,2020,"1,200 hours","Good, clean"\n,Skip,Me,,,\nPallet jack,Crown,WP 3000,2021,480 hours,\n';
+    fireEvent.change(screen.getByLabelText('Upload items CSV'), { target: { files: [new File([csv], 'items.csv', { type: 'text/csv' })] } });
+    expect(await screen.findByText(/Imported 2 items from items\.csv/)).toBeTruthy();
+    expect(screen.getByText('Forklift')).toBeTruthy();
+    expect(screen.getByText('Pallet jack')).toBeTruthy();
+    const saved = JSON.parse(sessionStorage.getItem('jobItems'))['1'];
+    expect(saved).toHaveLength(2);
+    expect(saved[0]).toMatchObject({ name: 'Forklift', make: 'Toyota', hoursMiles: '1,200 hours', comments: 'Good, clean' });
+    unmount();
+    render(<Jobspage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Items' }));
+    expect(screen.getByText('Forklift')).toBeTruthy();
+});
+
+test('a CSV without a Name column shows an error and changes nothing', async () => {
+    render(<Jobspage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Items' }));
+    fireEvent.change(screen.getByLabelText('Upload items CSV'), { target: { files: [new File(['Make,Model\nToyota,X'], 'bad.csv', { type: 'text/csv' })] } });
+    expect((await screen.findByRole('alert')).textContent).toContain('"Name" column');
+    expect(sessionStorage.getItem('jobItems')).toBeNull();
 });

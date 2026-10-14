@@ -715,3 +715,62 @@
 .frame_home .filter_menu input {
     accent-color: #005581;
 }
+
+
+/* Whole-row click, single-action column, delete confirmation */
+.frame_home .table_top_header {
+    justify-content: flex-end;
+}
+
+.frame_home table.bids_table tbody tr {
+    cursor: pointer;
+}
+
+.frame_home table.bids_table tbody tr:focus-visible {
+    outline: 2px solid #005581;
+    outline-offset: -2px;
+}
+
+.popup.confirm_popup {
+    width: min(440px, calc(100vw - 32px));
+}
+
+.confirm_popup .confirm_body {
+    padding: 24px 28px;
+}
+
+.confirm_popup .confirm_body h2 {
+    margin: 0 0 10px;
+    font-size: 20px;
+}
+
+.confirm_popup .confirm_body p {
+    margin: 0;
+    color: #526477;
+    font-size: 14px;
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+}
+
+.confirm_popup .confirm_body strong {
+    color: #1F2937;
+}
+
+.bid_form_delete {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 20px;
+    border: 1px solid #9F3030;
+    border-radius: 5px;
+    background: #9F3030;
+    color: white;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.bid_form_delete:hover {
+    background: #862626;
+}

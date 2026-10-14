@@ -16,12 +16,11 @@ function AddBidpage() {
         }
         const bid = createBid(Object.fromEntries(Object.entries(draft).map(([field, value]) => [field, value.trim()])));
         if (bid.status === 'Accepted') {
-            const acceptedJob = moveBidToJobs(bid);
+            moveBidToJobs(bid);
             sessionStorage.removeItem('selectedBid');
-            window.location.href = `/Jobspage?jobId=${encodeURIComponent(acceptedJob.id)}`;
-        } else {
-            window.location.href = `/Bidspage?bidId=${encodeURIComponent(bid.id)}`;
         }
+        sessionStorage.removeItem('createdBidMessage');
+        window.location.href = '/Homepage';
     };
 
     return (

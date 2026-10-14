@@ -3,6 +3,8 @@ import { bidFields, readBidList } from './bidFields';
 import './Jobspage.css';
 import { assignInspectorToJob, getInspectors, selectGlobalInspector, useSelectedInspector } from './inspectorSelection';
 import { withJobDemoData, seedJobDemoSections } from './jobDemoData';
+import { sortInspectorsByDistance } from './inspectorDistance';
+import { csvToItems } from './itemCsv';
 import navLogo from './bison_logo_nav.png';
 import { FaEye, FaEdit, FaTrash } from 'react-icons/fa';
 import DataTable from 'datatables.net-react';
@@ -31,7 +33,7 @@ const sectionGroups = {
     'Item Appraisal': ['Appraised Items', 'Non Appraised Items'],
     'Valuation & Fees': ['Asset Valuation', 'Inspection Fees'],
 };
-const sections = ['Job Information', ...Object.keys(sectionGroups), 'Items'];
+const sections = ['Job Information', ...Object.keys(sectionGroups), 'Items', 'Assign Inspector'];
 
 const rateFields = [
     ['inspectionRate', 'Inspection rate'],
@@ -66,7 +68,8 @@ const sectionFields = {
 
 function Jobspage() {
     const selectedInspector = useSelectedInspector();
-    const inspectors = getInspectors().map((inspector) => inspector.name);
+    const inspectorList = getInspectors();
+    const inspectors = inspectorList.map((inspector) => inspector.name);
     const [menuOpen, setMenuOpen] = useState(false);
     const [viewedItemId, setViewedItemId] = useState(null);
     const [itemEditor, setItemEditor] = useState(null);
@@ -77,6 +80,14 @@ function Jobspage() {
         document.addEventListener('click', dismissMessage, true);
         return () => document.removeEventListener('click', dismissMessage, true);
     }, [itemAdded]);
+    const [csvMessage, setCsvMessage] = useState(null);
+    const csvInput = useRef(null);
+    useEffect(() => {
+        if (!csvMessage) return;
+        const dismissMessage = () => setCsvMessage(null);
+        document.addEventListener('click', dismissMessage, true);
+        return () => document.removeEventListener('click', dismissMessage, true);
+    }, [csvMessage]);
     const itemDialog = useRef(null);
     useEffect(() => {
         if (itemEditor && !itemDialog.current.open) itemDialog.current.showModal();
@@ -108,11 +119,15 @@ function Jobspage() {
         ...job,
         inspector: readBidList('jobAssignments').find((assignment) => assignment.jobId === job.id)?.inspector ?? job.inspector ?? '',
     })));
-    const [selectedId, setSelectedId] = useState(() => {
+    const [selectedId] = useState(() => {
         const requested = new URLSearchParams(window.location.search).get('jobId');
         return jobs.some((job) => String(job.id) === requested) ? requested : String(jobs[0]?.id ?? '');
     });
     const job = jobs.find((item) => String(item.id) === selectedId);
+    const [pendingInspector, setPendingInspector] = useState(() => selectedInspector?.name ?? job?.inspector ?? '');
+    useEffect(() => { setPendingInspector(job?.inspector ?? ''); }, [job?.inspector]);
+    const sortedInspectors = job ? sortInspectorsByDistance(inspectorList, job) : [];
+    const jobLocation = job ? [job.city, job.state].filter(Boolean).join(', ') : '';
     useEffect(() => {
         if (!job) return;
         if (selectedInspector && job.inspector !== selectedInspector.name) {
@@ -167,18 +182,34 @@ function Jobspage() {
         closeItem();
         setItemAdded(true);
     };
-    const viewedItem = items.find((item) => item.itemId === viewedItemId);
-    const selectJob = (event) => {
-        setViewedItemId(null);
-        const selected = jobs.find((item) => String(item.id) === event.target.value);
-        if (!selected) return;
-        setSelectedId(String(selected.id));
-        sessionStorage.setItem('selectedJob', JSON.stringify(selected));
-        window.history.replaceState(null, '', `/Jobspage?jobId=${encodeURIComponent(selected.id)}`);
+    const importCsv = (event) => {
+        const input = event.target;
+        const file = input.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+            try {
+                const { items: imported, skipped, ignoredColumns } = csvToItems(String(reader.result));
+                if (!imported.length) throw new Error('No items were found in the CSV. Each row needs a name.');
+                persistItems([...items, ...imported.map((item) => ({ ...item, itemId: crypto.randomUUID() }))]);
+                setViewedItemId(null);
+                setItemAdded(false);
+                const parts = [`Imported ${imported.length} ${imported.length === 1 ? 'item' : 'items'} from ${file.name}.`];
+                if (skipped) parts.push(`${skipped} ${skipped === 1 ? 'row was' : 'rows were'} skipped because the name was missing.`);
+                if (ignoredColumns.length) parts.push(`Ignored columns: ${ignoredColumns.join(', ')}.`);
+                setCsvMessage({ error: false, text: parts.join(' ') });
+            } catch (error) {
+                setCsvMessage({ error: true, text: error.message });
+            }
+        };
+        reader.onerror = () => setCsvMessage({ error: true, text: 'Could not read that file.' });
+        reader.readAsText(file);
+        input.value = '';
     };
-    const assignInspector = (event) => {
+    const viewedItem = items.find((item) => item.itemId === viewedItemId);
+    const assignInspector = () => {
         if (!job) return;
-        const inspector = event.target.value;
+        const inspector = pendingInspector;
         selectGlobalInspector(getInspectors().find((entry) => entry.name === inspector)?.id ?? null);
         const updated = { ...job, inspector };
         const updatedJobs = jobs.map((item) => item.id === job.id ? updated : item);
@@ -248,7 +279,7 @@ function Jobspage() {
                 <button type="button" className="bid_back_button" onClick={() => { window.location.href = '/JobHomepage'; }}>
                     <span className="bid_back_icon" aria-hidden="true">←</span> Back
                 </button>
-                <h1 className="bidspage_header">Job Information</h1>
+                <h1 className="bidspage_header">{activeSection}</h1>
 
             </div>
         </header>
@@ -262,23 +293,6 @@ function Jobspage() {
             </aside>
             <section className="job_details_content" aria-label={activeSection}>
                 {acceptedJobId === selectedId && <p className="job_acceptance_message" role="status">Bid has been accepted.</p>}
-                <div className="job_selectors">
-                    <div>
-                        <label htmlFor="job-selector">Jobs</label>
-                        <select id="job-selector" value={selectedId} onChange={selectJob} disabled={!jobs.length}>
-                            <option value="" disabled>Select a job</option>
-                            {jobs.map((item) => <option key={item.id} value={String(item.id)}>{item.name}</option>)}
-                        </select>
-                    </div>
-                    <div>
-                        <label htmlFor="inspector-selector">Assign inspector</label>
-                        <select id="inspector-selector" value={selectedInspector?.name ?? job?.inspector ?? ''} onChange={assignInspector} disabled={!job}>
-                            <option value="">Unassigned</option>
-                            {job?.inspector && !inspectors.includes(job.inspector) && <option>{job.inspector}</option>}
-                            {inspectors.map((name) => <option key={name} value={name}>{name}</option>)}
-                        </select>
-                    </div>
-                </div>
                 {!job ? (
                     <p className="job_empty">Open View from the Jobs table to load job information.</p>
                 ) : activeSection === 'Job Information' ? (
@@ -292,7 +306,6 @@ function Jobspage() {
                     </div>
                 ) : sectionGroups[activeSection] ? (
                     <div className="job_section_fields">
-                        <h2>{activeSection}</h2>
                         {sectionGroups[activeSection].map((sectionName, groupIndex) => (
                         <section className="job_combined_group" key={sectionName} aria-label={sectionName}>
                         <h3>{sectionName}</h3>
@@ -359,12 +372,39 @@ function Jobspage() {
                         </section>
                         ))}
                     </div>
+                ) : activeSection === 'Assign Inspector' ? (
+                    <div className="job_assign_inspector">
+                        <p className="job_empty">Choose the inspector responsible for {job.name}'s job.</p>
+                        <div className="job_assign_field">
+                            <label htmlFor="inspector-selector">Assign inspector</label>
+                            <select id="inspector-selector" value={pendingInspector} onChange={(event) => setPendingInspector(event.target.value)}>
+                                <option value="">Unassigned</option>
+                                {job.inspector && !inspectors.includes(job.inspector) && <option>{job.inspector}</option>}
+                                {sortedInspectors.map(({ inspector, distance }) => (
+                                    <option key={inspector.id ?? inspector.name} value={inspector.name}>
+                                        {distance === null ? inspector.name : `${inspector.name} (${distance.toFixed(1)} mi)`}
+                                    </option>
+                                ))}
+                            </select>
+                            <p className="job_assign_hint">
+                                {jobLocation ? `Sorted by distance from ${jobLocation}. ` : ''}Inspectors with no known location are listed last.
+                            </p>
+                        </div>
+                        <button type="button" className="add_bid_button job_assign_button"
+                            disabled={pendingInspector === (job.inspector ?? '')} onClick={assignInspector}>Assign inspector</button>
+                    </div>
                 ) : activeSection === 'Items' ? (
                     <div className="job_items_section">
                         <div className="job_items_header">
                             <h2>Items</h2>
-                            <button type="button" className="add_bid_button" onClick={() => setItemEditor({ mode: 'add', item: {} })}>+ Add item</button>
+                            <div className="job_items_actions">
+                                <button type="button" className="add_bid_button" onClick={() => csvInput.current?.click()}>Upload CSV</button>
+                                <input ref={csvInput} type="file" accept=".csv,text/csv" hidden aria-label="Upload items CSV" onChange={importCsv} />
+                                <button type="button" className="add_bid_button" onClick={() => setItemEditor({ mode: 'add', item: {} })}>+ Add item</button>
+                            </div>
                         </div>
+                        <p className="job_csv_hint">CSV columns: Name (required), Type, Make, Model, Serial number, Year, Hours/Miles, Photo#, Ref#, Comments. Rows are added to the existing items.</p>
+                        {csvMessage && <p className={csvMessage.error ? 'job_csv_error' : 'job_acceptance_message'} role={csvMessage.error ? 'alert' : 'status'}>{csvMessage.text}</p>}
                         {itemAdded && <p className="job_acceptance_message" role="status">Item has been added.</p>}
                         {viewedItem ? (
                             <div>

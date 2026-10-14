@@ -10,205 +10,212 @@ import 'datatables.net-responsive-dt';
 import { useEffect, useRef, useState } from 'react';
 import 'datatables.net-dt/css/dataTables.dataTables.css';
 import { FaTrash } from "react-icons/fa";
-import { FaEye } from "react-icons/fa";
-import { FaEdit } from "react-icons/fa";
-import { FaSave, FaFilter } from "react-icons/fa";
+import TableFilter from './TableFilter';
+import './TableFilter.css';
 
 DataTable.use(DT);
+
+const JOB_STATUSES = ['Assigned', 'In-Progress', 'Pending Review', 'Unassigned'];
+// No inspector means Unassigned; otherwise keep a valid progress status, defaulting to Assigned.
+const resolveJobStatus = (status, inspector) => {
+    if (!inspector) return 'Unassigned';
+    return ['Assigned', 'In-Progress', 'Pending Review'].includes(status) ? status : 'Assigned';
+};
+const statusClass = (status) => status.toLowerCase().replace(/\s+/g, '-');
+
 function JobHomepage() {
-    const [editingId, setEditingId] = useState(null);
     const [menuOpen, setMenuOpen] = useState(false);
-    const [isOpen, setIsOpen] = useState(false);
-    const [draft, setDraft] = useState({});
-    const dialog = useRef(null);
+    const [deleteTarget, setDeleteTarget] = useState(null);
+    const confirmDialog = useRef(null);
+    const table = useRef(null);
 
     useEffect(() => {
-        if (isOpen) dialog.current.showModal();
-    }, [isOpen]);
+        if (deleteTarget && confirmDialog.current && !confirmDialog.current.open) confirmDialog.current.showModal();
+    }, [deleteTarget]);
 
-    const closeEditor = () => {
-        dialog.current.close();
-        setIsOpen(false);
-        setEditingId(null);
-        setDraft({});
+    const closeConfirm = () => {
+        if (confirmDialog.current?.open) confirmDialog.current.close();
+        setDeleteTarget(null);
     };
 
-    const openEditor = (row) => {
-        const [month, day, year] = row.date.split('/');
-        setDraft({ ...row, inspectionRequestDate: `${year}-${month}-${day}` });
-        setEditingId(row.id);
-        setIsOpen(true);
+    const confirmDelete = () => {
+        if (deleteTarget) handleDelete(deleteTarget.id);
+        closeConfirm();
     };
-
-    function handleSubmit(event) {
-        event.preventDefault();
-        const [year, month, day] = draft.inspectionRequestDate.split('-');
-        setTableData((rows) => rows.map((row) => row.id === editingId
-            ? { ...row, ...draft, date: `${month}/${day}/${year}` }
-            : row));
-        closeEditor();
-    }
 
     const handleBidsClick = () => {
         window.location.href= '/Homepage';
     };
-    const [filterColumn, setFilterColumn] = useState("all");
-    const [filterValue, setFilterValue] = useState("");
-    const table = useRef(null);
 
-
-    
     const handleView = (row) => {
         const jobs = tableData.map((job) => ({ ...job, pdf: job.pdf?.name ?? job.pdf ?? '' }));
         sessionStorage.setItem('availableJobs', JSON.stringify(jobs));
         sessionStorage.setItem('selectedJob', JSON.stringify(jobs.find((job) => job.id === row.id)));
         window.location.href = `/Jobspage?jobId=${encodeURIComponent(row.id)}`;
     };
+
+    // Clicking anywhere on a row (except its buttons) opens that job.
+    const handleRowClick = (event) => {
+        if (event.target.closest('button, a, input, select')) return;
+        const tr = event.target.closest('tbody tr');
+        if (!tr || !table.current) return;
+        const row = table.current.dt().row(tr).data();
+        if (row) handleView(row);
+    };
+
+    const handleRowKeyDown = (event) => {
+        if (event.key === 'Enter' && event.target.tagName === 'TR') handleRowClick(event);
+    };
+
     const [tableData, setTableData] = useState([
         {
             id: 1,
             name: "John Doe",
             date: "08/10/2006",
             businessName: "Vertex Logistics",
-            status: "Accepted"
+            status: "In-Progress"
         },
         {
             id: 2,
             name: "Saige Fuentes",
             date: "01/12/2016",
             businessName: "Lumina Marketing",
-            status: "Accepted"
+            status: "Assigned"
         },
         {
             id: 3,
             name: "Bowen Higgins",
             date: "02/10/2006",
             businessName: "BlueWave Digital",
-            status: "Accepted"
+            status: "Pending Review"
         },
         {
             id: 4,
             name: "Kylan Gentry",
             date: "03/10/2016",
             businessName: "Apex Financial Group",
-            status: "Accepted"
+            status: "Assigned"
         },
         {
             id: 5,
             name: "Aaron Paul",
             date: "04/10/2017",
             businessName: "Ironclad Security Services",
-            status: "Accepted"
+            status: "Unassigned",
+            inspector: ""
         },
         {
             id: 6,
             name: "Sarah Hopkins",
             date: "02/15/2012",
             businessName: "Zenith Healthcare",
-            status: "Accepted"
+            status: "In-Progress"
         },
         {
             id: 7,
             name: "Xavier Pace",
             date: "03/10/2012",
             businessName: "Vanguard Consulting",
-            status: "Accepted"
+            status: "Assigned"
         },
         {
             id: 8,
             name: "Charles Xavier",
             date: "04/12/2026",
             businessName: "Horizon Eco Solutions",
-            status: "Accepted"
+            status: "Pending Review"
         },
         {
             id: 9,
             name: "Maya Bennett",
             date: "05/06/2026",
             businessName: "Cedar Grove Realty",
-            status: "Accepted"
+            status: "Assigned"
         },
         {
             id: 10,
             name: "Ethan Brooks",
             date: "05/14/2026",
             businessName: "Summit Manufacturing",
-            status: "Accepted"
+            status: "Unassigned",
+            inspector: ""
         },
         {
             id: 11,
             name: "Olivia Chen",
             date: "06/02/2026",
             businessName: "Harborview Hospitality",
-            status: "Accepted"
+            status: "In-Progress"
         },
         {
             id: 12,
             name: "Noah Carter",
             date: "06/18/2026",
             businessName: "Pinecrest Construction",
-            status: "Accepted"
+            status: "Assigned"
         },
         {
             id: 13,
             name: "Amara Williams",
             date: "07/08/2026",
             businessName: "BrightPath Education",
-            status: "Accepted"
+            status: "Pending Review"
         },
         {
             id: 14,
             name: "Lucas Rivera",
             date: "07/22/2026",
             businessName: "Stonebridge Auto Services",
-            status: "Accepted"
+            status: "Assigned"
         },
         {
             id: 15,
             name: "Karen Patel",
             date: "08/05/2026",
             businessName: "Maple Leaf Retail",
-            status: "Accepted"
+            status: "Unassigned",
+            inspector: ""
         },
         {
             id: 16,
             name: "Jackson Reed",
             date: "08/19/2026",
             businessName: "Northstar Warehousing",
-            status: "Accepted"
+            status: "In-Progress"
         },
         {
             id: 17,
             name: "Isabella Morgan",
             date: "09/03/2026",
             businessName: "Willow Creek Wellness",
-            status: "Accepted"
+            status: "Assigned"
         },
         {
             id: 18,
             name: "Elijah Foster",
             date: "09/16/2026",
             businessName: "Clearwater Engineering",
-            status: "Accepted"
+            status: "Pending Review"
         },
         {
             id: 19,
             name: "Ava Thompson",
             date: "10/01/2026",
             businessName: "Oakridge Food Services",
-            status: "Accepted"
+            status: "Assigned"
         },
         {
             id: 20,
             name: "Liam Hayes",
             date: "10/08/2026",
             businessName: "Silverline Technology",
-            status: "Accepted"
+            status: "Unassigned",
+            inspector: ""
         }
-        ].concat(readAcceptedJobs(), readBidList('createdJobs')).map(withJobDemoData).map((job) => ({
-            ...job,
-            inspector: readBidList('jobAssignments').find((assignment) => assignment.jobId === job.id)?.inspector ?? job.inspector ?? '',
-        })));
+        ].concat(readAcceptedJobs(), readBidList('createdJobs')).map(withJobDemoData).map((job) => {
+            const inspector = readBidList('jobAssignments').find((assignment) => assignment.jobId === job.id)?.inspector ?? job.inspector ?? '';
+            return { ...job, inspector, status: resolveJobStatus(job.status, inspector) };
+        }));
 
 
     useEffect(() => {
@@ -247,117 +254,37 @@ function JobHomepage() {
     }
    
     ];
-    const handleFilter = (column, value) => {
-        setFilterColumn(column);
-        setFilterValue(value);
-        if (!table.current) return;
-
-        const api = table.current.dt();
-
-        // Clear previous column filters
-        api.columns().search("");
-
-        if (column === "all") {
-            // Search entire table
-            api.search(value).draw();
-        } else {
-            // Clear global search
-            api.search("");
-
-            // Search selected column
-            api.column(Number(column)).search(value).draw();
-        }
-    };    
+    // One filter per data column (the Actions column is skipped).
+    const filterColumns = columns
+        .map((column, index) => ({ column, index }))
+        .filter(({ column }) => column.data)
+        .map(({ column, index }) => ({
+            index,
+            label: column.title.replace('# ', ''),
+            options: column.data === 'status' ? JOB_STATUSES : undefined,
+        }));
     const handleDelete = (id) => {
     setTableData((prevData) =>
         prevData.filter((row) => row.id !== id)
     );
     };
-    const handleEditChange = (field, value) => {
-        setDraft((previous) => ({ ...previous, [field]: value }));
-    };
-    const formSections = [
-        { title: 'Inspection details', fields: [
-            ['appraisalType', 'Appraisal type'],
-            ['inspectionRequestDate', 'Inspection request date', 'date'],
-            ['propertyType', 'Type of property'],
-            ['status', 'Status', 'select'],
-        ] },
-        { title: 'Subject contact', fields: [
-            ['name', 'Subject contact name'],
-            ['subjectContactPhone', 'Subject contact phone', 'tel'],
-            ['subjectContactEmail', 'Subject contact email', 'email'],
-        ] },
-        { title: 'Business & property address', fields: [
-            ['businessName', 'Business name'],
-            ['businessAddress', 'Business address'],
-            ['city', 'City'],
-            ['state', 'State'],
-            ['zipCode', 'ZIP code'],
-        ] },
-    ];
   return (
     <div className='frame_home'>
-        <dialog ref={dialog} className="popup" aria-labelledby="form-title" onCancel={(event) => {
+        <dialog ref={confirmDialog} className="popup confirm_popup" aria-labelledby="confirm-title" onCancel={(event) => {
             event.preventDefault();
-            closeEditor();
+            closeConfirm();
         }}>
-            {isOpen && (
-                <form onSubmit={handleSubmit}>
-                    <div className="bid_form_header">
-                        <div>
-                            <p className="bid_form_eyebrow">{draft.name || 'Unnamed contact'}</p>
-                            <h2 id="form-title">Edit job details</h2>
-                            <p>Update the details below, then save your changes.</p>
-                        </div>
-                        <button type="button" className="bid_form_close" aria-label="Close editor" onClick={closeEditor}>×</button>
-                    </div>
-                    <div className="bid_form_body">
-                        {formSections.map((section) => (
-                            <fieldset className="bid_form_section" key={section.title}>
-                                <legend>{section.title}</legend>
-                                <div className="bid_form_grid">
-                                    {section.fields.map(([field, label, type = 'text']) => (
-                                        <div className="bid_form_field" key={field}>
-                                            <label htmlFor={`bid-${field}`}>{label}</label>
-                                            {type === 'select' ? (
-                                                <select id={`bid-${field}`} value={draft[field] || 'Pending'} onChange={(event) => handleEditChange(field, event.target.value)}>
-                                                    <option>Pending</option>
-                                                    <option>Accepted</option>
-                                                    <option>Declined</option>
-                                                </select>
-                                            ) : (
-                                                <input id={`bid-${field}`} type={type} value={draft[field] || ''} required={field === 'name' || field === 'inspectionRequestDate'} onChange={(event) => handleEditChange(field, event.target.value)} />
-                                            )}
-                                        </div>
-                                    ))}
-                                </div>
-                            </fieldset>
-                        ))}
-                        <fieldset className="bid_form_section">
-                            <legend>Additional details</legend>
-                            <div className="bid_form_grid">
-                                <div className="bid_form_field">
-                                    <label htmlFor="bid-discount">Discount</label>
-                                    <input id="bid-discount" type="number" min="0" step="0.01" value={draft.discount ?? ''} onChange={(event) => handleEditChange('discount', event.target.value)} />
-                                </div>
-                                <label className="bid_form_checkbox">
-                                    <input type="checkbox" checked={Boolean(draft.rush)} onChange={(event) => handleEditChange('rush', event.target.checked)} />
-                                    Rush inspection
-                                </label>
-                                <div className="bid_form_field bid_form_full">
-                                    <label htmlFor="bid-pdf">PDF attachment</label>
-                                    <input id="bid-pdf" type="file" accept=".pdf,application/pdf" onChange={(event) => handleEditChange('pdf', event.target.files[0] || draft.pdf)} />
-                                    {draft.pdf && <span className="bid_form_hint">Selected: {draft.pdf.name ?? draft.pdf}</span>}
-                                </div>
-                            </div>
-                        </fieldset>
+            {deleteTarget && (
+                <div>
+                    <div className="confirm_body">
+                        <h2 id="confirm-title">Delete this job?</h2>
+                        <p>Are you sure you want to delete job #{deleteTarget.id} for <strong>{deleteTarget.name}</strong> ({deleteTarget.businessName})?</p>
                     </div>
                     <div className="actions">
-                        <button type="button" className="bid_form_cancel" onClick={closeEditor}>Cancel</button>
-                        <button type="submit" className="bid_form_save"><FaSave /> Save</button>
+                        <button type="button" className="bid_form_cancel" onClick={closeConfirm}>Cancel</button>
+                        <button type="button" className="bid_form_delete" onClick={confirmDelete}>Delete job</button>
                     </div>
-                </form>
+                </div>
             )}
         </dialog>
 
@@ -424,46 +351,10 @@ function JobHomepage() {
                 </div>
             </div>
         <section className="bids_panel" aria-label="Jobs">
-        <div className="table_top_header">
-
-            <div className="filter_controls">
-
-                <details className="bid_filter">
-                    <summary className="filter_button"><FaFilter aria-hidden="true" /> Filter</summary>
-                    <fieldset className="filter_menu">
-                        <legend>Search in</legend>
-                        {[
-                            ['all', 'All columns'], ['0', 'ID'], ['1', 'Name'],
-                            ['2', 'Date'], ['3', 'Business name'], ['4', 'Status'],
-                        ].map(([value, label]) => (
-                            <label key={value}>
-                                <input type="radio" name="job-filter-column" value={value}
-                                    checked={filterColumn === value}
-                                    onChange={() => handleFilter(value, filterValue)} />
-                                {label}
-                            </label>
-                        ))}
-                    </fieldset>
-                </details>
-
-                <input
-                    className="filter_input" aria-label="Filter jobs"
-                    type="text"
-                    placeholder="Filter..."
-                    value={filterValue}
-                    onChange={(e) =>
-                        handleFilter(filterColumn, e.target.value)
-                    }
-                />
-
+            <div className="table_filter_toolbar">
+                <TableFilter tableRef={table} columns={filterColumns} />
             </div>
-
-
-
-
-
-        </div>
-            <div className="bids_table_container">
+            <div className="bids_table_container" onClick={handleRowClick} onKeyDown={handleRowKeyDown}>
             <DataTable
             ref={table}
             data={tableData}
@@ -471,26 +362,16 @@ function JobHomepage() {
             className="bids_table"
             slots={{
                 4: (data, type, row) => (
-                    <span className={`bid_status bid_status_${row.status.toLowerCase()}`}>{row.status}</span>
+                    <span className={`bid_status bid_status_${statusClass(row.status)}`}>{row.status}</span>
                 ),
                 5: (data, type, row) => (
                     <div className="action_buttons">
-
-                        <button className="view" title="View job" aria-label={`View job ${row.id}`} onClick={() => handleView(row)}>
-                            <FaEye />
-                        </button>
-
-                        <button className="edit" title="Edit job" aria-label={`Edit job ${row.id}`} onClick={() => openEditor(row)}>
-                            <FaEdit />
-                        </button>
-
                         <button
                             className="delete_icon" title="Delete job" aria-label={`Delete job ${row.id}`}
-                            onClick={() => handleDelete(row.id)}
+                            onClick={(event) => { event.stopPropagation(); setDeleteTarget(row); }}
                         >
                             <FaTrash />
                         </button>
-
                     </div>
                 )
             }}
@@ -499,7 +380,8 @@ function JobHomepage() {
                 searching: true,
                 ordering: true,
                 info: true,
-                pageLength: 10
+                pageLength: 10,
+                createdRow: (row) => { row.tabIndex = 0; }
             }}
 
             />

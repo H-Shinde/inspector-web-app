@@ -2,7 +2,12 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import Clients from './clients';
 jest.mock('datatables.net-react', () => {
     const React = require('react');
-    const Table = React.forwardRef(({ data, slots }, ref) => <div>{data.map((row) => <div key={row.id}><span>{row.name}</span>{slots[5](null, null, row)}</div>)}</div>);
+    const Table = React.forwardRef(({ data, slots }, ref) => {
+        React.useImperativeHandle(ref, () => ({
+            dt: () => ({ row: (tr) => ({ data: () => data.find((row) => String(row.id) === tr.dataset.id) }), column: () => ({ search: () => {} }), draw: () => {} }),
+        }));
+        return <table><tbody>{data.map((row) => <tr key={row.id} data-id={row.id}><td>{row.name}</td><td>{slots[5](null, null, row)}</td></tr>)}</tbody></table>;
+    });
     Table.use = () => {};
     return Table;
 });
@@ -12,23 +17,43 @@ beforeEach(() => {
     localStorage.clear();
     HTMLDialogElement.prototype.showModal = function () { this.open = true; };
     HTMLDialogElement.prototype.close = function () { this.open = false; };
+    delete window.location;
+    window.location = { href: '', search: '' };
 });
-test('adds, edits, views, and deletes a client with session persistence', () => {
+
+test('delete is the only row action', () => {
+    render(<Clients />);
+    expect(screen.getByRole('button', { name: 'Delete Avery Wilson' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Edit Avery Wilson' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'View Avery Wilson' })).toBeNull();
+});
+
+test('adds a client, then deletes only after confirmation', () => {
     const { unmount } = render(<Clients />);
     fireEvent.click(screen.getByRole('button', { name: '+ Add Client' }));
-    let popup = within(screen.getByRole('dialog'));
+    const popup = within(screen.getByLabelText('Add Client', { selector: 'dialog' }));
     fireEvent.change(popup.getByLabelText('Name'), { target: { value: 'Riley Stone' } });
-    fireEvent.change(popup.getByLabelText('Email'), { target: { value: 'riley@example.com' } });
     fireEvent.click(popup.getByRole('button', { name: 'Save Client' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Edit Riley Stone' }));
-    popup = within(screen.getByRole('dialog'));
-    fireEvent.change(popup.getByLabelText('Status'), { target: { value: 'Accepted' } });
-    fireEvent.change(popup.getByLabelText('City, State, Zip'), { target: { value: 'Boston, MA 02108' } });
-    fireEvent.click(popup.getByRole('button', { name: 'Save Client' }));
-    expect(JSON.parse(localStorage.getItem('clients')).find((row) => row.name === 'Riley Stone')).toMatchObject({ status: 'Accepted', email: 'riley@example.com', cityStateZip: 'Boston, MA 02108' });
+    expect(JSON.parse(localStorage.getItem('clients')).some((row) => row.name === 'Riley Stone')).toBe(true);
+
     fireEvent.click(screen.getByRole('button', { name: 'Delete Riley Stone' }));
-    expect(screen.queryByRole('button', { name: 'View Riley Stone' })).toBeNull();
+    const confirm = within(screen.getByLabelText('Delete this client?', { selector: 'dialog' }));
+    fireEvent.click(confirm.getByRole('button', { name: 'Cancel' }));
+    expect(screen.getByText('Riley Stone')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Riley Stone' }));
+    fireEvent.click(within(screen.getByLabelText('Delete this client?', { selector: 'dialog' })).getByRole('button', { name: 'Delete client' }));
+    expect(screen.queryByText('Riley Stone')).toBeNull();
     unmount();
     render(<Clients />);
-    expect(screen.queryByRole('button', { name: 'View Riley Stone' })).toBeNull();
+    expect(screen.queryByText('Riley Stone')).toBeNull();
+});
+
+test('clicking a row opens that client, but clicking delete does not', () => {
+    render(<Clients />);
+    fireEvent.click(screen.getByText('Sam Bennett'));
+    expect(window.location.href).toBe('/Clientspage?clientId=2');
+    window.location.href = '';
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Avery Wilson' }));
+    expect(window.location.href).toBe('');
 });
