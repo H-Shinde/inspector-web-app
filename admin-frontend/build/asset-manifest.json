@@ -1,0 +1,16 @@
+{
+  "files": {
+    "main.css": "/static/css/main.d18c6b13.css",
+    "main.js": "/static/js/main.94e7de72.js",
+    "static/js/453.30da8fd2.chunk.js": "/static/js/453.30da8fd2.chunk.js",
+    "static/media/bison_logo__login.png": "/static/media/bison_logo__login.0a428c90cfea1b88110c.png",
+    "index.html": "/index.html",
+    "main.d18c6b13.css.map": "/static/css/main.d18c6b13.css.map",
+    "main.94e7de72.js.map": "/static/js/main.94e7de72.js.map",
+    "453.30da8fd2.chunk.js.map": "/static/js/453.30da8fd2.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.d18c6b13.css",
+    "static/js/main.94e7de72.js"
+  ]
+}
