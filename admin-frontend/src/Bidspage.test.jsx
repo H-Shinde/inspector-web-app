@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import Bidspage from './Bidspage';
 
 beforeEach(() => {
@@ -9,16 +9,14 @@ beforeEach(() => {
     window.history.replaceState(null, '', '/Bidspage?bidId=1');
 });
 
-test('selects bids from the sidebar and loads a requested bid on reopening', () => {
+test('loads the requested bid without a selection sidebar', () => {
     const { unmount } = render(<Bidspage />);
-    const sidebar = within(screen.getByRole('complementary', { name: 'Bid selection' }));
-    fireEvent.click(sidebar.getByRole('button', { name: /Sam Bennett/ }));
-    expect(screen.getByLabelText('Subject contact name')).toHaveValue('Sam Bennett');
-    expect(window.location.search).toBe('?bidId=2');
-    unmount();
-    window.history.replaceState(null, '', '/Bidspage?bidId=1');
-    render(<Bidspage />);
+    expect(screen.queryByRole('complementary', { name: 'Bid selection' })).not.toBeInTheDocument();
     expect(screen.getByLabelText('Subject contact name')).toHaveValue('Avery Wilson');
+    unmount();
+    window.history.replaceState(null, '', '/Bidspage?bidId=2');
+    render(<Bidspage />);
+    expect(screen.getByLabelText('Subject contact name')).toHaveValue('Sam Bennett');
 });
 
 test('saves inline contact edits and restores them even from older session records', () => {
@@ -46,4 +44,34 @@ test('cancels changes without persisting them', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(screen.getByLabelText('Subject contact name')).toHaveValue('Avery Wilson');
     expect(localStorage.getItem('bidEdits')).toBeNull();
+});
+
+
+test('requires an inspector and remembers the assignment when the bid is reopened', () => {
+    const { unmount } = render(<Bidspage />);
+    expect(screen.getByRole('button', { name: 'Accept' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Accept' }));
+    expect(sessionStorage.getItem('acceptedJobs')).toBeNull();
+    fireEvent.change(screen.getByLabelText('Assigned inspector'), { target: { value: '1' } });
+    expect(screen.getByRole('button', { name: 'Accept' })).toBeEnabled();
+    expect(JSON.parse(sessionStorage.getItem('selectedBid'))).toMatchObject({ inspectorId: 1, inspector: 'Alex Morgan' });
+    unmount();
+    render(<Bidspage />);
+    expect(screen.getByLabelText('Assigned inspector')).toHaveValue('1');
+    expect(screen.getByRole('button', { name: 'Accept' })).toBeEnabled();
+    fireEvent.change(screen.getByLabelText('Assigned inspector'), { target: { value: '' } });
+    expect(screen.getByRole('button', { name: 'Accept' })).toBeDisabled();
+});
+
+test('carries the assigned inspector into the accepted job', () => {
+    const location = window.location;
+    delete window.location;
+    window.location = { pathname: '/Homepage', search: '', href: '' };
+    try {
+        render(<Bidspage />);
+        fireEvent.change(screen.getByLabelText('Assigned inspector'), { target: { value: '1' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Accept' }));
+        expect(JSON.parse(sessionStorage.getItem('acceptedJobs'))[0]).toMatchObject({ sourceBidId: 1, inspectorId: 1, inspector: 'Alex Morgan' });
+        expect(window.location.href).toMatch(/^\/Jobspage\?jobId=/);
+    } finally { window.location = location; }
 });

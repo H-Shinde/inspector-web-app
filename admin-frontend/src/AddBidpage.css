@@ -1,8 +1,26 @@
 @import './Bidspage.css';
 
+.add_bid_page .fieldsframe { display: flex; flex-direction: column; gap: 28px; }
+.add_bid_section { min-width: 0; margin: 0; padding: 20px 0 0; border: 0; border-top: 1px solid #C8D4E0; }
+.add_bid_section legend { padding: 0 12px 0 0; color: #005581; font-size: 18px; font-weight: 600; }
+.add_bid_section_fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+.add_bid_section select { width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid #C8D4E0; border-radius: 6px; background: #F8FAFC; color: #1F2937; font: inherit; font-size: 14px; }
+.add_bid_section select:focus-visible { outline: 2px solid #005581; outline-offset: 2px; }
+.add_bid_page .add_bid_checkbox { flex-direction: row; align-items: center; gap: 12px; padding-top: 28px; }
+.add_bid_page .add_bid_checkbox input { width: 20px; min-height: 20px; height: 20px; flex-shrink: 0; cursor: pointer; accent-color: #005581; }
+.add_bid_pricing_help { margin: 16px 0 0; color: #64748B; font-size: 13px; }
+.add_bid_page input[readonly] { font-weight: 600; cursor: default; }
+@media (max-width: 760px) { .add_bid_section_fields { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .add_bid_section_fields { grid-template-columns: minmax(0, 1fr); } .add_bid_page .add_bid_checkbox { padding-top: 0; } }
+
 .add_bid_page .fieldsframe input {
     cursor: text;
 }
+
+.agreement_dialog { width: min(560px, calc(100% - 32px)); max-height: calc(100vh - 48px); overflow-y: auto; }
+.agreement_dialog .actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 12px; }
+.agreement_dialog button:disabled { opacity: .6; cursor: wait; }
+.add_bid_page .fieldsframe input:disabled { opacity: .5; cursor: not-allowed; }
 
 .add_bid_error {
     grid-column: 1 / -1;
@@ -10,3 +28,13 @@
     color: #9F3030;
     font-size: 14px;
 }
+
+.bid_email_preview { display: flex; flex-direction: column; gap: 8px; margin-top: 20px; }
+.bid_email_preview h3 { margin: 0 0 8px; color: #005581; }
+.bid_email_preview label { font-weight: 600; }
+.bid_email_preview input, .bid_email_preview textarea { box-sizing: border-box; width: 100%; padding: 10px 12px; border: 1px solid #C8D4E0; border-radius: 6px; font: inherit; color: #1F2937; background: white; }
+.bid_email_preview textarea { resize: vertical; line-height: 1.5; }
+
+.agreement_pdf_preview { display: block; width: 100%; height: 65vh; margin-top: 20px; border: 1px solid #C8D4E0; border-radius: 6px; }
+
+.agreement_preview_download { display: inline-flex; margin-top: 12px; text-decoration: none; }

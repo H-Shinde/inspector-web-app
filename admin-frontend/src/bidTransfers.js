@@ -8,6 +8,7 @@ export function readAcceptedJobs() {
 }
 
 export function moveBidToJobs(bid) {
+    if (!bid.inspector?.trim()) throw new Error('Assign an inspector before accepting this bid.');
     const jobs = readAcceptedJobs();
     let createdJobs = [];
     try {

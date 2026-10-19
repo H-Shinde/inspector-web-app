@@ -11,7 +11,7 @@ DataTable.use(DT);
 
 const fields = [['id', '# ID'], ['name', 'Name'], ['distance', 'Distance'], ['company', 'Company'], ['status', 'Status']];
 const columns = [
-    ...fields.map(([data, title]) => ({ data, title, defaultContent: '', render: data === 'distance'
+    ...fields.map(([data, title]) => ({ data, title, visible: data !== 'id', searchable: data !== 'id', defaultContent: '', render: data === 'distance'
         ? (value, type) => type === 'display' ? (value === '' || value == null ? 'Not provided' : `${Number(value)} miles`) : value
         : DT.render.text() })),
     { data: null, title: 'Actions', orderable: false, searchable: false },

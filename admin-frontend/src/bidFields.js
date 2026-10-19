@@ -1,3 +1,14 @@
+export const clientBidFields = [
+    ['clientCompany', 'Client Company'],
+    ['clientName', 'Client Name'],
+    ['clientStreetAddress', 'Client Street Address'],
+    ['clientCity', 'Client City'],
+    ['clientState', 'Client State'],
+    ['clientZipCode', 'Client ZIP Code'],
+    ['clientPhone', 'Client Phone', 'tel'],
+    ['clientEmail', 'Client Email', 'email'],
+];
+
 export const bidFields = [
     ['appraisalType', 'Appraisal type'],
     ['subjectContactPhone', 'Subject contact phone'],
@@ -32,13 +43,27 @@ export function readBidEdits() {
     } catch { return {}; }
 }
 
+export function calculateTotalBid(draft) {
+    return ((Math.round(Number(draft.bidAmount || 0) * 100)
+        - Math.round(Number(draft.discount || 0) * 100)
+        - (draft.rush === true ? Math.round(Number(draft.rushDiscount || 0) * 100) : 0)
+        + Math.round(Number(draft.additionalCharges || 0) * 100)) / 100).toFixed(2);
+}
+
+export function nextBidId() {
+    return Math.max(20, ...[...readBidList('createdBids'), ...readBidList('availableBids')].map((bid) => Number(bid.id) || 0),
+        ...readBidList('acceptedJobs').map((job) => Number(job.sourceBidId) || 0)) + 1;
+}
+
+export function bidReferenceNumber(id) {
+    return `BID-${String(id).padStart(6, '0')}`;
+}
+
 export function createBid(draft) {
     const created = readBidList('createdBids');
     const available = readBidList('availableBids');
-    const transferred = readBidList('acceptedJobs');
-    const id = Math.max(20, ...[...created, ...available].map((bid) => Number(bid.id) || 0),
-        ...transferred.map((job) => Number(job.sourceBidId) || 0)) + 1;
-    const bid = { ...draft, id, status: draft.status.trim() || 'Pending' };
+    const id = nextBidId();
+    const bid = { ...draft, id, status: 'Pending', referenceNumber: bidReferenceNumber(id), totalBid: calculateTotalBid(draft) };
     sessionStorage.setItem('createdBids', JSON.stringify([...created, bid]));
     sessionStorage.setItem('availableBids', JSON.stringify([...available, bid]));
     sessionStorage.setItem('selectedBid', JSON.stringify(bid));

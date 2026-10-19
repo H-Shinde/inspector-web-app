@@ -88,7 +88,7 @@ export default function Clientspage() {
             {notice && <p className="bid_creation_message" role="status">{notice}</p>}
             {!client && <p className="bid_details_empty">Select a client from the sidebar to view their information.</p>}
             <form id="client-inline-edit" className="client_inline_form" onSubmit={saveEdits}>
-                {detailFields.map(([field, label]) => <div className="bid_detail_field" key={field}>
+                {detailFields.map(([field, label]) => field === 'id' ? <input key={field} type="hidden" name="id" value={client?.id ?? ''} /> : <div className="bid_detail_field" key={field}>
                     <label htmlFor={`view-client-${field}`}>{label}</label>
                     {editDraft && field === 'status' ? <select id={`view-client-${field}`} value={editDraft.status ?? 'Pending'} onChange={(event) => setEditDraft({ ...editDraft, status: event.target.value })}><option>Accepted</option><option>Pending</option></select>
                         : <input id={`view-client-${field}`} readOnly={!editDraft || field === 'id'} required={!!editDraft && field === 'name'}
@@ -104,7 +104,7 @@ export default function Clientspage() {
         <dialog ref={dialog} className="popup" aria-labelledby="add-client-title" onCancel={(event) => { event.preventDefault(); close(); }}>
             {draft && <form onSubmit={save}>
                 <div className="bid_form_header"><h2 id="add-client-title">Add Client</h2><button type="button" className="bid_form_close" aria-label="Close dialog" onClick={close}>×</button></div>
-                <div className="bid_form_body bid_form_grid">{detailFields.map(([field, label]) => <div className="bid_form_field" key={field}>
+                <div className="bid_form_body bid_form_grid">{detailFields.map(([field, label]) => field === 'id' ? <input key={field} type="hidden" name="id" value={client?.id ?? ''} /> : <div className="bid_form_field" key={field}>
                     <label htmlFor={`add-client-${field}`}>{label}</label>
                     {field === 'status' ? <select id={`add-client-${field}`} value={draft.status} onChange={(event) => setDraft({ ...draft, status: event.target.value })}><option>Accepted</option><option>Pending</option></select>
                         : <input id={`add-client-${field}`} type={field === 'email' ? 'email' : ['phone', 'fax'].includes(field) ? 'tel' : field === 'totalBids' ? 'number' : 'text'} min={field === 'totalBids' ? '0' : undefined} readOnly={field === 'id'} required={field === 'name'} value={draft[field]} onChange={(event) => setDraft({ ...draft, [field]: event.target.value })} />}

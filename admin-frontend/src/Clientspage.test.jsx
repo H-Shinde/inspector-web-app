@@ -37,7 +37,8 @@ test('adds a client to the sidebar and selects their information', () => {
 test('saves inline edits persistently without changing other clients', () => {
     const { unmount } = render(<Clientspage />);
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
-    expect(screen.getByLabelText('# ID')).toHaveAttribute('readonly');
+    expect(screen.queryByLabelText('# ID')).not.toBeInTheDocument();
+    expect(document.querySelector('input[type=hidden][name=id]')).toHaveValue('1');
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: ' Avery Updated ' } });
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'updated@example.com' } });
     fireEvent.change(screen.getByLabelText('Total Bids'), { target: { value: '22' } });

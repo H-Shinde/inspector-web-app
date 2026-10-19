@@ -1,3 +1,4 @@
+import { archiveDeletedRecord, isDeletedRecord } from './historyRecords';
 import './BidsJobsHomepage.css';
 import { readBidList, readBidEdits } from './bidFields';
 import navLogo from './bison_logo_nav.png';
@@ -9,10 +10,17 @@ import { useEffect, useRef, useState } from 'react';
 import 'datatables.net-dt/css/dataTables.dataTables.css';
 import { FaTrash } from "react-icons/fa";
 import TableFilter from './Tablefilter';
+import Bidspage from './Bidspage';
 import './TableFilter.css';
 
 DataTable.use(DT);
 function Homepage() {
+    const [viewedBid, setViewedBid] = useState(null);
+    const bidDialog = useRef(null);
+    useEffect(() => {
+        if (viewedBid && !bidDialog.current.open) bidDialog.current.showModal();
+    }, [viewedBid]);
+    const closeBid = () => { bidDialog.current.close(); setViewedBid(null); };
     const [menuOpen, setMenuOpen] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState(null);
     const confirmDialog = useRef(null);
@@ -38,7 +46,7 @@ function Homepage() {
             ...bid, pdf: bid.pdf?.name ?? bid.pdf ?? '',
         }))));
         sessionStorage.setItem('selectedBid', JSON.stringify(selectedBid));
-        window.location.href = `/Bidspage?bidId=${encodeURIComponent(row.id)}`;
+        setViewedBid(selectedBid);
     };
 
     // Clicking anywhere on a row (except its buttons) opens that bid.
@@ -224,7 +232,7 @@ function Homepage() {
             zipCode: ['20001', '22201', '22301'][(row.id - 1) % 3],
             ...row,
             status: savedStatuses[row.id] ?? row.status,
-        })).concat(readBidList('createdBids').map((row) => ({ ...row, status: savedStatuses[row.id] ?? row.status }))).map((row) => ({ ...row, ...readBidEdits()[row.id] })).filter((row) => row.status !== 'Accepted'));
+        })).concat(readBidList('createdBids').map((row) => ({ ...row, status: savedStatuses[row.id] ?? row.status }))).map((row) => ({ ...row, ...readBidEdits()[row.id] })).filter((row) => row.status !== 'Accepted' && !isDeletedRecord('Bid', row.id)));
 
 
     useEffect(() => {
@@ -236,7 +244,9 @@ function Homepage() {
     const columns = [
     {
         data: "id",
-        title: "# ID"
+        title: "ID",
+        visible: false,
+        searchable: false
     },
     {
         data: "name",
@@ -265,16 +275,17 @@ function Homepage() {
     // One filter per data column (the Actions column is skipped).
     const filterColumns = columns
         .map((column, index) => ({ column, index }))
-        .filter(({ column }) => column.data)
+        .filter(({ column }) => column.data && column.visible !== false)
         .map(({ column, index }) => ({
             index,
             label: column.title.replace('# ', ''),
             options: column.data === 'status' ? [...new Set(tableData.map((row) => row.status))] : undefined,
         }));
     const handleDelete = (id) => {
-    setTableData((prevData) =>
-        prevData.filter((row) => row.id !== id)
-    );
+        const record = tableData.find((row) => row.id === id);
+        if (!record) return;
+        archiveDeletedRecord(record, 'Bid');
+        window.location.href = '/History';
     };
   return (
     <div className='frame_home'>
@@ -286,7 +297,7 @@ function Homepage() {
                 <div>
                     <div className="confirm_body">
                         <h2 id="confirm-title">Delete this bid?</h2>
-                        <p>Are you sure you want to delete bid #{deleteTarget.id} for <strong>{deleteTarget.name}</strong> ({deleteTarget.businessName})?</p>
+                        <p>Are you sure you want to delete this bid for <strong>{deleteTarget.name}</strong> ({deleteTarget.businessName})?</p>
                     </div>
                     <div className="actions">
                         <button type="button" className="bid_form_cancel" onClick={closeConfirm}>Cancel</button>
@@ -361,7 +372,7 @@ function Homepage() {
         <section className="bids_panel" aria-label="Bids">
         <div className="table_top_header">
             <TableFilter tableRef={table} columns={filterColumns} />
-            <button className="add_bid_button" onClick={() => { window.location.href = '/AddBid'; }}>
+            <button className="add_bid_button" onClick={() => { window.location.href = '/AddBid?from=Homepage'; }}>
                 + Add Bid
             </button>
         </div>
@@ -378,7 +389,7 @@ function Homepage() {
                 5: (data, type, row) => (
                     <div className="action_buttons">
                         <button
-                            className="delete_icon" title="Delete bid" aria-label={`Delete bid ${row.id}`}
+                            className="delete_icon" title="Delete bid" aria-label={`Delete bid for ${row.name}`}
                             onClick={(event) => { event.stopPropagation(); setDeleteTarget(row); }}
                         >
                             <FaTrash />
@@ -399,6 +410,13 @@ function Homepage() {
             </div>
         </section>
         </main>
+        <dialog ref={bidDialog} className="bid_information_popup" aria-labelledby="bid-popup-title" onCancel={(event) => { event.preventDefault(); closeBid(); }} onClick={(event) => { if (event.target === event.currentTarget) closeBid(); }}>
+            <header className="bid_popup_header">
+                <h2 id="bid-popup-title">Bid Information</h2>
+                <button type="button" className="bid_back_button" onClick={closeBid} aria-label="Close bid information">✕ Close</button>
+            </header>
+            {viewedBid && <Bidspage key={viewedBid.id} onChange={(updated) => setTableData((rows) => rows.map((row) => row.id === updated.id ? updated : row))} />}
+        </dialog>
         <div className='footer'></div>
 
     </div>

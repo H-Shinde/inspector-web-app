@@ -10,7 +10,7 @@ import { fields, detailFields, loadClients, saveClients, newClient } from './cli
 DataTable.use(DT);
 const STATUS_COLUMN = fields.findIndex(([field]) => field === 'status');
 const ACTIONS_COLUMN = fields.length;
-const columns = [...fields.map(([data, title]) => ({ data, title, defaultContent: '', render: DT.render.text() })), { data: null, title: 'Actions', orderable: false, searchable: false }];
+const columns = [...fields.map(([data, title]) => ({ data, title, visible: data !== 'id', searchable: data !== 'id', defaultContent: '', render: DT.render.text() })), { data: null, title: 'Actions', orderable: false, searchable: false }];
 
 export default function Clients() {
     const [rows, setRows] = useState(loadClients);
@@ -111,7 +111,7 @@ export default function Clients() {
         <dialog ref={dialog} className="popup" aria-labelledby="client-dialog-title" onCancel={(event) => { event.preventDefault(); close(); }}>
             {draft && <form onSubmit={save}>
                 <div className="bid_form_header"><h2 id="client-dialog-title">Add Client</h2><button type="button" className="bid_form_close" aria-label="Close dialog" onClick={close}>×</button></div>
-                <div className="bid_form_body bid_form_grid">{detailFields.map(([field, label]) => <div className="bid_form_field" key={field}>
+                <div className="bid_form_body bid_form_grid">{detailFields.map(([field, label]) => field === 'id' ? <input key={field} type="hidden" name="id" value={draft.id} /> : <div className="bid_form_field" key={field}>
                     <label htmlFor={`client-${field}`}>{label}</label>
                     {field === 'status' ? <select id={`client-${field}`} value={draft[field]} onChange={(event) => setDraft({ ...draft, [field]: event.target.value })}><option>Accepted</option><option>Pending</option></select>
                         : <input id={`client-${field}`} type={field === 'email' ? 'email' : ['phone', 'fax'].includes(field) ? 'tel' : field === 'totalBids' ? 'number' : 'text'} min={field === 'totalBids' ? '0' : undefined} step={field === 'totalBids' ? '1' : undefined} readOnly={field === 'id'} required={field === 'name'} value={draft[field] ?? ''} onChange={(event) => setDraft({ ...draft, [field]: event.target.value })} />}

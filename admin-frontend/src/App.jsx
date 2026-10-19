@@ -4,7 +4,6 @@ import ForgotPassword from './Forgot_pass';
 import UpdatePass from './Forgot_continue';
 import Homepage from './BidsJobsHomepage';
 import JobHomepage from './Jobspagehomepage';
-import Bidspage from './Bidspage';
 import AddBidpage from './AddBidpage';
 import Jobspage from './Jobspage';
 import History from './history';
@@ -65,7 +64,7 @@ function App() {
     return <JobHomepage />;
   };
   if (window.location.pathname === '/Bidspage') {
-    return <Bidspage/>;
+    return <Homepage />;
   };
 
   

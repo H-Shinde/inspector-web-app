@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { FaFilter } from 'react-icons/fa';
 import DataTable from 'datatables.net-react';
-import DT from 'datatables.net-dt';
+import DT from 'datatables.net';
 import 'datatables.net-dt/css/dataTables.dataTables.css';
 import navLogo from './bison_logo_nav.png';
 import { reportRows, reportTotals, totalFields } from './reportData';
@@ -9,7 +9,6 @@ import './reports.css';
 
 DataTable.use(DT);
 const columns = [
-    { data: 'id', title: '# ID' },
     { data: 'clientCount', title: 'Count of Client' },
     { data: 'valuationFalse', title: 'Business Valuation (False)' },
     { data: 'valuationTrue', title: 'Business Valuation (True)' },
@@ -56,7 +55,7 @@ export default function Reports() {
                             <summary className="filter_button"><FaFilter aria-hidden="true" /> Filter</summary>
                             <fieldset className="filter_menu">
                                 <legend>Search in</legend>
-                                {[['all', 'All columns'], ...columns.map((column, index) => [String(index), column.title])].map(([value, label]) => (
+                                {[['all', 'All columns'], ...columns.map((column, index) => ({ column, index })).filter(({ column }) => column.visible !== false).map(({ column, index }) => [String(index), column.title])].map(([value, label]) => (
                                     <label key={value}>
                                         <input type="radio" name="report-filter-column" value={value} checked={filterColumn === value}
                                             onChange={() => handleFilter(value, filterValue)} />{label}
@@ -77,11 +76,11 @@ export default function Reports() {
                                 const api = this.api();
                                 const totals = reportTotals(api.rows({ search: 'applied' }).data().toArray());
                                 totalFields.forEach((field, index) => {
-                                    api.column(index + 1).footer().textContent = String(totals[field]);
+                                    api.column(index).footer().textContent = String(totals[field]);
                                 });
                             },
                         }}>
-                        <tfoot><tr><th scope="row">Grand total</th>{totalFields.map((field) => <th key={field}>{reportTotals(reportRows)[field]}</th>)}</tr></tfoot>
+                        <tfoot aria-label="Grand totals"><tr>{totalFields.map((field) => <th key={field}>{reportTotals(reportRows)[field]}</th>)}</tr></tfoot>
                     </DataTable>
                 </div>
                 <div className="reports_bottom_actions">

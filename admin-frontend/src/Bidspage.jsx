@@ -1,13 +1,24 @@
 import { useEffect, useState } from 'react';
 import { bidFields, readBidEdits, readBidList } from './bidFields';
+import { getInspectors } from './inspectorSelection';
 import { moveBidToJobs } from './bidTransfers';
+import { downloadAgreement, readAgreement } from './engagementAgreement';
 import './Bidspage.css';
-import navLogo from './bison_logo_nav.png';
 
-function Bidspage() {
-    const [menuOpen, setMenuOpen] = useState(false);
+function Bidspage({ onChange }) {
     const [editDraft, setEditDraft] = useState(null);
     const [notice, setNotice] = useState('');
+    const [downloadingAgreement, setDownloadingAgreement] = useState(false);
+    const downloadSavedAgreement = async () => {
+        setDownloadingAgreement(true);
+        try {
+            const blob = await readAgreement(bid.referenceNumber);
+            if (!blob) throw new Error('Missing agreement');
+            downloadAgreement(blob, bid.engagementAgreement);
+        } catch {
+            setNotice('Unable to download the saved engagement agreement from this browser.');
+        } finally { setDownloadingAgreement(false); }
+    };
     const [createdBidId, setCreatedBidId] = useState(() => sessionStorage.getItem('createdBidMessage'));
     useEffect(() => {
         if (!createdBidId) return;
@@ -23,7 +34,7 @@ function Bidspage() {
     const [bid, setBid] = useState(() => {
         try {
             const saved = JSON.parse(sessionStorage.getItem('selectedBid') || 'null');
-            const requestedId = new URLSearchParams(window.location.search).get('bidId');
+            const requestedId = window.location.pathname === '/Bidspage' ? new URLSearchParams(window.location.search).get('bidId') : null;
             const selected = requestedId ? readBidList('availableBids').find((item) => String(item.id) === requestedId) || saved : saved;
             return selected && selected.status !== 'Accepted' && (!requestedId || String(selected.id) === requestedId) ? { ...selected, ...readBidEdits()[selected.id] } : null;
         } catch {
@@ -38,14 +49,6 @@ function Bidspage() {
             return bid ? [bid] : [];
         }
     });
-    const selectBid = (id) => {
-        const selected = availableBids.find((item) => item.id === id);
-        if (!selected) return;
-        setBid(selected);
-        setNotice('');
-        sessionStorage.setItem('selectedBid', JSON.stringify(selected));
-        window.history.replaceState(null, '', `/Bidspage?bidId=${encodeURIComponent(selected.id)}`);
-    };
     const saveEdits = (event) => {
         event.preventDefault();
         if (!editDraft?.name.trim()) return;
@@ -58,13 +61,30 @@ function Bidspage() {
             sessionStorage.setItem('selectedBid', JSON.stringify(updated));
             sessionStorage.setItem('createdBids', JSON.stringify(readBidList('createdBids').map((item) => item.id === updated.id ? updated : item)));
             setAvailableBids(updatedBids); setBid(updated); setEditDraft(null);
+            onChange?.(updated);
             setNotice('Bid information has been saved.');
         } catch { setNotice('Unable to save changes. Please try again.'); }
+    };
+    const inspectors = getInspectors();
+    const assignedInspector = inspectors.find((entry) => String(entry.id) === String(bid?.inspectorId)
+        || (!bid?.inspectorId && entry.name === bid?.inspector));
+    const assignInspector = (id) => {
+        if (!bid || editDraft) return;
+        const inspector = inspectors.find((entry) => String(entry.id) === id);
+        const updated = { ...bid, inspectorId: inspector?.id ?? '', inspector: inspector?.name ?? '' };
+        const updatedBids = availableBids.map((entry) => entry.id === bid.id ? updated : entry);
+        sessionStorage.setItem('selectedBid', JSON.stringify(updated));
+        sessionStorage.setItem('availableBids', JSON.stringify(updatedBids));
+        sessionStorage.setItem('createdBids', JSON.stringify(readBidList('createdBids').map((entry) => entry.id === bid.id ? updated : entry)));
+        setBid(updated);
+        setAvailableBids(updatedBids);
+        onChange?.(updated);
     };
     const updateStatus = (status) => {
         if (!bid) return;
         const updated = { ...bid, status };
         if (status === 'Accepted') {
+            if (!assignedInspector) { setNotice('Assign an inspector before accepting this bid.'); return; }
             const acceptedJob = moveBidToJobs(updated);
             sessionStorage.setItem('availableBids', JSON.stringify(availableBids.filter((item) => item.id !== bid.id)));
             sessionStorage.removeItem('selectedBid');
@@ -83,6 +103,7 @@ function Bidspage() {
         sessionStorage.setItem('availableBids', JSON.stringify(updatedBids));
         setBid(updated);
         setAvailableBids(updatedBids);
+        onChange?.(updated);
     };
     const fields = bidFields;
     const displayValue = (field) => {
@@ -92,99 +113,44 @@ function Bidspage() {
     };
 
     return (
-        <div className="frame_home bid_details_page">
-        <div className = 'nav_bar'>
-            <img
-                className="bison_logo_nav" src={navLogo} alt="Bison"
-              
-            />
-            <div className='nav_links'>
-                <div className='bids_box_selected'>
-                  <p className='nav_bar_text'>Bids</p>
-                </div>
-                <div className='history_box'>
-                  <a className='nav_bar_text' href='/History' style={{ textDecoration: 'none' }}>History</a>
-                </div>
-                <div className='inspector_box'>
-                  <a className='nav_bar_text' href='/Inspector' style={{ textDecoration: 'none' }}>Inspector</a>
-                </div>
-                <div className='clients_box'>
-                  <a className='nav_bar_text' href='/Clients' style={{ textDecoration: 'none' }}>Clients</a>
-                </div>
-                <div className='reports_box'>
-                  <a className='nav_bar_text' href='/Reports' style={{ textDecoration: 'none' }}>Reports</a>
-                </div>
-                <div className='messaging'>
-                  <a className='nav_bar_text' href='/Messaging' style={{ textDecoration: 'none' }}>Messaging</a>
-                </div>
-            </div>
-            <button type="button" className='burger_icon_position' aria-label="Account menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>
-                <div className = 'burger_icon_frame'>
-                    <div className = 'top_bun'></div>
-                    <div className = 'patty'></div>
-                    <div className = 'bottom_bun'></div>
-                </div>
-            </button>
-            {menuOpen && (
-                <div className="hamburger_dropdown">
-                    <button
-                        className="logout_button"
-                        onClick={() => {
-                            window.location.href = "/";
-                        }}
-                    >
-                        Logout
-                    </button>
-                </div>
-            )}
-        </div>
-        <header className="bid_page_header">
-        <div className="bid_details_toolbar">
-        <button type="button" className="bid_back_button" onClick={() => {
-            window.location.href = '/Homepage';
-        }}>
-            <span className="bid_back_icon" aria-hidden="true">←</span> Back
-        </button>
-        <h1 className='bidspage_header'>
-            Bid Information
-        </h1>
-        <button type="button" className="bid_add_button" onClick={() => { window.location.href = '/AddBid'; }}>
-            <span className="bid_back_icon" aria-hidden="true">+</span> Add
-        </button>
-        </div>
-        </header>
+        <div className="bid_details_popup_content">
         <div className="bid_information_layout">
-            <aside className="bid_information_sidebar" aria-label="Bid selection">
-                <h2>Bids <span>{availableBids.length}</span></h2>
-                <ul>{availableBids.map((item) => <li key={item.id}><button type="button" disabled={!!editDraft} aria-pressed={bid?.id === item.id} onClick={() => selectBid(item.id)}>{item.name}<small>Bid #{item.id}</small></button></li>)}</ul>
-                {!availableBids.length && <p>No bids available.</p>}
-            </aside>
             <div className="bid_information_content">
+                {bid?.engagementAgreement && <button type="button" className="bid_back_button" disabled={downloadingAgreement} onClick={downloadSavedAgreement}>{downloadingAgreement ? 'Loading agreement…' : 'Download Engagement Agreement'}</button>}
                 {bid && <div className="bid_inline_controls">{editDraft ? <><span>Editing bid information</span><button type="button" className="bid_back_button" onClick={() => { setEditDraft(null); setNotice(''); }}>Cancel</button><button type="submit" form="bid-inline-edit" className="bid_back_button" disabled={!editDraft.name?.trim()}>Save Changes</button></> : <button type="button" className="bid_back_button" onClick={() => { setEditDraft({ ...bid }); setNotice(''); }}>Edit</button>}</div>}
         <main className="fieldsframe" aria-label="Bid details">
             {createdBidId === String(bid?.id) && <p className="bid_creation_message" role="status">Bid has been created.</p>}
             {notice && <p className="bid_creation_message" role="status">{notice}</p>}
-            {!bid && <p className="bid_details_empty">Select a bid from the sidebar to view its information.</p>}
+            {!bid && <p className="bid_details_empty">Select a bid from the bids homepage to view its information.</p>}
             <form id="bid-inline-edit" className="bid_inline_form" onSubmit={saveEdits}>
-            {fields.map(([field, label]) => (
+            {fields.map(([field, label, inputType = 'text']) => (
                 <div className="bid_detail_field" key={field}>
                     <label htmlFor={`view-${field}`}>{label}</label>
                     {editDraft && field === 'rush' ? <select id={`view-${field}`} value={String(editDraft.rush ?? false)} onChange={(event) => setEditDraft({ ...editDraft, rush: event.target.value === 'true' })}><option value="true">Yes</option><option value="false">No</option></select>
-                        : <input id={`view-${field}`} type={editDraft && field === 'subjectContactEmail' ? 'email' : editDraft && field === 'subjectContactPhone' ? 'tel' : 'text'} readOnly={!editDraft || field === 'status'} required={!!editDraft && field === 'name'}
+                        : <input id={`view-${field}`} type={editDraft && field === 'subjectContactEmail' ? 'email' : editDraft && field === 'subjectContactPhone' ? 'tel' : editDraft ? inputType : 'text'} readOnly={!editDraft || field === 'status'} required={!!editDraft && field === 'name'}
+                            min={inputType === 'number' ? 0 : undefined}
+                            step={inputType === 'number' ? (field === 'completionDays' ? 1 : 0.01) : undefined}
                             value={editDraft && field !== 'status' ? editDraft[field] ?? '' : displayValue(field)}
                             onChange={(event) => setEditDraft({ ...editDraft, [field]: event.target.value })} />}
                 </div>
             ))}
             </form>
+            {bid && <div className="bid_detail_field">
+                <label htmlFor="bid-inspector">Assigned inspector</label>
+                <select id="bid-inspector" value={assignedInspector?.id ?? ''} disabled={!!editDraft} onChange={(event) => assignInspector(event.target.value)} aria-describedby="bid-inspector-help">
+                    <option value="">Select an inspector</option>
+                    {inspectors.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}</option>)}
+                </select>
+                {!assignedInspector && <p id="bid-inspector-help">Assign an inspector before accepting this bid.</p>}
+            </div>}
             <div className="bid_decision_actions">
                 <span role="status">{bid ? `Status: ${bid.status}` : 'Select a bid to accept or decline.'}</span>
                 <button type="button" className="bid_decline_button" disabled={!!editDraft || !bid || bid.status === 'Declined'} onClick={() => updateStatus('Declined')}>Decline</button>
-                <button type="button" className="bid_accept_button" disabled={!!editDraft || !bid || bid.status === 'Accepted'} onClick={() => updateStatus('Accepted')}>Accept</button>
+                <button type="button" className="bid_accept_button" disabled={!!editDraft || !bid || !assignedInspector || bid.status === 'Accepted'} onClick={() => updateStatus('Accepted')}>Accept</button>
             </div>
         </main>
             </div>
         </div>
-        <footer className="bid_page_footer" />
         </div>
     );
 }

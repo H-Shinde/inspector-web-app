@@ -1,3 +1,4 @@
+import { archiveDeletedRecord, isDeletedRecord } from './historyRecords';
 import './Jobspagehomepage.css';
 import { readBidList } from './bidFields';
 import { readAcceptedJobs } from './bidTransfers';
@@ -215,7 +216,7 @@ function JobHomepage() {
         ].concat(readAcceptedJobs(), readBidList('createdJobs')).map(withJobDemoData).map((job) => {
             const inspector = readBidList('jobAssignments').find((assignment) => assignment.jobId === job.id)?.inspector ?? job.inspector ?? '';
             return { ...job, inspector, status: resolveJobStatus(job.status, inspector) };
-        }));
+        }).filter((job) => !isDeletedRecord('Job', job.id)));
 
 
     useEffect(() => {
@@ -228,7 +229,9 @@ function JobHomepage() {
     const columns = [
     {
         data: "id",
-        title: "# ID"
+        title: "ID",
+        visible: false,
+        searchable: false
     },
     {
         data: "name",
@@ -257,16 +260,17 @@ function JobHomepage() {
     // One filter per data column (the Actions column is skipped).
     const filterColumns = columns
         .map((column, index) => ({ column, index }))
-        .filter(({ column }) => column.data)
+        .filter(({ column }) => column.data && column.visible !== false)
         .map(({ column, index }) => ({
             index,
             label: column.title.replace('# ', ''),
             options: column.data === 'status' ? JOB_STATUSES : undefined,
         }));
     const handleDelete = (id) => {
-    setTableData((prevData) =>
-        prevData.filter((row) => row.id !== id)
-    );
+        const record = tableData.find((row) => row.id === id);
+        if (!record) return;
+        archiveDeletedRecord(record, 'Job');
+        window.location.href = '/History';
     };
   return (
     <div className='frame_home'>
@@ -278,7 +282,7 @@ function JobHomepage() {
                 <div>
                     <div className="confirm_body">
                         <h2 id="confirm-title">Delete this job?</h2>
-                        <p>Are you sure you want to delete job #{deleteTarget.id} for <strong>{deleteTarget.name}</strong> ({deleteTarget.businessName})?</p>
+                        <p>Are you sure you want to delete this job for <strong>{deleteTarget.name}</strong> ({deleteTarget.businessName})?</p>
                     </div>
                     <div className="actions">
                         <button type="button" className="bid_form_cancel" onClick={closeConfirm}>Cancel</button>
@@ -367,7 +371,7 @@ function JobHomepage() {
                 5: (data, type, row) => (
                     <div className="action_buttons">
                         <button
-                            className="delete_icon" title="Delete job" aria-label={`Delete job ${row.id}`}
+                            className="delete_icon" title="Delete job" aria-label={`Delete job for ${row.name}`}
                             onClick={(event) => { event.stopPropagation(); setDeleteTarget(row); }}
                         >
                             <FaTrash />

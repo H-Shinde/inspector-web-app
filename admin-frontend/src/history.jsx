@@ -1,18 +1,16 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import DataTable from 'datatables.net-react';
 import DT from 'datatables.net-dt';
 import 'datatables.net-dt/css/dataTables.dataTables.css';
-import { readBidList } from './bidFields';
+import { readHistoryRecords } from './historyRecords';
 import navLogo from './bison_logo_nav.png';
 import './history.css';
 import { FaFilter } from 'react-icons/fa';
 
 DataTable.use(DT);
 
-const demoInspectors = ['Alex Morgan', 'Jordan Lee', 'Taylor Brooks', 'Casey Rivera', 'Morgan Ellis', 'Jamie Parker'];
-
 const fields = [
-    ['id', 'Bid ID'], ['appraisalType', 'Appraisal type'],
+    ['recordType', 'Type'], ['status', 'Status'], ['previousStatus', 'Previous status'], ['deletedAt', 'Deleted at'], ['appraisalType', 'Appraisal type'],
     ['subjectContactPhone', 'Subject contact phone'], ['date', 'Inspection request date'],
     ['propertyType', 'Type of property'], ['businessName', 'Business name'],
     ['businessAddress', 'Business address'], ['rush', 'Rush'],
@@ -20,38 +18,28 @@ const fields = [
     ['cityStateZip', 'City, State, Zip Code'],
     ['pdf', 'PDF'], ['discount', 'Discount'], ['inspector', 'Assigned inspector'],
 ];
-const columns = fields.map(([data, title]) => ({
-    data, title, defaultContent: '', render: DT.render.text(),
-}));
-
-function readHistory() {
-    const records = new Map();
-    const assignments = readBidList('jobAssignments');
-    for (const bid of [...readBidList('createdBids'), ...readBidList('availableBids')]) {
-        records.set(String(bid.id), bid);
-    }
-    for (const job of [...readBidList('acceptedJobs'), ...readBidList('availableJobs')]) {
-        if (job.sourceBidId == null) continue;
-        records.set(String(job.sourceBidId), {
-            ...job, id: job.sourceBidId,
-            inspector: assignments.find((entry) => String(entry.jobId) === String(job.id))?.inspector ?? job.inspector,
-        });
-    }
-    return [...records.values()].map((bid) => ({
-        ...bid,
-        cityStateZip: [bid.city, [bid.state, bid.zipCode].filter(Boolean).join(' ')].filter(Boolean).join(', '),
-        rush: typeof bid.rush === 'boolean' ? (bid.rush ? 'Yes' : 'No') : bid.rush,
-        pdf: bid.pdf?.name ?? bid.pdf ?? '',
-        inspector: bid.inspector || bid.assignedInspector || demoInspectors[Math.abs(Number(bid.id) || 0) % demoInspectors.length],
-    }));
-}
+const summaryFields = ['recordType', 'businessName', 'name', 'date', 'status', 'inspector', 'appraisalType'].map((key) => fields.find(([field]) => field === key));
+const columns = summaryFields.map(([data, title]) => ({ data, title, defaultContent: '', render: DT.render.text() }));
+const displayValue = (value) => value == null || value === '' ? 'Not provided' : typeof value === 'object' ? JSON.stringify(value, (key, entry) => /(^id$|Id$|Ids$)/.test(key) ? undefined : entry) : String(value);
 
 export default function History() {
-    const [rows] = useState(readHistory);
+    const [rows] = useState(readHistoryRecords);
     const [menuOpen, setMenuOpen] = useState(false);
     const [filterColumn, setFilterColumn] = useState('all');
     const [filterValue, setFilterValue] = useState('');
     const table = useRef(null);
+    const detailsDialog = useRef(null);
+    const [selectedRecord, setSelectedRecord] = useState(null);
+    useEffect(() => {
+        if (selectedRecord && !detailsDialog.current.open) detailsDialog.current.showModal();
+    }, [selectedRecord]);
+    const closeDetails = () => { detailsDialog.current.close(); setSelectedRecord(null); };
+    const openDetails = (event) => {
+        const tr = event.target.closest('tbody tr');
+        if (!tr) return;
+        const record = table.current?.dt().row(tr).data();
+        if (record) setSelectedRecord(record);
+    };
     const handleFilter = (column, value) => {
         setFilterColumn(column);
         setFilterValue(value);
@@ -90,7 +78,7 @@ export default function History() {
                         <summary className="history_filter_button"><FaFilter aria-hidden="true" /> Filter</summary>
                         <fieldset className="history_filter_menu">
                             <legend>Search in</legend>
-                            {[['all', 'All columns'], ...fields.map(([, title], index) => [String(index), title])].map(([value, label]) => (
+                            {[['all', 'All columns'], ...summaryFields.map(([, title], index) => [String(index), title])].map(([value, label]) => (
                                 <label key={value}>
                                     <input type="radio" name="history-filter-column" value={value} checked={filterColumn === value}
                                         onChange={() => handleFilter(value, filterValue)} />{label}
@@ -102,18 +90,35 @@ export default function History() {
                         onChange={(event) => handleFilter(filterColumn, event.target.value)} />
                     {filterValue && <button type="button" className="history_filter_button" onClick={() => handleFilter('all', '')}>Clear filter</button>}
                 </div>
-                <div className="bids_table_container" role="region" aria-label="Scrollable history table" tabIndex={0}>
+                <div className="bids_table_container" role="region" aria-label="Scrollable history table" tabIndex={0} onClick={openDetails} onKeyDown={(event) => {
+                    if ((event.key === 'Enter' || event.key === ' ') && event.target.tagName === 'TR') { event.preventDefault(); openDetails(event); }
+                }}>
                 <DataTable ref={table} data={rows} columns={columns} className="bids_table history_table"
                     options={{
+                        createdRow: (row) => { row.tabIndex = 0; row.setAttribute('aria-label', 'View history record details'); },
                         paging: true, searching: true, ordering: true, info: true,
                         scrollX: false, autoWidth: false, pageLength: 10, lengthMenu: [10, 25, 50, 100],
-                        order: [[0, 'desc']],
+                        order: [[4, 'asc']],
                         layout: { topStart: 'pageLength', topEnd: null, bottomStart: 'info', bottomEnd: 'paging' },
                         language: { emptyTable: 'No bid history is available yet.', search: 'Search:' },
                     }} />
                 </div>
                 </section>
             </main>
+            <dialog ref={detailsDialog} className="bid_information_popup history_details_popup" aria-labelledby="history-details-title"
+                onCancel={(event) => { event.preventDefault(); closeDetails(); }}
+                onClick={(event) => { if (event.target === event.currentTarget) closeDetails(); }}>
+                <input type="hidden" name="id" value={selectedRecord?.id ?? ''} />
+                <header className="bid_popup_header">
+                    <h2 id="history-details-title">{selectedRecord?.recordType} information</h2>
+                    <button type="button" className="bid_back_button" onClick={closeDetails}>Close</button>
+                </header>
+                {selectedRecord && <dl className="history_details_grid">
+                    {[...fields, ...Object.keys(selectedRecord).filter((key) => key !== 'items' && !/(^id$|Id$|Ids$)/.test(key) && !fields.some(([field]) => field === key)).map((key) => [key, key.replace(/([A-Z])/g, ' $1').replace(/^./, (letter) => letter.toUpperCase())])].map(([field, label]) => (
+                        <div key={field}><dt>{label}</dt><dd>{displayValue(selectedRecord[field])}</dd></div>
+                    ))}
+                </dl>}
+            </dialog>
             <footer className="bid_page_footer" />
         </div>
     );

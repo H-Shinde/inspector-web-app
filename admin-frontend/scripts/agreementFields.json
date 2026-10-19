@@ -1,0 +1,371 @@
+[
+  {
+    "height": 19.926000000000045,
+    "name": "Order_Type",
+    "page": 0,
+    "width": 94.65119999999999,
+    "x": 182.3511,
+    "y": 699.7702,
+    "checkbox": false,
+    "mask": {
+      "x": 182.3511,
+      "y": 699.7702,
+      "width": 94.65119999999999,
+      "height": 19.926000000000045
+    }
+  },
+  {
+    "height": 12.357500000000016,
+    "name": "Report_Type",
+    "page": 1,
+    "width": 205,
+    "x": 167.35920000000004,
+    "y": 497.79690000000005,
+    "checkbox": false,
+    "mask": {
+      "x": 167.35920000000004,
+      "y": 497.79690000000005,
+      "width": 62.10239999999999,
+      "height": 12.357500000000016
+    }
+  },
+  {
+    "height": 12.357500000000016,
+    "name": "BV_RATE",
+    "page": 1,
+    "width": 73,
+    "x": 480,
+    "y": 497.79690000000005,
+    "checkbox": false,
+    "mask": {
+      "x": 509.1055,
+      "y": 497.79690000000005,
+      "width": 43.39080000000001,
+      "height": 12.357500000000016
+    }
+  },
+  {
+    "height": 12.357500000000016,
+    "name": "RUSH_RATE",
+    "page": 1,
+    "width": 73,
+    "x": 480,
+    "y": 433.7422,
+    "checkbox": false,
+    "mask": {
+      "x": 495.0898,
+      "y": 433.7422,
+      "width": 57.40680000000003,
+      "height": 12.357500000000016
+    }
+  },
+  {
+    "height": 12.357500000000016,
+    "name": "CONS_RATE",
+    "page": 1,
+    "width": 73,
+    "x": 480,
+    "y": 412.3906,
+    "checkbox": false,
+    "mask": {
+      "x": 494.79690000000005,
+      "y": 412.3906,
+      "width": 57.69960000000003,
+      "height": 12.357500000000016
+    }
+  },
+  {
+    "height": 12.357500000000016,
+    "name": "OTHER_RATE",
+    "page": 1,
+    "width": 73,
+    "x": 480,
+    "y": 391.0391,
+    "checkbox": false,
+    "mask": {
+      "x": 488.97270000000003,
+      "y": 391.0391,
+      "width": 63.524400000000014,
+      "height": 12.357500000000016
+    }
+  },
+  {
+    "height": 12.357500000000016,
+    "name": "PDF_DISC",
+    "page": 1,
+    "width": 73,
+    "x": 480,
+    "y": 369.6875,
+    "checkbox": false,
+    "mask": {
+      "x": 505.10940000000005,
+      "y": 369.6875,
+      "width": 47.388000000000034,
+      "height": 12.357500000000016
+    }
+  },
+  {
+    "height": 12,
+    "name": "BV_BID",
+    "page": 1,
+    "width": 73,
+    "x": 480,
+    "y": 326.9844,
+    "checkbox": false,
+    "mask": {
+      "x": 516.4004,
+      "y": 326.9844,
+      "width": 36.096000000000004,
+      "height": 12
+    }
+  },
+  {
+    "name": "reportSelected",
+    "checkbox": true,
+    "page": 1,
+    "x": 60.6,
+    "y": 499.99690000000004,
+    "width": 7,
+    "height": 7
+  },
+  {
+    "name": "rushSelected",
+    "checkbox": true,
+    "page": 1,
+    "x": 60.6,
+    "y": 435.9422,
+    "width": 7,
+    "height": 7
+  },
+  {
+    "name": "consolidationSelected",
+    "checkbox": true,
+    "page": 1,
+    "x": 60.6,
+    "y": 414.5906,
+    "width": 7,
+    "height": 7
+  },
+  {
+    "name": "chargesSelected",
+    "checkbox": true,
+    "page": 1,
+    "x": 60.6,
+    "y": 393.2391,
+    "width": 7,
+    "height": 7
+  },
+  {
+    "name": "pdfOnlySelected",
+    "checkbox": true,
+    "page": 1,
+    "x": 60.6,
+    "y": 371.8875,
+    "width": 7,
+    "height": 7
+  },
+  {
+    "name": "noHardCopySelected",
+    "checkbox": true,
+    "page": 1,
+    "x": 114.03945,
+    "y": 280.3328,
+    "width": 7,
+    "height": 7
+  },
+  {
+    "height": 12,
+    "name": "Company_Name",
+    "page": 2,
+    "width": 73,
+    "x": 100.7068,
+    "y": 649.9453,
+    "checkbox": false,
+    "mask": {
+      "x": 100.7068,
+      "y": 649.9453,
+      "width": 65.3472,
+      "height": 12
+    }
+  },
+  {
+    "height": 12,
+    "name": "Subject_Business",
+    "page": 2,
+    "width": 73,
+    "x": 229.572,
+    "y": 649.9453,
+    "checkbox": false,
+    "mask": {
+      "x": 229.572,
+      "y": 649.9453,
+      "width": 68.61599999999999,
+      "height": 12
+    }
+  },
+  {
+    "height": 13,
+    "name": "Client_Name",
+    "page": 2,
+    "width": 73,
+    "x": 100.7068,
+    "y": 606.2422,
+    "checkbox": false,
+    "mask": {
+      "x": 100.7068,
+      "y": 606.2422,
+      "width": 63.122399999999985,
+      "height": 13
+    }
+  },
+  {
+    "height": 12,
+    "name": "Contact_Name",
+    "page": 2,
+    "width": 73,
+    "x": 229.572,
+    "y": 607.2422,
+    "checkbox": false,
+    "mask": {
+      "x": 229.572,
+      "y": 607.2422,
+      "width": 66.6936,
+      "height": 12
+    }
+  },
+  {
+    "height": 12,
+    "name": "Company_Street",
+    "page": 2,
+    "width": 73,
+    "x": 100.7068,
+    "y": 564.5391000000001,
+    "checkbox": false,
+    "mask": {
+      "x": 100.7068,
+      "y": 564.5391000000001,
+      "width": 65.57519999999998,
+      "height": 12
+    }
+  },
+  {
+    "height": 12,
+    "name": "Business_Address",
+    "page": 2,
+    "width": 73,
+    "x": 229.572,
+    "y": 564.5391000000001,
+    "checkbox": false,
+    "mask": {
+      "x": 229.572,
+      "y": 564.5391000000001,
+      "width": 67.46519999999998,
+      "height": 12
+    }
+  },
+  {
+    "height": 12,
+    "name": "Company_City",
+    "page": 2,
+    "width": 73,
+    "x": 100.7068,
+    "y": 521.8359,
+    "checkbox": false,
+    "mask": {
+      "x": 100.7068,
+      "y": 521.8359,
+      "width": 65.02559999999998,
+      "height": 12
+    }
+  },
+  {
+    "height": 12,
+    "name": "Business_City",
+    "page": 2,
+    "width": 73,
+    "x": 229.572,
+    "y": 520.8359,
+    "checkbox": false,
+    "mask": {
+      "x": 229.572,
+      "y": 520.8359,
+      "width": 66.52560000000005,
+      "height": 12
+    }
+  },
+  {
+    "height": 12,
+    "name": "Company_Phone",
+    "page": 2,
+    "width": 73,
+    "x": 100.7068,
+    "y": 479.13280000000003,
+    "checkbox": false,
+    "mask": {
+      "x": 100.7068,
+      "y": 479.13280000000003,
+      "width": 64.35239999999997,
+      "height": 12
+    }
+  },
+  {
+    "height": 12,
+    "name": "Contact_Phone",
+    "page": 2,
+    "width": 73,
+    "x": 229.572,
+    "y": 479.13280000000003,
+    "checkbox": false,
+    "mask": {
+      "x": 229.572,
+      "y": 479.13280000000003,
+      "width": 68.7432,
+      "height": 12
+    }
+  },
+  {
+    "height": 13,
+    "name": "Client_Email",
+    "page": 2,
+    "width": 73,
+    "x": 100.7068,
+    "y": 435.4297,
+    "checkbox": false,
+    "mask": {
+      "x": 100.7068,
+      "y": 435.4297,
+      "width": 60.761999999999986,
+      "height": 13
+    }
+  },
+  {
+    "height": 13,
+    "name": "Contact_Email",
+    "page": 2,
+    "width": 73,
+    "x": 229.572,
+    "y": 435.4297,
+    "checkbox": false,
+    "mask": {
+      "x": 229.572,
+      "y": 435.4297,
+      "width": 67.55279999999999,
+      "height": 13
+    }
+  },
+  {
+    "height": 13,
+    "name": "Reference_Number",
+    "page": 2,
+    "width": 73,
+    "x": 229.572,
+    "y": 414,
+    "checkbox": false,
+    "mask": {
+      "x": 229.572,
+      "y": 398,
+      "width": 73,
+      "height": 30
+    }
+  }
+]
