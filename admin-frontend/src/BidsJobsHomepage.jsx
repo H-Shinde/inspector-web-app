@@ -82,7 +82,7 @@ function Homepage() {
             name: "Saige Fuentes",
             date: "01/12/2016",
             businessName: "Lumina Marketing",
-            status: "Declined"
+            status: "Drafted"
         },
         {
             id: 3,
@@ -96,7 +96,7 @@ function Homepage() {
             name: "Kylan Gentry",
             date: "03/10/2016",
             businessName: "Apex Financial Group",
-            status: "Declined"
+            status: "Drafted"
         },
         {
             id: 5,
@@ -110,7 +110,7 @@ function Homepage() {
             name: "Sarah Hopkins",
             date: "02/15/2012",
             businessName: "Zenith Healthcare",
-            status: "Declined"
+            status: "Drafted"
         },
         {
             id: 7,
@@ -124,7 +124,7 @@ function Homepage() {
             name: "Charles Xavier",
             date: "04/12/2026",
             businessName: "Horizon Eco Solutions",
-            status: "Declined"
+            status: "Drafted"
         },
         {
             id: 9,
@@ -138,7 +138,7 @@ function Homepage() {
             name: "Ethan Brooks",
             date: "05/14/2026",
             businessName: "Summit Manufacturing",
-            status: "Declined"
+            status: "Drafted"
         },
         {
             id: 11,
@@ -152,7 +152,7 @@ function Homepage() {
             name: "Noah Carter",
             date: "06/18/2026",
             businessName: "Pinecrest Construction",
-            status: "Declined"
+            status: "Drafted"
         },
         {
             id: 13,
@@ -166,7 +166,7 @@ function Homepage() {
             name: "Lucas Rivera",
             date: "07/22/2026",
             businessName: "Stonebridge Auto Services",
-            status: "Declined"
+            status: "Drafted"
         },
         {
             id: 15,
@@ -180,7 +180,7 @@ function Homepage() {
             name: "Jackson Reed",
             date: "08/19/2026",
             businessName: "Northstar Warehousing",
-            status: "Declined"
+            status: "Drafted"
         },
         {
             id: 17,
@@ -194,7 +194,7 @@ function Homepage() {
             name: "Elijah Foster",
             date: "09/16/2026",
             businessName: "Clearwater Engineering",
-            status: "Declined"
+            status: "Drafted"
         },
         {
             id: 19,
@@ -208,7 +208,7 @@ function Homepage() {
             name: "Liam Hayes",
             date: "10/08/2026",
             businessName: "Silverline Technology",
-            status: "Declined"
+            status: "Drafted"
         }
         ].map((row) => ({
             // Fictional details for the demo bids; table columns stay unchanged.
@@ -225,7 +225,7 @@ function Homepage() {
             zipCode: ['20001', '22201', '22301'][(row.id - 1) % 3],
             ...row,
             status: savedStatuses[row.id] ?? row.status,
-        })).concat(readBidList('createdBids').map((row) => ({ ...row, status: savedStatuses[row.id] ?? row.status }))).map((row) => ({ ...row, ...readBidEdits()[row.id] })).filter((row) => row.status !== 'Accepted' && !isDeletedRecord('Bid', row.id)));
+        })).concat(readBidList('createdBids').map((row) => ({ ...row, status: savedStatuses[row.id] ?? row.status }))).map((row) => ({ ...row, ...readBidEdits()[row.id] })).filter((row) => row.status !== 'Accepted' && row.status !== 'Declined' && !isDeletedRecord('Bid', row.id)));
 
 
     useEffect(() => {

@@ -103,6 +103,15 @@ function Jobspage() {
         return () => document.removeEventListener('click', dismissMessage, true);
     }, [csvMessage]);
     const itemDialog = useRef(null);
+    const [completeConfirmOpen, setCompleteConfirmOpen] = useState(false);
+    const completeDialog = useRef(null);
+    useEffect(() => {
+        if (completeConfirmOpen && completeDialog.current && !completeDialog.current.open) completeDialog.current.showModal();
+    }, [completeConfirmOpen]);
+    const closeCompleteConfirm = () => {
+        if (completeDialog.current?.open) completeDialog.current.close();
+        setCompleteConfirmOpen(false);
+    };
     useEffect(() => {
         if (itemEditor && !itemDialog.current.open) itemDialog.current.showModal();
     }, [itemEditor]);
@@ -304,7 +313,7 @@ function Jobspage() {
                     <span className="bid_back_icon" aria-hidden="true">←</span> Back
                 </button>
                 <h1 className="bidspage_header">{activeSection}</h1>
-                {job && <button type="button" className="bid_add_button" onClick={() => { completeJob(job); window.location.href = '/History'; }}>Mark Complete</button>}
+                {job && <button type="button" className="bid_add_button" onClick={() => setCompleteConfirmOpen(true)}>Mark Complete</button>}
 
             </div>
         </header>
@@ -510,6 +519,20 @@ function Jobspage() {
                         {itemEditor.mode === 'add' && <button type="submit" className="bid_form_save" disabled={!itemEditor.item.name?.trim() || savingItem}>{savingItem ? 'Saving…' : 'Add item'}</button>}
                     </div>
                 </form>
+            )}
+        </dialog>
+        <dialog ref={completeDialog} className="popup confirm_popup" aria-labelledby="complete-job-title" onCancel={(event) => { event.preventDefault(); closeCompleteConfirm(); }}>
+            {completeConfirmOpen && job && (
+                <div>
+                    <div className="confirm_body">
+                        <h2 id="complete-job-title">Mark this job complete?</h2>
+                        <p>Are you sure you want to mark the job for <strong>{job.name}</strong> as complete? It will move to History.</p>
+                    </div>
+                    <div className="actions">
+                        <button type="button" className="bid_form_cancel" onClick={closeCompleteConfirm}>Cancel</button>
+                        <button type="button" className="bid_form_save" onClick={() => { completeJob(job); window.location.href = '/History'; }}>Complete job</button>
+                    </div>
+                </div>
             )}
         </dialog>
         <footer className="bid_page_footer" />

@@ -10,7 +10,28 @@ jest.mock('datatables.net-dt', () => ({}));
 jest.mock('datatables.net-select-dt', () => ({}));
 jest.mock('datatables.net-responsive-dt', () => ({}));
 
-beforeEach(() => sessionStorage.clear());
+beforeEach(() => {
+    sessionStorage.clear();
+    HTMLDialogElement.prototype.showModal = function () { this.open = true; };
+    HTMLDialogElement.prototype.close = function () { this.open = false; };
+});
+
+test('asks for confirmation before completing a job, and Cancel changes nothing', () => {
+    const location = window.location;
+    delete window.location;
+    window.location = { href: '' };
+    try {
+        render(<JobHomepage />);
+        fireEvent.click(screen.getByRole('button', { name: 'Mark job for John Doe complete' }));
+        expect(screen.getByRole('heading', { name: 'Mark this job complete?' })).toBeInTheDocument();
+        expect(sessionStorage.getItem('completedJobs')).toBeNull();
+        expect(window.location.href).toBe('');
+        fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+        expect(screen.queryByRole('heading', { name: 'Mark this job complete?' })).not.toBeInTheDocument();
+        expect(sessionStorage.getItem('completedJobs')).toBeNull();
+        expect(window.location.href).toBe('');
+    } finally { window.location = location; }
+});
 
 test('completes a job from the table and keeps it out of active jobs after reload', () => {
     const location = window.location;
@@ -19,6 +40,7 @@ test('completes a job from the table and keeps it out of active jobs after reloa
     try {
         const { unmount } = render(<JobHomepage />);
         fireEvent.click(screen.getByRole('button', { name: 'Mark job for John Doe complete' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Complete job' }));
         expect(window.location.href).toBe('/History');
         expect(JSON.parse(sessionStorage.getItem('completedJobs'))[0]).toMatchObject({ id: 1, status: 'Complete' });
         unmount();

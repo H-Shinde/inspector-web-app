@@ -12,7 +12,7 @@ test('archives a deleted bid with its details and removes only that bid from act
     expect(JSON.parse(sessionStorage.getItem('availableBids'))).toEqual([{ id: 2 }]);
     expect(JSON.parse(sessionStorage.getItem('createdBids'))).toEqual([{ id: 2 }]);
     expect(sessionStorage.getItem('selectedBid')).toBeNull();
-    expect(readHistoryRecords().find((row) => row.id === 1)).toMatchObject({ ...bid, status: 'Deleted', previousStatus: 'Pending', recordType: 'Bid', deletedAt: expect.any(String) });
+    expect(readHistoryRecords().find((row) => row.id === 1)).toMatchObject({ ...bid, status: 'Declined', previousStatus: 'Pending', recordType: 'Bid', deletedAt: expect.any(String) });
 });
 
 test('keeps jobs without a source bid and preserves assigned inspectors when deleted', () => {
@@ -23,10 +23,8 @@ test('keeps jobs without a source bid and preserves assigned inspectors when del
     sessionStorage.setItem('createdJobs', JSON.stringify([job]));
     sessionStorage.setItem('jobAssignments', JSON.stringify([{ jobId: 1, inspector: 'Alex Morgan' }]));
     archiveDeletedRecord(job, 'Job');
-    expect(readHistoryRecords()).toEqual(expect.arrayContaining([
-        expect.objectContaining({ id: 1, recordType: 'Bid', name: 'Avery' }),
-        expect.objectContaining({ id: 1, recordType: 'Job', status: 'Deleted', inspector: 'Alex Morgan' }),
-    ]));
+    const records = readHistoryRecords();
+    expect(records).toEqual([expect.objectContaining({ id: 1, recordType: 'Job', status: 'Declined', inspector: 'Alex Morgan' })]);
     for (const key of ['availableJobs', 'acceptedJobs', 'createdJobs']) expect(JSON.parse(sessionStorage.getItem(key))).toEqual([]);
 });
 
@@ -46,7 +44,16 @@ test('completes a job once, preserves its details, and removes only it from acti
     expect(sessionStorage.getItem('selectedJob')).toBeNull();
     expect(JSON.parse(sessionStorage.getItem('completedJobs'))).toHaveLength(1);
     expect(readHistoryRecords().find((record) => record.id === 1)).toMatchObject({
-        status: 'Complete', previousStatus: 'Pending Review', completedAt: expect.any(String), recordType: 'Job',
+        status: 'Completed', previousStatus: 'Pending Review', completedAt: expect.any(String), recordType: 'Job',
         inspector: 'Alex Morgan', items: [{ name: 'Forklift' }], sectionDetails: { 'Asset Valuation': { fmv: 500 } },
     });
+});
+
+test('history only contains completed and declined records', () => {
+    sessionStorage.setItem('availableBids', JSON.stringify([{ id: 1, status: 'Pending' }, { id: 2, status: 'Declined' }]));
+    sessionStorage.setItem('availableJobs', JSON.stringify([{ id: 3, status: 'Assigned' }]));
+    completeJob({ id: 4, status: 'Assigned' });
+    archiveDeletedRecord({ id: 5, status: 'Assigned' }, 'Job');
+    const statuses = Object.fromEntries(readHistoryRecords().map((row) => [`${row.recordType}${row.id}`, row.status]));
+    expect(statuses).toEqual({ Bid2: 'Declined', Job4: 'Completed', Job5: 'Declined' });
 });

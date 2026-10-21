@@ -52,22 +52,20 @@ export function archiveDeletedRecord(record, type) {
     return archived;
 }
 
+// History only holds finished records: completed jobs ("Completed") and declined/deleted
+// bids and jobs ("Declined"). Active bids and jobs live on their own screens.
+const HISTORY_STATUS = { Complete: 'Completed', Completed: 'Completed', Deleted: 'Declined', Declined: 'Declined' };
+
 export function readHistoryRecords() {
     const records = new Map();
-    const assignments = readBidList('jobAssignments');
     for (const bid of [...readBidList('createdBids'), ...readBidList('availableBids')]) {
-        records.set(`Bid:${bid.id}`, { ...bid, recordType: 'Bid' });
-    }
-    for (const job of [...readBidList('acceptedJobs'), ...readBidList('createdJobs'), ...readBidList('availableJobs')]) {
-        records.set(`Job:${job.id}`, {
-            ...job, recordType: 'Job',
-            inspector: assignments.find((entry) => String(entry.jobId) === String(job.id))?.inspector ?? job.inspector,
-        });
+        if (String(bid.status).toLowerCase() === 'declined') records.set(`Bid:${bid.id}`, { ...bid, recordType: 'Bid' });
     }
     for (const record of readBidList('completedJobs')) records.set(`Job:${record.id}`, record);
     for (const record of readBidList('deletedRecords')) records.set(`${record.recordType}:${record.id}`, record);
     return [...records.values()].map((record) => ({
         ...record,
+        status: HISTORY_STATUS[record.status] ?? record.status,
         cityStateZip: [record.city, [record.state, record.zipCode].filter(Boolean).join(' ')].filter(Boolean).join(', '),
         rush: typeof record.rush === 'boolean' ? (record.rush ? 'Yes' : 'No') : record.rush,
         pdf: record.pdf?.name ?? record.pdf ?? '',

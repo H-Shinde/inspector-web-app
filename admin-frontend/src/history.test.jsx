@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import History from './history';
 
+jest.mock('./ItemImage', () => () => null);
 jest.mock('datatables.net-dt', () => ({ render: { text: () => (value) => value } }));
 
 jest.mock('datatables.net-react', () => {
@@ -18,26 +19,45 @@ beforeEach(() => {
     sessionStorage.clear();
     HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', ''); };
     HTMLDialogElement.prototype.close = function () { this.removeAttribute('open'); };
-    sessionStorage.setItem('deletedRecords', JSON.stringify([{ id: 3, recordType: 'Job', name: 'Avery', businessName: 'Example Co', status: 'Deleted', sourceBidId: 42, items: [{ name: 'Hidden equipment' }], subjectContactEmail: 'avery@example.com' }]));
+    sessionStorage.setItem('deletedRecords', JSON.stringify([{ id: 3, recordType: 'Job', name: 'Avery', businessName: 'Example Co', status: 'Deleted', sourceBidId: 42, items: [{ name: 'Visible equipment', make: 'Toyota' }], subjectContactEmail: 'avery@example.com' }]));
 });
 
-test('shows seven summary columns and opens full deleted record details on click or keyboard', () => {
+test('lists records with Declined or Completed status only', () => {
+    sessionStorage.setItem('completedJobs', JSON.stringify([{ id: 4, recordType: 'Job', name: 'Jordan', businessName: 'Done Co', status: 'Complete' }]));
+    sessionStorage.setItem('availableJobs', JSON.stringify([{ id: 5, name: 'Active', businessName: 'Active Co', status: 'Assigned' }]));
     render(<History />);
     expect(screen.getAllByRole('columnheader')).toHaveLength(7);
-    expect(screen.queryByText('avery@example.com')).not.toBeInTheDocument();
+    expect(screen.getByText('Declined')).toBeInTheDocument();
+    expect(screen.getByText('Completed')).toBeInTheDocument();
+    expect(screen.queryByText('Active Co')).not.toBeInTheDocument();
+});
+
+test('clicking a record opens a read-only details page instead of a popup', () => {
+    render(<History />);
     fireEvent.click(screen.getByText('Example Co'));
-    let dialog = screen.getByRole('dialog');
-    expect(within(dialog).getByText('avery@example.com')).toBeInTheDocument();
-    expect(within(dialog).queryByText('ID')).not.toBeInTheDocument();
-    expect(within(dialog).queryByText('Source Bid Id')).not.toBeInTheDocument();
-    expect(within(dialog).queryByText('42')).not.toBeInTheDocument();
-    expect(within(dialog).queryByText('Items')).not.toBeInTheDocument();
-    expect(within(dialog).queryByText(/Hidden equipment/)).not.toBeInTheDocument();
-    expect(JSON.parse(sessionStorage.getItem('deletedRecords'))[0].items).toEqual([{ name: 'Hidden equipment' }]);
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Close' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Job Information' })).toBeInTheDocument();
+    expect(screen.getByDisplayValue('avery@example.com')).toBeInTheDocument();
+    expect(screen.getByLabelText('Status')).toHaveValue('Declined');
+    const inputs = screen.getAllByRole('textbox');
+    expect(inputs.length).toBeGreaterThan(0);
+    inputs.forEach((input) => expect(input).toHaveAttribute('readonly'));
+    for (const section of ['Item Appraisal', 'Valuation & Fees', 'Items', 'Assigned Inspector']) {
+        expect(screen.getByRole('button', { name: section })).toBeInTheDocument();
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'Items' }));
+    expect(screen.getByText('Visible equipment')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Add item|Upload CSV|Delete/ })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'View Visible equipment' }));
+    expect(screen.getByLabelText('Make')).toHaveAttribute('readonly');
+    expect(screen.getByLabelText('Make')).toHaveValue('Toyota');
+    fireEvent.click(screen.getByRole('button', { name: /Back to History/ }));
+    expect(screen.queryByRole('heading', { level: 1, name: 'Items' })).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'History' })).toBeInTheDocument();
+});
+
+test('opens details from the keyboard', () => {
+    render(<History />);
     fireEvent.keyDown(screen.getByText('Example Co').closest('tr'), { key: 'Enter' });
-    dialog = screen.getByRole('dialog');
-    fireEvent(dialog, new Event('cancel', { bubbles: true }));
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Job Information' })).toBeInTheDocument();
 });

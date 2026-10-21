@@ -161,3 +161,8 @@
 .history_details_grid dt { color: #526477; font-size: 13px; }
 .history_details_grid dd { margin: 4px 0 0; overflow-wrap: anywhere; white-space: pre-wrap; }
 @media (max-width: 600px) { .history_details_grid { grid-template-columns: minmax(0, 1fr); } }
+
+.history_record_details { padding-bottom: 8px; }
+.history_status { display: inline-block; padding: 4px 12px; border-radius: 999px; font-size: 14px; font-weight: 600; white-space: nowrap; }
+.history_status_completed { background: #DCFCE7; color: #166534; }
+.history_status_declined { background: #FEE2E2; color: #991B1B; }

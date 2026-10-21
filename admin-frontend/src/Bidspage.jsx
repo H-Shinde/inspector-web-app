@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { bidReferenceNumber, calculateTotalBid, readBidEdits, readBidList } from './bidFields';
 import { getInspectors } from './inspectorSelection';
 import { moveBidToJobs } from './bidTransfers';
+import { archiveDeletedRecord } from './historyRecords';
 import { downloadAgreement, readAgreement, generateEngagementAgreement } from './engagementAgreement';
 import './Jobspage.css';
 import './AddBidpage.css';
@@ -67,7 +68,7 @@ function Bidspage({ onChange }) {
             const saved = JSON.parse(sessionStorage.getItem('selectedBid') || 'null');
             const requestedId = window.location.pathname === '/Bidspage' ? new URLSearchParams(window.location.search).get('bidId') : null;
             const selected = requestedId ? readBidList('availableBids').find((item) => String(item.id) === requestedId) || saved : saved;
-            return selected && selected.status !== 'Accepted' && (!requestedId || String(selected.id) === requestedId) ? autofillBid({ ...selected, ...readBidEdits()[selected.id] }) : null;
+            return selected && selected.status !== 'Accepted' && selected.status !== 'Declined' && (!requestedId || String(selected.id) === requestedId) ? autofillBid({ ...selected, ...readBidEdits()[selected.id] }) : null;
         } catch {
             return null;
         }
@@ -75,7 +76,7 @@ function Bidspage({ onChange }) {
     const [availableBids, setAvailableBids] = useState(() => {
         try {
             const saved = JSON.parse(sessionStorage.getItem('availableBids') || '[]');
-            return Array.isArray(saved) && saved.length ? saved.filter((item) => item.status !== 'Accepted').map((item) => ({ ...item, ...readBidEdits()[item.id] })) : (bid ? [bid] : []);
+            return Array.isArray(saved) && saved.length ? saved.filter((item) => item.status !== 'Accepted' && item.status !== 'Declined').map((item) => ({ ...item, ...readBidEdits()[item.id] })) : (bid ? [bid] : []);
         } catch {
             return bid ? [bid] : [];
         }
@@ -144,6 +145,14 @@ function Bidspage({ onChange }) {
             sessionStorage.setItem('availableBids', JSON.stringify(availableBids.filter((item) => item.id !== bid.id)));
             sessionStorage.removeItem('selectedBid');
             window.location.href = `/Jobspage?jobId=${encodeURIComponent(acceptedJob.id)}`;
+            return;
+        }
+        if (status === 'Declined') {
+            // Declined bids leave the Bids page and go to History.
+            archiveDeletedRecord(updated, 'Bid');
+            sessionStorage.setItem('availableBids', JSON.stringify(availableBids.filter((item) => item.id !== bid.id)));
+            sessionStorage.removeItem('selectedBid');
+            window.location.href = '/History';
             return;
         }
         const updatedBids = availableBids.map((item) => item.id === bid.id ? updated : item);

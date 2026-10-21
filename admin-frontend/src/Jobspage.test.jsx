@@ -144,6 +144,12 @@ test('marks the job complete and redirects to history', () => {
     try {
         const { unmount } = render(<Jobspage />);
         fireEvent.click(screen.getByRole('button', { name: 'Mark Complete' }));
+        expect(window.location.href).toBe('');
+        expect(sessionStorage.getItem('completedJobs')).toBeNull();
+        fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+        expect(sessionStorage.getItem('completedJobs')).toBeNull();
+        fireEvent.click(screen.getByRole('button', { name: 'Mark Complete' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Complete job' }));
         expect(window.location.href).toBe('/History');
         expect(JSON.parse(sessionStorage.getItem('completedJobs'))[0]).toMatchObject({ id: 1, status: 'Complete' });
         unmount();

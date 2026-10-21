@@ -27,12 +27,29 @@ const statusClass = (status) => status.toLowerCase().replace(/\s+/g, '-');
 function JobHomepage() {
     const [menuOpen, setMenuOpen] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState(null);
+    const [completeTarget, setCompleteTarget] = useState(null);
     const confirmDialog = useRef(null);
+    const completeDialog = useRef(null);
     const table = useRef(null);
 
     useEffect(() => {
         if (deleteTarget && confirmDialog.current && !confirmDialog.current.open) confirmDialog.current.showModal();
     }, [deleteTarget]);
+
+    useEffect(() => {
+        if (completeTarget && completeDialog.current && !completeDialog.current.open) completeDialog.current.showModal();
+    }, [completeTarget]);
+
+    const closeComplete = () => {
+        if (completeDialog.current?.open) completeDialog.current.close();
+        setCompleteTarget(null);
+    };
+
+    const confirmComplete = () => {
+        if (!completeTarget) return;
+        completeJob(completeTarget);
+        window.location.href = '/History';
+    };
 
     const closeConfirm = () => {
         if (confirmDialog.current?.open) confirmDialog.current.close();
@@ -292,6 +309,24 @@ function JobHomepage() {
             )}
         </dialog>
 
+        <dialog ref={completeDialog} className="popup confirm_popup" aria-labelledby="complete-title" onCancel={(event) => {
+            event.preventDefault();
+            closeComplete();
+        }}>
+            {completeTarget && (
+                <div>
+                    <div className="confirm_body">
+                        <h2 id="complete-title">Mark this job complete?</h2>
+                        <p>Are you sure you want to mark the job for <strong>{completeTarget.name}</strong> ({completeTarget.businessName}) as complete? It will move to History.</p>
+                    </div>
+                    <div className="actions">
+                        <button type="button" className="bid_form_cancel" onClick={closeComplete}>Cancel</button>
+                        <button type="button" className="bid_form_save" onClick={confirmComplete}>Complete job</button>
+                    </div>
+                </div>
+            )}
+        </dialog>
+
         <div className = 'nav_bar'>
             <img
                 className="bison_logo_nav" src={navLogo} alt="Bison"
@@ -371,7 +406,7 @@ function JobHomepage() {
                 5: (data, type, row) => (
                     <div className="action_buttons">
                         <button type="button" className="job_complete_button" title="Mark Complete" aria-label={`Mark job for ${row.name} complete`}
-                            onClick={(event) => { event.stopPropagation(); completeJob(row); window.location.href = '/History'; }}><FaCheck aria-hidden="true" /></button>
+                            onClick={(event) => { event.stopPropagation(); setCompleteTarget(row); }}><FaCheck aria-hidden="true" /></button>
                         <button
                             className="delete_icon" title="Delete job" aria-label={`Delete job for ${row.name}`}
                             onClick={(event) => { event.stopPropagation(); setDeleteTarget(row); }}

@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import DataTable from 'datatables.net-react';
 import DT from 'datatables.net-dt';
 import 'datatables.net-dt/css/dataTables.dataTables.css';
 import { readHistoryRecords } from './historyRecords';
+import HistoryRecordDetails from './Historyrecorddetails';
 import navLogo from './bison_logo_nav.png';
 import './history.css';
 import { FaFilter } from 'react-icons/fa';
@@ -20,7 +21,6 @@ const fields = [
 ];
 const summaryFields = ['recordType', 'businessName', 'name', 'date', 'status', 'inspector', 'appraisalType'].map((key) => fields.find(([field]) => field === key));
 const columns = summaryFields.map(([data, title]) => ({ data, title, defaultContent: '', render: DT.render.text() }));
-const displayValue = (value) => value == null || value === '' ? 'Not provided' : typeof value === 'object' ? JSON.stringify(value, (key, entry) => /(^id$|Id$|Ids$)/.test(key) ? undefined : entry) : String(value);
 
 export default function History() {
     const [rows] = useState(readHistoryRecords);
@@ -28,12 +28,8 @@ export default function History() {
     const [filterColumn, setFilterColumn] = useState('all');
     const [filterValue, setFilterValue] = useState('');
     const table = useRef(null);
-    const detailsDialog = useRef(null);
     const [selectedRecord, setSelectedRecord] = useState(null);
-    useEffect(() => {
-        if (selectedRecord && !detailsDialog.current.open) detailsDialog.current.showModal();
-    }, [selectedRecord]);
-    const closeDetails = () => { detailsDialog.current.close(); setSelectedRecord(null); };
+    const closeDetails = () => setSelectedRecord(null);
     const openDetails = (event) => {
         const tr = event.target.closest('tbody tr');
         if (!tr) return;
@@ -52,7 +48,7 @@ export default function History() {
         api.draw();
     };
     return (
-        <div className="frame_home bid_details_page history_page">
+        <div className={`frame_home bid_details_page history_page${selectedRecord ? ' job_details_page' : ''}`}>
                 <nav className="nav_bar" aria-label="Main navigation">
                     <a href="/Homepage"><img className="bison_logo_nav" src={navLogo} alt="Bison home" /></a>
                     <div className="nav_links">
@@ -67,10 +63,10 @@ export default function History() {
                     </button>
                     {menuOpen && <div className="hamburger_dropdown"><a className="logout_button" href="/">Logout</a></div>}
                 </nav>
-            <main className="history_content" aria-label="Bid history">
+            <main className="history_content" aria-label="Bid history" hidden={!!selectedRecord}>
                 <div className="history_page_heading">
                     <h1>History</h1>
-                    <p>Review past bids, completed jobs, and inspector assignments.</p>
+                    <p>Review declined bids and jobs and completed jobs.</p>
                 </div>
                 <section className="bids_panel history_table_container" aria-label="History table">
                 <div className="table_top_header history_filter_controls">
@@ -100,25 +96,12 @@ export default function History() {
                         scrollX: false, autoWidth: false, pageLength: 10, lengthMenu: [10, 25, 50, 100],
                         order: [[4, 'asc']],
                         layout: { topStart: 'pageLength', topEnd: null, bottomStart: 'info', bottomEnd: 'paging' },
-                        language: { emptyTable: 'No bid history is available yet.', search: 'Search:' },
+                        language: { emptyTable: 'No completed or declined records yet.', search: 'Search:' },
                     }} />
                 </div>
                 </section>
             </main>
-            <dialog ref={detailsDialog} className="bid_information_popup history_details_popup" aria-labelledby="history-details-title"
-                onCancel={(event) => { event.preventDefault(); closeDetails(); }}
-                onClick={(event) => { if (event.target === event.currentTarget) closeDetails(); }}>
-                <input type="hidden" name="id" value={selectedRecord?.id ?? ''} />
-                <header className="bid_popup_header">
-                    <h2 id="history-details-title">{selectedRecord?.recordType} information</h2>
-                    <button type="button" className="bid_back_button" onClick={closeDetails}>Close</button>
-                </header>
-                {selectedRecord && <dl className="history_details_grid">
-                    {[...fields, ...Object.keys(selectedRecord).filter((key) => key !== 'items' && !/(^id$|Id$|Ids$)/.test(key) && !fields.some(([field]) => field === key)).map((key) => [key, key.replace(/([A-Z])/g, ' $1').replace(/^./, (letter) => letter.toUpperCase())])].map(([field, label]) => (
-                        <div key={field}><dt>{label}</dt><dd>{displayValue(selectedRecord[field])}</dd></div>
-                    ))}
-                </dl>}
-            </dialog>
+            {selectedRecord && <HistoryRecordDetails key={`${selectedRecord.recordType}-${selectedRecord.id}`} record={selectedRecord} onBack={closeDetails} />}
             <footer className="bid_page_footer" />
         </div>
     );

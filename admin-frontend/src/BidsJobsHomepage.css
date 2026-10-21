@@ -342,9 +342,9 @@
     background: #DCFCE7;
 }
 
-.frame_home .bid_status_declined {
-    color: #9F3030;
-    background: #FEE2E2;
+.frame_home .bid_status_drafted {
+    color: #334155;
+    background: #E2E8F0;
 }
 
 .frame_home .action_buttons {
