@@ -1,3 +1,6 @@
+import ItemImage from './ItemImage';
+import { saveItemImage, deleteItemImage } from './itemImages';
+import { JOB_STATUSES, readJobStatuses, saveJobStatus } from './jobStatus';
 import SendJobToInspector from './SendJobToInspector';
 import { completeJob, isCompletedJob, isDeletedRecord } from './historyRecords';
 import { useEffect, useRef, useState } from 'react';
@@ -74,6 +77,15 @@ function Jobspage() {
     const inspectors = inspectorList.map((inspector) => inspector.name);
     const [menuOpen, setMenuOpen] = useState(false);
     const [viewedItemId, setViewedItemId] = useState(null);
+    const [itemImageFile, setItemImageFile] = useState(null);
+    const [itemImageError, setItemImageError] = useState('');
+    const [savingItem, setSavingItem] = useState(false);
+    const [itemImagePreview, setItemImagePreview] = useState('');
+    useEffect(() => {
+        if (!itemImageFile) { setItemImagePreview(''); return; }
+        const url = URL.createObjectURL(itemImageFile); setItemImagePreview(url);
+        return () => URL.revokeObjectURL(url);
+    }, [itemImageFile]);
     const [itemEditor, setItemEditor] = useState(null);
     const [itemAdded, setItemAdded] = useState(false);
     useEffect(() => {
@@ -94,7 +106,7 @@ function Jobspage() {
     useEffect(() => {
         if (itemEditor && !itemDialog.current.open) itemDialog.current.showModal();
     }, [itemEditor]);
-    const closeItem = () => { itemDialog.current.close(); setItemEditor(null); };
+    const closeItem = () => { if (savingItem) return; itemDialog.current.close(); setItemEditor(null); setItemImageFile(null); setItemImageError(''); };
     const [activeSection, setActiveSection] = useState('Job Information');
     const [valuationView, setValuationView] = useState('Current');
     const [historyStatus, setHistoryStatus] = useState('Accepted');
@@ -118,7 +130,7 @@ function Jobspage() {
         setValuationHistory(history);
     };
     const [jobs, setJobs] = useState(() => readBidList('availableJobs').filter((job) => !isCompletedJob(job.id) && !isDeletedRecord('Job', job.id)).map(withJobDemoData).map((job) => ({
-        ...job,
+        ...job, status: readJobStatuses()[job.id] ?? job.status,
         inspector: readBidList('jobAssignments').find((assignment) => assignment.jobId === job.id)?.inspector ?? job.inspector ?? '',
     })));
     const [selectedId] = useState(() => {
@@ -174,15 +186,25 @@ function Jobspage() {
         }
         setItemEditor({ ...itemEditor, item: updated });
     };
-    const addItem = (event) => {
+    const addItem = async (event) => {
         event.preventDefault();
-        if (itemEditor.mode !== 'add') return;
+        if (itemEditor.mode !== 'add' || savingItem) return;
         const name = itemEditor.item.name?.trim();
         if (!name) return;
-        persistItems([...items, { ...itemEditor.item, name, itemId: crypto.randomUUID() }]);
-        setViewedItemId(null);
-        closeItem();
-        setItemAdded(true);
+        setItemImageError('');
+        const itemId = crypto.randomUUID();
+        const imageId = itemImageFile ? `job-${job.id}-item-${itemId}` : null;
+        setSavingItem(true);
+        try {
+            if (imageId) await saveItemImage(imageId, itemImageFile);
+            persistItems([...items, { ...itemEditor.item, name, itemId, ...(imageId ? { imageId, imageName: itemImageFile.name } : {}) }]);
+            setViewedItemId(null);
+            itemDialog.current.close(); setItemEditor(null); setItemImageFile(null); setItemImageError('');
+            setItemAdded(true);
+        } catch {
+            if (imageId) await deleteItemImage(imageId).catch(() => {});
+            setItemImageError('Unable to save the item. Please try again.');
+        } finally { setSavingItem(false); }
     };
     const importCsv = (event) => {
         const input = event.target;
@@ -295,6 +317,12 @@ function Jobspage() {
                 ))}
             </aside>
             <section className="job_details_content" aria-label={activeSection}>
+                {job && <div className="job_status_controls"><label htmlFor="job-progress-status">Job Status</label>
+                    <select id="job-progress-status" value={job.status} onChange={(event) => { const updated = saveJobStatus(job, event.target.value); setJobs((current) => current.map((entry) => entry.id === job.id ? updated : entry)); }}>
+                        {!JOB_STATUSES.includes(job.status) && <option>{job.status}</option>}
+                        {JOB_STATUSES.map((status) => <option key={status}>{status}</option>)}
+                    </select>
+                </div>}
                 {job?.inspector && <div className="job_send_controls"><SendJobToInspector job={job} sections={details[selectedId]} /></div>}
                 {acceptedJobId === selectedId && <p className="job_acceptance_message" role="status">Bid has been accepted.</p>}
                 {!job ? (
@@ -413,6 +441,7 @@ function Jobspage() {
                         {viewedItem ? (
                             <div>
                                 <button type="button" className="bid_back_button" onClick={() => setViewedItemId(null)}>← Back to Items</button>
+                                <ItemImage item={viewedItem} />
                                 <div className="fieldsframe">
                                     {itemDetailFields.map(([field, label]) => (
                                         <div className="bid_detail_field" key={field}>
@@ -455,21 +484,36 @@ function Jobspage() {
                 <form onSubmit={addItem}>
                     <div className="bid_form_header">
                         <h2 id="item-dialog-title">{itemEditor.mode === 'add' ? 'Add item' : 'Edit item'}</h2>
-                        <button type="button" className="bid_form_close" aria-label="Close item" onClick={closeItem}>×</button>
+                        <button type="button" className="bid_form_close" aria-label="Close item" onClick={closeItem} disabled={savingItem}>×</button>
                     </div>
                     <div className="bid_form_body bid_form_grid">
+                        {itemEditor.mode === 'add' && <div className="bid_form_field bid_form_full">
+                            <label htmlFor="item-image">Item image</label>
+                            <input id="item-image" type="file" accept="image/png,image/jpeg,image/webp,image/gif" disabled={savingItem} onChange={(event) => {
+                                const file = event.target.files?.[0];
+                                setItemImageFile(null); setItemImageError('');
+                                if (!file) return;
+                                if (!['image/png', 'image/jpeg', 'image/webp', 'image/gif'].includes(file.type)) { setItemImageError('Choose a PNG, JPEG, WebP, or GIF image.'); event.target.value = ''; return; }
+                                if (file.size > 10 * 1024 * 1024) { setItemImageError('Choose an image smaller than 10 MB.'); event.target.value = ''; return; }
+                                setItemImageFile(file);
+                            }} />
+                            <p className="bid_form_hint">PNG, JPEG, WebP, or GIF, up to 10 MB.</p>
+                            {itemImagePreview && <div className="job_item_photo"><img src={itemImagePreview} alt="Selected item" /><button type="button" className="bid_form_cancel" disabled={savingItem} onClick={() => { setItemImageFile(null); setItemImageError(''); document.getElementById('item-image').value = ''; }}>Remove image</button></div>}
+                        </div>}
+                        {itemImageError && <p className="add_bid_error" role="alert">{itemImageError}</p>}
+                        {itemEditor.mode !== 'add' && <ItemImage item={itemEditor.item} />}
                         {[...itemDetailFields, ['type', 'Type']].map(([field, title]) => (
                             <div className="bid_form_field" key={field}>
                                 <label htmlFor={`item-${field}`}>{title}</label>
                                 <input id={`item-${field}`} type="text" value={itemEditor.item[field] ?? ''}
                                     required={itemEditor.mode === 'add' && field === 'name'}
-                                    readOnly={itemEditor.mode === 'view'} onChange={(event) => editItemField(field, event.target.value)} />
+                                    disabled={savingItem} readOnly={itemEditor.mode === 'view'} onChange={(event) => editItemField(field, event.target.value)} />
                             </div>
                         ))}
                     </div>
                     <div className="actions">
-                        <button type="button" className="bid_form_cancel" onClick={closeItem}>{itemEditor.mode === 'add' ? 'Cancel' : 'Done'}</button>
-                        {itemEditor.mode === 'add' && <button type="submit" className="bid_form_save" disabled={!itemEditor.item.name?.trim()}>Add item</button>}
+                        <button type="button" className="bid_form_cancel" disabled={savingItem} onClick={closeItem}>{itemEditor.mode === 'add' ? 'Cancel' : 'Done'}</button>
+                        {itemEditor.mode === 'add' && <button type="submit" className="bid_form_save" disabled={!itemEditor.item.name?.trim() || savingItem}>{savingItem ? 'Saving…' : 'Add item'}</button>}
                     </div>
                 </form>
             )}

@@ -196,3 +196,63 @@ test('keeps the email editable when PDF generation fails and can retry', async (
     expect(screen.getByLabelText('Message')).toHaveValue('Keep this draft');
     expect(screen.getByRole('button', { name: 'Download Agreement PDF' })).toBeEnabled();
 });
+
+test('switching appraisal type immediately changes fields and keeps automatic values stable', () => {
+    const bid = { id: 1, name: 'Avery', businessName: 'Example Co', appraisalType: 'Business Valuation (BV)', reportFormat: 'Detailed', clientCompany: 'Client Co', clientStreetAddress: '10 Client St', bidAmount: '1000', discount: '100', status: 'Pending' };
+    sessionStorage.setItem('availableBids', JSON.stringify([bid]));
+    render(<Bidspage />);
+    expect(screen.getByLabelText('Reference Number')).toHaveValue('BID-000001');
+    expect(screen.getByLabelText('Reference Number')).toHaveAttribute('readonly');
+    fireEvent.change(screen.getByLabelText('Appraisal Type'), { target: { value: 'Machinery & Equipment (M&E)' } });
+    expect(screen.getByRole('button', { name: 'Save Changes' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Report Format')).toHaveValue('');
+    fireEvent.change(screen.getByLabelText('Report Format'), { target: { value: 'Desktop' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Client Information' }));
+    expect(screen.getByLabelText('Client Company')).toHaveValue('Client Co');
+    expect(screen.queryByLabelText('Client Street Address')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Pricing' }));
+    expect(screen.getByLabelText('M&E Bid')).toHaveValue(1000);
+    expect(screen.queryByLabelText('Discount')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Appraisal' }));
+    fireEvent.change(screen.getByLabelText('Appraisal Type'), { target: { value: 'Business Valuation (BV)' } });
+    expect(screen.getByLabelText('Reference Number')).toHaveValue('BID-000001');
+    fireEvent.click(screen.getByRole('button', { name: 'Client Information' }));
+    expect(screen.getByLabelText('Client Street Address')).toHaveValue('10 Client St');
+    fireEvent.click(screen.getByRole('button', { name: 'Pricing' }));
+    expect(screen.getByLabelText('Total Bid')).toHaveValue('900.00');
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Appraisal' }));
+    expect(screen.getByLabelText('Appraisal Type')).toHaveValue('Business Valuation (BV)');
+    expect(screen.getByLabelText('Report Format')).toHaveValue('Detailed');
+});
+
+test('preserves an existing reference and persists M&E request-date edits', () => {
+    sessionStorage.setItem('availableBids', JSON.stringify([{ id: 1, name: 'Avery', businessName: 'Example Co', referenceNumber: 'CUSTOM-REF', appraisalType: 'Business Valuation (BV)' }]));
+    const { unmount } = render(<Bidspage />);
+    expect(screen.getByLabelText('Reference Number')).toHaveValue('CUSTOM-REF');
+    expect(screen.getByLabelText('Status')).toHaveValue('Pending');
+    fireEvent.change(screen.getByLabelText('Appraisal Type'), { target: { value: 'Machinery & Equipment (M&E)' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Appraisal Details' }));
+    fireEvent.change(screen.getByLabelText('Request Date'), { target: { value: '2026-10-21' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }));
+    expect(JSON.parse(localStorage.getItem('bidEdits'))['1']).toMatchObject({ referenceNumber: 'CUSTOM-REF', appraisalType: 'Machinery & Equipment (M&E)', date: '2026-10-21' });
+    unmount();
+    render(<Bidspage />);
+    expect(screen.getByLabelText('Reference Number')).toHaveValue('CUSTOM-REF');
+    fireEvent.click(screen.getByRole('button', { name: 'Appraisal Details' }));
+    expect(screen.getByLabelText('Request Date')).toHaveValue('2026-10-21');
+});
+
+
+test('only allows discount edits when PDF Only is checked', () => {
+    render(<Bidspage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Pricing' }));
+    const discount = screen.getByLabelText('Discount');
+    const pdf = screen.getByLabelText('PDF Only/ No hard copy');
+    expect(discount).toBeDisabled();
+    fireEvent.click(pdf);
+    expect(discount).toBeEnabled();
+    fireEvent.click(pdf);
+    expect(discount).toBeDisabled();
+});

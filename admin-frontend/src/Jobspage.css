@@ -377,3 +377,9 @@
 }
 
 .job_send_controls { display: flex; justify-content: flex-end; margin-bottom: 20px; }
+
+.job_status_controls { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; color: #334155; font-size: 14px; font-weight: 600; }
+.job_status_controls select, .job_status_select { min-height: 36px; border: 1px solid #C8D4E0; border-radius: 6px; padding: 6px 10px; color: #005581; background: white; font: inherit; }
+.job_status_controls select:focus-visible { outline: 2px solid #005581; outline-offset: 2px; }
+.job_item_photo { grid-column: 1 / -1; margin: 16px 0; }
+.job_item_photo img { display: block; max-width: 100%; width: auto; max-height: 320px; object-fit: contain; border: 1px solid #C8D4E0; border-radius: 8px; margin-bottom: 12px; }

@@ -15,8 +15,9 @@ const demoClients = [
     {"id": 14, "name": "Dakota Lewis", "totalBids": 19, "businessName": "Lewis Machine Works", "status": "Accepted", "email": "dakota.lewis@example.com", "phone": "202-555-0114", "fax": "202-555-0164", "cityStateZip": "Columbus, OH 43215"},
     {"id": 15, "name": "Reese Kim", "totalBids": 7, "businessName": "Kim Property Group", "status": "Pending", "email": "reese.kim@example.com", "phone": "202-555-0115", "fax": "202-555-0165", "cityStateZip": "Newark, NJ 07102"},
 ];
-export const fields = [['id', '# ID'], ['name', 'Name'], ['totalBids', 'Total Bids'], ['businessName', 'Business Name'], ['status', 'Status']];
+export const fields = [['id', '# ID'], ['name', 'Name'], ['totalBids', 'Total Bids'], ['businessName', 'Business Name'], ['status', 'Status'], ['state', 'State']];
 export const detailFields = [...fields, ['email', 'Email'], ['phone', 'Phone'], ['fax', 'Fax'], ['cityStateZip', 'City, State, Zip']];
+const withState = (client) => ({ ...client, state: client.state?.trim() || client.cityStateZip?.match(/(?:^|[,\s])([A-Z]{2})(?:\s+\d{5}(?:-\d{4})?)?\s*$/)?.[1] || '' });
 export function loadClients() {
     try {
         const stored = JSON.parse(localStorage.getItem('clients') ?? sessionStorage.getItem('clients') ?? 'null');
@@ -25,16 +26,16 @@ export function loadClients() {
             const expanded = [...stored, ...demoClients.slice(3).map((row, index) => ({ ...row, id: nextId + index }))];
             localStorage.setItem('clients', JSON.stringify(expanded));
             localStorage.setItem('clientsDemoExpanded', 'true');
-            return expanded;
+            return expanded.map(withState);
         }
         localStorage.setItem('clientsDemoExpanded', 'true');
-        return Array.isArray(stored) ? stored : demoClients;
-    } catch { return demoClients; }
+        return (Array.isArray(stored) ? stored : demoClients).map(withState);
+    } catch { return demoClients.map(withState); }
 }
 export function saveClients(rows) {
     localStorage.setItem('clients', JSON.stringify(rows));
     window.dispatchEvent(new Event('clients-changed'));
 }
 export function newClient() {
-    return { id: Math.max(0, ...loadClients().map((row) => Number(row.id))) + 1, name: '', totalBids: 0, businessName: '', status: 'Pending', email: '', phone: '', fax: '', cityStateZip: '' };
+    return { id: Math.max(0, ...loadClients().map((row) => Number(row.id))) + 1, name: '', totalBids: 0, businessName: '', status: 'Pending', state: '', email: '', phone: '', fax: '', cityStateZip: '' };
 }

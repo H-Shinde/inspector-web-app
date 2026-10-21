@@ -19,6 +19,7 @@ beforeEach(() => {
 
 function submitBusinessValuation() {
     render(<AddBidpage />);
+    fireEvent.change(screen.getByLabelText('Assigned inspector (required)'), { target: { value: '1' } });
     fireEvent.change(screen.getByLabelText('Appraisal Type'), { target: { value: 'Business Valuation (BV)' } });
     fireEvent.change(screen.getByLabelText('Business Name'), { target: { value: 'Example Company' } });
     fireEvent.change(screen.getByLabelText('Contact Name'), { target: { value: 'Avery Wilson' } });
@@ -49,7 +50,7 @@ test('creates one Pending bid and saves the generated agreement after confirmati
     expect(saveAgreement).toHaveBeenCalledWith('BID-000021', expect.any(Blob));
     const saved = JSON.parse(sessionStorage.getItem('createdBids'));
     expect(saved).toHaveLength(1);
-    expect(saved[0]).toMatchObject({ referenceNumber: 'BID-000021', status: 'Pending', engagementAgreement: 'BID-000021-engagement-agreement.pdf' });
+    expect(saved[0]).toMatchObject({ referenceNumber: 'BID-000021', status: 'Pending', inspectorId: 1, inspector: 'Alex Morgan', engagementAgreement: 'BID-000021-engagement-agreement.pdf' });
     const client = { clientCompany: 'Client Co', clientName: 'Jordan Smith', clientStreetAddress: '50 Client Avenue',
         clientCity: 'Albany', clientState: 'NY', clientZipCode: '01234', clientPhone: '518-555-0100', clientEmail: 'jordan@client.example' };
     expect(saved[0]).toMatchObject(client);
@@ -86,7 +87,7 @@ test('shows only the requested M&E fields and restores hidden BV draft values', 
     fireEvent.change(screen.getByLabelText('Appraisal Type'), { target: { value: 'Machinery & Equipment (M&E)' } });
     const form = screen.getByRole('form', { name: 'Add bid' });
     expect([...form.querySelectorAll('input, select')].map((input) => input.name).sort()).toEqual([
-        'appraisalType', 'reportFormat', 'referenceNumber', 'status', 'businessName', 'propertyType',
+        'inspectorId', 'appraisalType', 'reportFormat', 'referenceNumber', 'status', 'businessName', 'propertyType',
         'businessAddress', 'city', 'clientCompany', 'clientName', 'clientEmail', 'name', 'subjectContactEmail', 'subjectContactPhone',
         'valueType', 'valueDate', 'completionDays', 'date', 'bidAmount',
     ].sort());
@@ -102,6 +103,7 @@ test('shows only the requested M&E fields and restores hidden BV draft values', 
 
 test('confirms M&E agreement creation and excludes hidden BV pricing fields', async () => {
         render(<AddBidpage />);
+        fireEvent.change(screen.getByLabelText('Assigned inspector (required)'), { target: { value: '1' } });
         fireEvent.change(screen.getByLabelText('Discount'), { target: { value: '100' } });
         fireEvent.change(screen.getByLabelText('Additional Charges'), { target: { value: '75' } });
         fireEvent.change(screen.getByLabelText('Client Email'), { target: { value: 'bv@example.com' } });
@@ -136,7 +138,7 @@ test('groups bid fields and calculates the total as pricing changes', () => {
     expect(pricing.getByLabelText('Total Bid')).toHaveValue('1125.75');
     expect(pricing.getByLabelText('Total Bid')).toHaveAttribute('readonly');
     fireEvent.click(pricing.getByRole('checkbox', { name: 'PDF Only/ No hard copy' }));
-    expect(pricing.getByRole('checkbox')).toBeChecked();
+    expect(pricing.getByRole('checkbox', { name: 'PDF Only/ No hard copy' })).toBeChecked();
     fireEvent.click(screen.getByRole('checkbox', { name: 'Rush' }));
     expect(screen.getByRole('checkbox', { name: 'Rush' })).toBeChecked();
     const rushDiscount = pricing.getByLabelText('Rush Discount');
@@ -214,6 +216,7 @@ test('previews the filled PDF before creating a bid and uses the client first na
 
 test('fills the M&E email using client details and keeps the PDF and email actions', async () => {
     render(<AddBidpage />);
+    fireEvent.change(screen.getByLabelText('Assigned inspector (required)'), { target: { value: '1' } });
     fireEvent.change(screen.getByLabelText('Appraisal Type'), { target: { value: 'Machinery & Equipment (M&E)' } });
     for (const [label, value] of Object.entries({ 'Business Name': 'Machine Co', 'Contact Name': 'Subject Person', 'Client Name': 'Jordan Smith', 'Client Email': 'jordan@example.com', 'M&E Bid': '1500', 'Completion Days': '7' })) {
         fireEvent.change(screen.getByLabelText(label), { target: { value } });
@@ -239,4 +242,30 @@ test('Close returns to the form with entered details and no saved bid', () => {
     expect(screen.getByLabelText('Business Name')).toHaveValue('Example Company');
     expect(screen.getByLabelText('Contact Name')).toHaveValue('Avery Wilson');
     expect(sessionStorage.getItem('createdBids')).toBeNull();
+});
+
+
+test('requires inspector assignment before bid creation', () => {
+    render(<AddBidpage />);
+    fireEvent.change(screen.getByLabelText('Appraisal Type'), { target: { value: 'Business Valuation (BV)' } });
+    fireEvent.change(screen.getByLabelText('Business Name'), { target: { value: 'Example' } });
+    fireEvent.change(screen.getByLabelText('Contact Name'), { target: { value: 'Contact' } });
+    expect(screen.getByLabelText('Assigned inspector (required)')).toBeRequired();
+    fireEvent.submit(screen.getByRole('form', { name: 'Add bid' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('Assign an inspector');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(sessionStorage.getItem('createdBids')).toBeNull();
+});
+
+
+test('enables Discount only while PDF Only is checked', () => {
+    render(<AddBidpage />);
+    const discount = screen.getByLabelText('Discount');
+    const pdf = screen.getByLabelText('PDF Only/ No hard copy');
+    expect(discount).toBeDisabled();
+    fireEvent.click(pdf);
+    expect(discount).toBeEnabled();
+    fireEvent.change(discount, { target: { value: '100' } });
+    fireEvent.click(pdf);
+    expect(discount).toBeDisabled();
 });

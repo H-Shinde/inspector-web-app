@@ -6,7 +6,7 @@ jest.mock('datatables.net-react', () => {
         React.useImperativeHandle(ref, () => ({
             dt: () => ({ row: (tr) => ({ data: () => data.find((row) => String(row.id) === tr.dataset.id) }), column: () => ({ search: () => {} }), draw: () => {} }),
         }));
-        return <table><tbody>{data.map((row) => <tr key={row.id} data-id={row.id}><td>{row.name}</td><td>{slots[5](null, null, row)}</td></tr>)}</tbody></table>;
+        return <table><tbody>{data.map((row) => <tr key={row.id} data-id={row.id}><td>{row.name}</td><td>{row.state}</td><td>{slots[6](null, null, row)}</td></tr>)}</tbody></table>;
     });
     Table.use = () => {};
     return Table;
@@ -56,4 +56,16 @@ test('clicking a row opens that client, but clicking delete does not', () => {
     window.location.href = '';
     fireEvent.click(screen.getByRole('button', { name: 'Delete Avery Wilson' }));
     expect(window.location.href).toBe('');
+});
+
+test('shows State for legacy addresses and saves State for new clients', () => {
+    render(<Clients />);
+    expect(screen.getByText('Avery Wilson').closest('tr')).toHaveTextContent('DC');
+    fireEvent.click(screen.getByRole('button', { name: '+ Add Client' }));
+    const popup = within(screen.getByRole('dialog'));
+    fireEvent.change(popup.getByLabelText('Name'), { target: { value: 'New Client' } });
+    fireEvent.change(popup.getByLabelText('State'), { target: { value: 'NY' } });
+    fireEvent.click(popup.getByRole('button', { name: 'Save Client' }));
+    expect(screen.getByText('New Client').closest('tr')).toHaveTextContent('NY');
+    expect(JSON.parse(localStorage.getItem('clients')).find((client) => client.name === 'New Client').state).toBe('NY');
 });

@@ -15,6 +15,14 @@ const totalForBid = (values) => {
     return calculateTotalBid(Object.fromEntries(Object.entries(values).filter(([field]) => fields.has(field))));
 };
 
+const autofillBid = (bid) => ({
+    ...bid,
+    referenceNumber: bid.referenceNumber?.trim() || bidReferenceNumber(bid.id),
+    status: bid.status || 'Pending',
+    rush: bid.rush ?? false,
+    pdfOnly: bid.pdfOnly ?? false,
+});
+
 function Bidspage({ onChange }) {
     const [emailDraft, setEmailDraft] = useState(null);
     const [emailAgreement, setEmailAgreement] = useState(null);
@@ -59,7 +67,7 @@ function Bidspage({ onChange }) {
             const saved = JSON.parse(sessionStorage.getItem('selectedBid') || 'null');
             const requestedId = window.location.pathname === '/Bidspage' ? new URLSearchParams(window.location.search).get('bidId') : null;
             const selected = requestedId ? readBidList('availableBids').find((item) => String(item.id) === requestedId) || saved : saved;
-            return selected && selected.status !== 'Accepted' && (!requestedId || String(selected.id) === requestedId) ? { ...selected, ...readBidEdits()[selected.id] } : null;
+            return selected && selected.status !== 'Accepted' && (!requestedId || String(selected.id) === requestedId) ? autofillBid({ ...selected, ...readBidEdits()[selected.id] }) : null;
         } catch {
             return null;
         }
@@ -75,8 +83,9 @@ function Bidspage({ onChange }) {
     const saveEdits = (event) => {
         event.preventDefault();
         if (!editDraft?.name.trim()) return;
-        const updated = { ...editDraft, name: editDraft.name.trim(), totalBid: totalForBid(editDraft) };
-        const edits = Object.fromEntries(bidSections.flatMap(([, fields]) => fields).filter(([field]) => !['status', 'referenceNumber'].includes(field)).map(([field]) => [field, updated[field] ?? '']));
+        const updated = autofillBid({ ...editDraft, name: editDraft.name.trim(), totalBid: totalForBid(editDraft) });
+        const editableFields = [...bidSections.flatMap(([, fields]) => fields), ['date'], ['referenceNumber']];
+        const edits = Object.fromEntries(editableFields.filter(([field]) => field !== 'status').map(([field]) => [field, updated[field] ?? '']));
         try {
             localStorage.setItem('bidEdits', JSON.stringify({ ...readBidEdits(), [updated.id]: edits }));
             const updatedBids = availableBids.map((item) => item.id === updated.id ? updated : item);
@@ -153,7 +162,11 @@ function Bidspage({ onChange }) {
     };
     const sections = getBidSections((editDraft || bid)?.appraisalType);
     const fields = sections.find(([title]) => title === activeSection)?.[1] || [];
-    const changeField = (field, value) => setEditDraft((previous) => ({ ...previous, [field]: value, ...(field === 'appraisalType' ? { reportFormat: '' } : {}) }));
+    const changeField = (field, value) => {
+        if (!bid) return;
+        setNotice('');
+        setEditDraft((previous) => ({ ...(previous || bid), [field]: value, ...(field === 'appraisalType' ? { reportFormat: '' } : {}) }));
+    };
     const displayValue = (field) => {
         const value = field === 'totalBid' ? totalForBid(bid || {}) : bid?.[field];
         if (value === undefined || value === null || value === '') return 'Not provided';
@@ -205,15 +218,17 @@ function Bidspage({ onChange }) {
             {fields.map(([field, label, inputType = 'text']) => (
                 <div className="bid_detail_field" key={field}>
                     <label htmlFor={`view-${field}`}>{label}</label>
-                    {editDraft && inputType === 'appraisalType' ? <select id={`view-${field}`} value={editDraft[field] ?? ''} onChange={(event) => changeField(field, event.target.value)}>
-                        <option value="">Select appraisal type</option><option>Business Valuation (BV)</option><option>Machinery &amp; Equipment (M&amp;E)</option>
+                    {inputType === 'appraisalType' ? <select id={`view-${field}`} disabled={!bid} value={(editDraft || bid)?.[field] ?? ''} onChange={(event) => changeField(field, event.target.value)}>
+                        <option value="">Select appraisal type</option>
+                        {(editDraft || bid)?.appraisalType && ![BUSINESS_VALUATION, MACHINERY_EQUIPMENT].includes((editDraft || bid).appraisalType) && <option>{(editDraft || bid).appraisalType}</option>}
+                        <option>Business Valuation (BV)</option><option>Machinery &amp; Equipment (M&amp;E)</option>
                     </select> : editDraft && field === 'reportFormat' && editDraft.appraisalType === 'Machinery & Equipment (M&E)' ? <select id={`view-${field}`} value={editDraft[field] ?? ''} onChange={(event) => changeField(field, event.target.value)}>
                         <option value="">Select report format</option><option>Onsite</option><option>Desktop</option>
                     </select> : editDraft && inputType === 'checkbox' ? <input id={`view-${field}`} type="checkbox" checked={!!editDraft[field]} onChange={(event) => changeField(field, event.target.checked)} />
                         : <input id={`view-${field}`} type={editDraft && !['status', 'total', 'appraisalType'].includes(inputType) ? inputType : 'text'} readOnly={!editDraft || ['status', 'referenceNumber', 'totalBid'].includes(field)} required={!!editDraft && ['name', 'businessName'].includes(field)}
                             min={inputType === 'number' ? 0 : undefined}
                             step={inputType === 'number' ? (field === 'completionDays' ? 1 : 0.01) : undefined}
-                            disabled={!!editDraft && field === 'rushDiscount' && !editDraft.rush}
+                            disabled={!!editDraft && ((field === 'rushDiscount' && !editDraft.rush) || (field === 'discount' && !editDraft.pdfOnly))}
                             value={editDraft ? field === 'totalBid' ? totalForBid(editDraft) : editDraft[field] ?? '' : displayValue(field)}
                             onChange={(event) => changeField(field, event.target.value)} />}
 

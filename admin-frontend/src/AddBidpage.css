@@ -41,3 +41,8 @@
 
 .agreement_dialog_heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .agreement_dialog_heading .bid_form_close { flex-shrink: 0; color: #005581; }
+
+.add_bid_assignment { padding: 20px; border: 1px solid #C8D4E0; border-radius: 8px; background: #F0F5F9; }
+.add_bid_assignment select { max-width: 420px; }
+
+.add_bid_section_fields .add_bid_rush { grid-column: 1; }

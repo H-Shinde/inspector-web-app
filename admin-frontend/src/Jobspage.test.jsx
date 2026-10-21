@@ -1,5 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import Jobspage from './Jobspage';
+import { saveItemImage, readItemImage } from './itemImages';
+jest.mock('./itemImages', () => ({ saveItemImage: jest.fn(), readItemImage: jest.fn(), deleteItemImage: jest.fn().mockResolvedValue(undefined) }));
 import { selectGlobalInspector } from './inspectorSelection';
 import { act } from '@testing-library/react';
 
@@ -12,6 +14,10 @@ jest.mock('datatables.net-dt', () => ({}));
 
 beforeEach(() => {
     sessionStorage.clear();
+    saveItemImage.mockResolvedValue(undefined);
+    readItemImage.mockResolvedValue(new Blob(['image']));
+    URL.createObjectURL = jest.fn(() => 'blob:item');
+    URL.revokeObjectURL = jest.fn();
     sessionStorage.setItem('availableJobs', JSON.stringify([
         { id: 1, name: 'Test job', status: 'Accepted', isCreatedJob: true, items: [] },
     ]));
@@ -158,4 +164,37 @@ test('offers Send Job to Inspector after assigning an inspector', () => {
     fireEvent.change(screen.getByLabelText('Assign inspector'), { target: { value: '' } });
     fireEvent.click(screen.getByRole('button', { name: 'Assign inspector' }));
     expect(screen.queryByRole('button', { name: 'Send Job to Inspector' })).not.toBeInTheDocument();
+});
+
+
+test('persists Submitted to Client status across reopening', () => {
+    const { unmount } = render(<Jobspage />);
+    fireEvent.change(screen.getByLabelText('Job Status'), { target: { value: 'Submitted to Client' } });
+    expect(JSON.parse(sessionStorage.getItem('availableJobs'))[0].status).toBe('Submitted to Client');
+    unmount(); render(<Jobspage />);
+    expect(screen.getByLabelText('Job Status')).toHaveValue('Submitted to Client');
+});
+
+test('uploads an image with a new item and persists its image reference', async () => {
+    render(<Jobspage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Items' }));
+    fireEvent.click(screen.getByRole('button', { name: '+ Add item' }));
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Forklift photo' } });
+    const file = new File(['image'], 'forklift.png', { type: 'image/png' });
+    fireEvent.change(screen.getByLabelText('Item image'), { target: { files: [file] } });
+    expect(screen.getByAltText('Selected item')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Add item' }));
+    await screen.findByText('Forklift photo');
+    expect(saveItemImage).toHaveBeenCalledWith('job-1-item-new-item-id', file);
+    expect(JSON.parse(sessionStorage.getItem('jobItems'))['1'][0]).toMatchObject({ imageId: 'job-1-item-new-item-id', imageName: 'forklift.png' });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+});
+
+test('rejects non-image attachments', () => {
+    render(<Jobspage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Items' }));
+    fireEvent.click(screen.getByRole('button', { name: '+ Add item' }));
+    fireEvent.change(screen.getByLabelText('Item image'), { target: { files: [new File(['pdf'], 'file.pdf', { type: 'application/pdf' })] } });
+    expect(screen.getByRole('alert')).toHaveTextContent('Choose a PNG');
+    expect(screen.queryByAltText('Selected item')).not.toBeInTheDocument();
 });

@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import JobHomepage from './Jobspagehomepage';
 
 jest.mock('datatables.net-react', () => {
-    const Table = ({ data, slots }) => <div>{data.map((row) => <div key={row.id}>{row.name}{slots[5](null, null, row)}</div>)}</div>;
+    const Table = ({ data, slots }) => <div>{data.map((row) => <div key={row.id}>{row.name}{slots[4](null, null, row)}{slots[5](null, null, row)}</div>)}</div>;
     Table.use = () => {};
     return Table;
 });
@@ -27,4 +27,13 @@ test('completes a job from the table and keeps it out of active jobs after reloa
         expect(screen.getByRole('button', { name: 'Mark job for Saige Fuentes complete' })).toBeInTheDocument();
         expect(JSON.parse(sessionStorage.getItem('availableJobs')).some((job) => job.id === 1)).toBe(false);
     } finally { window.location = location; }
+});
+
+
+test('keeps Submitted to Client after a status change and a page reload', () => {
+    const { unmount } = render(<JobHomepage />);
+    fireEvent.change(screen.getByLabelText('Job status for John Doe'), { target: { value: 'Submitted to Client' } });
+    expect(JSON.parse(sessionStorage.getItem('availableJobs')).find((job) => job.id === 1).status).toBe('Submitted to Client');
+    unmount(); render(<JobHomepage />);
+    expect(screen.getByLabelText('Job status for John Doe')).toHaveValue('Submitted to Client');
 });

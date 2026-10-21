@@ -1,3 +1,4 @@
+import { getInspectors } from './inspectorSelection';
 import { bidSections as sections, getBidSections } from './bidSections';
 import { useEffect, useRef, useState } from 'react';
 import { bidReferenceNumber, calculateTotalBid, createBid, nextBidId } from './bidFields';
@@ -8,6 +9,9 @@ import navLogo from './bison_logo_nav.png';
 
 
 function AddBidpage() {
+    const inspectors = getInspectors();
+    const [inspectorId, setInspectorId] = useState('');
+    const assignedInspector = inspectors.find((inspector) => String(inspector.id) === inspectorId);
     const [menuOpen, setMenuOpen] = useState(false);
     const [draft, setDraft] = useState(() => ({ date: '', ...Object.fromEntries(sections.flatMap(([, fields]) => fields.map(([field, , type]) => [field, field === 'status' ? 'Pending' : type === 'checkbox' ? false : '']))) }));
     const [error, setError] = useState('');
@@ -22,13 +26,18 @@ function AddBidpage() {
     const [emailDraft, setEmailDraft] = useState(null);
     const [agreementError, setAgreementError] = useState('');
     const isMachinery = draft.appraisalType === MACHINERY_EQUIPMENT;
-    const visibleSections = getBidSections(draft.appraisalType);
+    const visibleSections = getBidSections(draft.appraisalType).map(([title, fields]) => [title,
+        title === 'Appraisal Details' ? fields.filter(([field]) => field !== 'rush')
+            : title === 'Pricing' ? fields.flatMap((entry) => entry[0] === 'rushDiscount' ? [['rush', 'Rush', 'checkbox'], entry] : [entry])
+                : fields,
+    ]);
     const visibleFields = new Set(visibleSections.flatMap(([, fields]) => fields.map(([field]) => field)));
-    const submissionDraft = isMachinery ? Object.fromEntries(Object.entries(draft).filter(([field]) => visibleFields.has(field))) : draft;
+    const submissionDraft = { ...(isMachinery ? Object.fromEntries(Object.entries(draft).filter(([field]) => visibleFields.has(field))) : draft), inspectorId: assignedInspector?.id ?? '', inspector: assignedInspector?.name ?? '' };
     const totalBid = calculateTotalBid(submissionDraft);
     const referenceNumber = bidReferenceNumber(nextBidId());
     const handleAdd = (event) => {
         event.preventDefault();
+        if (!assignedInspector) { setError('Assign an inspector before creating this bid.'); return; }
         if (!draft.name.trim() || !draft.businessName.trim()) {
             setError('Enter a contact name and business name.');
             return;
@@ -205,12 +214,23 @@ function AddBidpage() {
         </header>
         <main>
             <form className="fieldsframe" onSubmit={handleAdd} aria-label="Add bid">
+                <fieldset className="add_bid_section add_bid_assignment">
+                    <legend>Assign Inspector</legend>
+                    <div className="bid_detail_field">
+                        <label htmlFor="add-inspector">Assigned inspector (required)</label>
+                        <select id="add-inspector" name="inspectorId" required value={inspectorId} onChange={(event) => { setInspectorId(event.target.value); setError(''); }}>
+                            <option value="">Select an inspector</option>
+                            {inspectors.map((inspector) => <option key={inspector.id} value={inspector.id}>{inspector.name}</option>)}
+                        </select>
+                    </div>
+                    <p className="add_bid_pricing_help">Assign the inspector responsible for this bid before creating it.</p>
+                </fieldset>
                 {visibleSections.map(([title, fields]) => (
                     <fieldset className="add_bid_section" key={title}>
                         <legend>{title}</legend>
                         <div className="add_bid_section_fields">
                             {fields.map(([field, label, type = 'text']) => (
-                                <div className={`bid_detail_field${type === 'checkbox' ? ' add_bid_checkbox' : ''}`} key={field}>
+                                <div className={`bid_detail_field add_bid_${field}${type === 'checkbox' ? ' add_bid_checkbox' : ''}`} key={field}>
                                     <label htmlFor={`add-${field}`}>{label}</label>
                                     {type === 'appraisalType' ? (
                                         <select id={`add-${field}`} name={field} value={draft[field]} onChange={(event) => setDraft({ ...draft, [field]: event.target.value, reportFormat: '' })}>
@@ -236,7 +256,7 @@ function AddBidpage() {
                                             checked={type === 'checkbox' ? draft[field] : undefined}
                                             placeholder={type !== 'checkbox' ? `Enter ${label.toLowerCase()}` : undefined}
                                             required={['name', 'businessName'].includes(field)}
-                                            disabled={field === 'rushDiscount' && !draft.rush}
+                                            disabled={(field === 'rushDiscount' && !draft.rush) || (field === 'discount' && !draft.pdfOnly)}
                                             onChange={(event) => {
                                                 setDraft((previous) => ({ ...previous, [field]: type === 'checkbox' ? event.target.checked : event.target.value }));
                                                 setError('');
