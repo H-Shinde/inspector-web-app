@@ -14,7 +14,9 @@ export default function SendJobToInspector({ job, sections, className = 'bid_bac
     const dialog = useRef(null);
     const generation = useRef(0);
     // Assignment names are authoritative; an old inspectorId can survive reassignment.
-    const inspector = job?.inspector ? getInspectors().find((entry) => entry.name === job.inspector) || { name: job.inspector } : null;
+    const inspector = job?.inspector ? (job.sourceBidBackend === 'django' && (!job.inspectorEmailFor || job.inspectorEmailFor === job.inspector)
+        ? { name: job.inspector, email: job.inspectorEmail || '' }
+        : getInspectors().find((entry) => entry.name === job.inspector) || { name: job.inspector }) : null;
     useEffect(() => { if (email && !dialog.current.open) dialog.current.showModal(); }, [email]);
     useEffect(() => () => { if (pdf?.url) URL.revokeObjectURL(pdf.url); }, [pdf]);
     useEffect(() => () => { generation.current += 1; }, []);

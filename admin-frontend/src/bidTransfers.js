@@ -17,16 +17,19 @@ export function moveBidToJobs(bid) {
         const saved = JSON.parse(sessionStorage.getItem('createdJobs') || '[]');
         createdJobs = Array.isArray(saved) ? saved : [];
     } catch {}
-    const existing = jobs.find((job) => job.sourceBidId === bid.id);
+    const sourceBidBackend = bid.recordType === 'Bid' ? 'django' : 'browser';
+    const sameSource = (job) => job.sourceBidId === bid.id && (job.sourceBidBackend || 'browser') === sourceBidBackend;
+    const existing = jobs.find(sameSource);
     const job = {
         ...bid,
         pdf: bid.pdf?.name ?? bid.pdf ?? '',
         id: existing?.id ?? Math.max(20, ...[...jobs, ...createdJobs, ...readBidList('completedJobs')].map((item) => Number(item.id))) + 1,
         sourceBidId: bid.id,
+        sourceBidBackend,
         status: 'Accepted',
     };
     sessionStorage.setItem('acceptedJobs', JSON.stringify([
-        ...jobs.filter((item) => item.sourceBidId !== bid.id), job,
+        ...jobs.filter((item) => !sameSource(item)), job,
     ]));
     let statuses = {};
     try {

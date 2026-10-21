@@ -1,3 +1,4 @@
+import { getBidSections } from './bidSections';
 import { useState } from 'react';
 import { FaEye } from 'react-icons/fa';
 import { bidFields, readBidList } from './bidFields';
@@ -60,6 +61,7 @@ function ReadOnlyField({ id, label, value, placeholder, multiline }) {
 
 export default function HistoryRecordDetails({ record, onBack }) {
     const isJob = record.recordType === 'Job';
+    const recordFields = isJob ? bidFields : getBidSections(record.appraisalType).flatMap(([, fields]) => fields);
     const infoSection = isJob ? 'Job Information' : 'Bid Information';
     const sections = isJob ? [infoSection, ...Object.keys(sectionGroups), 'Items', 'Assigned Inspector'] : [infoSection];
     const [activeSection, setActiveSection] = useState(infoSection);
@@ -101,7 +103,7 @@ export default function HistoryRecordDetails({ record, onBack }) {
                         <div className="fieldsframe">
                             <ReadOnlyField id="record-status" label="Status" value={show(record.status)} />
                             {dateValue && <ReadOnlyField id="record-status-date" label={dateLabel} value={dateValue} />}
-                            {bidFields.map(([field, label]) => (
+                            {recordFields.filter(([field]) => field !== 'status').map(([field, label]) => (
                                 <ReadOnlyField key={field} id={`record-${field}`} label={label} value={show(record[field])} />
                             ))}
                         </div>

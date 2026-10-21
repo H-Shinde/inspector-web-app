@@ -1,3 +1,4 @@
+import LogoutButton from './LogoutButton';
 import { useEffect, useRef, useState } from 'react';
 import DataTable from 'datatables.net-react';
 import DT from 'datatables.net-dt';
@@ -85,7 +86,7 @@ export default function Inspector() {
                 <button type="button" className="burger_icon_position" aria-label="Account menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>
                     <div className="burger_icon_frame"><div className="top_bun" /><div className="patty" /><div className="bottom_bun" /></div>
                 </button>
-                {menuOpen && <div className="hamburger_dropdown"><a className="logout_button" href="/">Logout</a></div>}
+                {menuOpen && <div className="hamburger_dropdown"><LogoutButton /></div>}
             </nav>
             <main className="main_content">
                 <div className="table_header"><div><h1>Inspectors</h1><p>Find inspectors and manage invitations.</p></div></div>

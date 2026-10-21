@@ -536,3 +536,5 @@
 .bid_email_fields { display: flex; flex-direction: column; gap: 16px; }
 .bid_email_fields textarea { width: 100%; box-sizing: border-box; padding: 10px 12px; border: 1px solid #C8D4E0; border-radius: 6px; background: white; color: #1F2937; font: inherit; font-size: 14px; line-height: 1.5; resize: vertical; }
 .bid_email_fields textarea:focus-visible { outline: 2px solid #005581; outline-offset: 2px; }
+
+.bid_load_message { width: min(1200px, calc(100% - 48px)); margin: 0 auto 20px; color: #526477; }

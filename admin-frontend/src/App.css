@@ -359,3 +359,8 @@ body {
     padding: 28px 24px;
   }
 }
+
+.auth_error { margin: 0; color: #9F3030; font-size: 14px; line-height: 1.5; }
+.auth_submit:disabled { opacity: 0.65; cursor: wait; }
+.logout_error { margin: 8px; color: #9F3030; font-size: 12px; line-height: 1.4; }
+.logout_button:disabled { opacity: 0.65; cursor: wait; }

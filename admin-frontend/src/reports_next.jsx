@@ -1,3 +1,4 @@
+import LogoutButton from './LogoutButton';
 import { useState } from 'react';
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import navLogo from './bison_logo_nav.png';
@@ -27,7 +28,7 @@ export default function ReportsNext() {
                 <button type="button" className="burger_icon_position" aria-label="Account menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>
                     <div className="burger_icon_frame"><div className="top_bun" /><div className="patty" /><div className="bottom_bun" /></div>
                 </button>
-                {menuOpen && <div className="hamburger_dropdown"><a className="logout_button" href="/">Logout</a></div>}
+                {menuOpen && <div className="hamburger_dropdown"><LogoutButton /></div>}
             </nav>
         <main className="main_content">
             <header className="table_header"><div><h1>Reports</h1></div></header>

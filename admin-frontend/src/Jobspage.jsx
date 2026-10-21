@@ -1,3 +1,4 @@
+import LogoutButton from './LogoutButton';
 import ItemImage from './ItemImage';
 import { saveItemImage, deleteItemImage } from './itemImages';
 import { restoreJobStatus } from './jobStatus';
@@ -296,14 +297,7 @@ function Jobspage() {
             </button>
             {menuOpen && (
                 <div className="hamburger_dropdown">
-                    <button
-                        className="logout_button"
-                        onClick={() => {
-                            window.location.href = "/";
-                        }}
-                    >
-                        Logout
-                    </button>
+                    <LogoutButton />
                 </div>
             )}
         </div>

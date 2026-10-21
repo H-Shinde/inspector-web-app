@@ -1,3 +1,4 @@
+import LogoutButton from './LogoutButton';
 import { useRef, useState } from 'react';
 import { FaFilter } from 'react-icons/fa';
 import DataTable from 'datatables.net-react';
@@ -44,7 +45,7 @@ export default function Reports() {
                 <button type="button" className="burger_icon_position" aria-label="Account menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>
                     <div className="burger_icon_frame"><div className="top_bun" /><div className="patty" /><div className="bottom_bun" /></div>
                 </button>
-                {menuOpen && <div className="hamburger_dropdown"><a className="logout_button" href="/">Logout</a></div>}
+                {menuOpen && <div className="hamburger_dropdown"><LogoutButton /></div>}
             </nav>
         <main className="main_content">
             <header className="table_header"><div><h1>Reports</h1><p>Client counts and business valuation totals.</p></div></header>

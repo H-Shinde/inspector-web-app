@@ -1,15 +1,29 @@
-import { getInspectors } from './inspectorSelection';
+import LogoutButton from './LogoutButton';
+import { createServerBid, listBidInspectors, uploadBidAgreement } from './bidsApi';
 import { bidSections as sections, getBidSections } from './bidSections';
 import { useEffect, useRef, useState } from 'react';
-import { bidReferenceNumber, calculateTotalBid, createBid, nextBidId } from './bidFields';
-import { BUSINESS_VALUATION, MACHINERY_EQUIPMENT, deleteAgreement, downloadAgreement, generateEngagementAgreement, saveAgreement } from './engagementAgreement';
+import { calculateTotalBid } from './bidFields';
+import { BUSINESS_VALUATION, MACHINERY_EQUIPMENT, downloadAgreement, generateEngagementAgreement } from './engagementAgreement';
 import './AddBidpage.css';
 import { businessValuationEmail, machineryEquipmentEmail, bidEmailLink } from './bidEmail';
 import navLogo from './bison_logo_nav.png';
 
 
 function AddBidpage() {
-    const inspectors = getInspectors();
+    const [inspectors, setInspectors] = useState([]);
+    const [inspectorsLoading, setInspectorsLoading] = useState(true);
+    const [inspectorsError, setInspectorsError] = useState('');
+    const [inspectorAttempt, setInspectorAttempt] = useState(0);
+    const [createdBid, setCreatedBid] = useState(null);
+    const savedBid = useRef(null);
+    useEffect(() => {
+        const controller = new AbortController();
+        setInspectorsLoading(true); setInspectorsError('');
+        listBidInspectors(controller.signal).then((rows) => { if (!controller.signal.aborted) setInspectors(rows); })
+            .catch((error) => { if (!controller.signal.aborted) setInspectorsError(error.message); })
+            .finally(() => { if (!controller.signal.aborted) setInspectorsLoading(false); });
+        return () => controller.abort();
+    }, [inspectorAttempt]);
     const [inspectorId, setInspectorId] = useState('');
     const assignedInspector = inspectors.find((inspector) => String(inspector.id) === inspectorId);
     const [menuOpen, setMenuOpen] = useState(false);
@@ -34,8 +48,8 @@ function AddBidpage() {
     const visibleFields = new Set(visibleSections.flatMap(([, fields]) => fields.map(([field]) => field)));
     const submissionDraft = { ...(isMachinery ? Object.fromEntries(Object.entries(draft).filter(([field]) => visibleFields.has(field))) : draft), inspectorId: assignedInspector?.id ?? '', inspector: assignedInspector?.name ?? '' };
     const totalBid = calculateTotalBid(submissionDraft);
-    const referenceNumber = bidReferenceNumber(nextBidId());
-    const handleAdd = (event) => {
+    const referenceNumber = createdBid?.referenceNumber || 'Assigned when bid is created';
+    const handleAdd = async (event) => {
         event.preventDefault();
         if (!assignedInspector) { setError('Assign an inspector before creating this bid.'); return; }
         if (!draft.name.trim() || !draft.businessName.trim()) {
@@ -49,19 +63,13 @@ function AddBidpage() {
             confirmDialog.current.showModal();
             return;
         }
-        createBid({
-            ...Object.fromEntries(Object.entries(submissionDraft).map(([field, value]) => [field, typeof value === 'string' ? value.trim() : value])),
-            totalBid,
-            date: submissionDraft.date || new Date().toLocaleDateString('en-US'),
-        });
-        sessionStorage.removeItem('createdBidMessage');
-        window.location.href = '/Homepage';
+        setError('Choose an appraisal type before creating the bid.');
     };
 
     const closeConfirmation = () => {
         if (generating) return;
-        if (completedAgreement) {
-            window.location.href = '/Bidspage';
+        if (savedBid.current) {
+            window.location.href = `/Bidspage?bidId=${savedBid.current.id}`;
             return;
         }
         confirmDialog.current.close();
@@ -74,12 +82,12 @@ function AddBidpage() {
         try {
             const values = {
                 ...Object.fromEntries(Object.entries(submissionDraft).map(([field, value]) => [field, typeof value === 'string' ? value.trim() : value])),
-                referenceNumber: bidReferenceNumber(nextBidId()),
+                referenceNumber: createdBid?.referenceNumber || '',
                 date: isMachinery && submissionDraft.date ? submissionDraft.date : new Date().toLocaleDateString('en-US'),
             };
             const blob = await generateEngagementAgreement(values);
             setPreviewUrl(URL.createObjectURL(blob));
-            setPreviewFilename(`${values.referenceNumber}-engagement-agreement.pdf`);
+            setPreviewFilename(values.referenceNumber ? `${values.referenceNumber}-engagement-agreement.pdf` : 'engagement-agreement-preview.pdf');
         } catch {
             setAgreementError('Unable to preview the agreement. Please try again.');
         } finally { setPreviewing(false); }
@@ -90,23 +98,23 @@ function AddBidpage() {
         creating.current = true;
         setGenerating(true);
         setAgreementError('');
-        const values = {
-            ...Object.fromEntries(Object.entries(submissionDraft).map(([field, value]) => [field, typeof value === 'string' ? value.trim() : value])),
-            referenceNumber: bidReferenceNumber(nextBidId()),
-            date: isMachinery && submissionDraft.date ? submissionDraft.date : new Date().toLocaleDateString('en-US'),
-        };
-        let stored = false;
         try {
-            const blob = await generateEngagementAgreement(values);
-            await saveAgreement(values.referenceNumber, blob);
-            stored = true;
-            const filename = `${values.referenceNumber}-engagement-agreement.pdf`;
-            createBid({ ...values, engagementAgreement: filename });
-            sessionStorage.removeItem('createdBidMessage');
+            const bid = savedBid.current || await createServerBid(submissionDraft);
+            savedBid.current = bid; setCreatedBid(bid);
+            const makeEmail = isMachinery ? machineryEquipmentEmail : businessValuationEmail;
+            const original = makeEmail({ ...submissionDraft, referenceNumber });
+            const generated = makeEmail(bid);
+            setEmailDraft((current) => Object.fromEntries(Object.keys(generated).map((key) => [key,
+                !current || current[key] === original[key] ? generated[key] : current[key].replaceAll(referenceNumber, bid.referenceNumber),
+            ])));
+            const blob = await generateEngagementAgreement(bid);
+            const updated = await uploadBidAgreement(bid, blob);
+            savedBid.current = updated; setCreatedBid(updated);
+            const filename = `${bid.referenceNumber}-engagement-agreement.pdf`;
             setCompletedAgreement({ blob, filename });
-        } catch {
-            if (stored) await deleteAgreement(values.referenceNumber).catch(() => {});
-            setAgreementError('Unable to create the bid and agreement. Your form is still here. Please try again.');
+        } catch (error) {
+            setAgreementError(savedBid.current ? 'Your bid was saved. Retry to generate and upload its agreement; this will not create another bid.' : error.message);
+
         } finally {
             creating.current = false;
             setGenerating(false);
@@ -156,7 +164,7 @@ function AddBidpage() {
                 {generating && <p role="status">Creating engagement agreement…</p>}
             </div>
             <div className="actions">
-                {completedAgreement ? <><button type="button" className="bid_form_cancel" onClick={() => { window.location.href = '/Homepage'; }}>View Bids</button><button type="button" className="bid_accept_button" onClick={downloadCompletedAgreement}>Download Agreement PDF</button>{emailDraft && <button type="submit" form="bv-client-email" className="bid_accept_button">Open Email to Client</button>}</> : <><button type="button" className="bid_form_cancel" disabled={generating} onClick={() => confirmDialog.current.close()}>Cancel</button><button type="button" className="bid_accept_button" disabled={generating || previewing} onClick={confirmAgreement}>{generating ? 'Creating…' : 'Confirm & Create'}</button><button type="button" className="bid_form_cancel" disabled={generating || previewing} onClick={previewAgreement}>{previewing ? 'Preparing PDF…' : 'View PDF'}</button></>}
+                {completedAgreement ? <><button type="button" className="bid_form_cancel" onClick={() => { window.location.href = '/Homepage'; }}>View Bids</button><button type="button" className="bid_accept_button" onClick={downloadCompletedAgreement}>Download Agreement PDF</button>{emailDraft && <button type="submit" form="bv-client-email" className="bid_accept_button">Open Email to Client</button>}</> : <><button type="button" className="bid_form_cancel" disabled={generating} onClick={closeConfirmation}>{createdBid ? 'View Saved Bid' : 'Cancel'}</button><button type="button" className="bid_accept_button" disabled={generating || previewing} onClick={confirmAgreement}>{generating ? 'Saving…' : createdBid ? 'Retry Agreement' : 'Confirm & Create'}</button><button type="button" className="bid_form_cancel" disabled={generating || previewing} onClick={previewAgreement}>{previewing ? 'Preparing PDF…' : 'View PDF'}</button></>}
             </div>
         </dialog>
         <div className = 'nav_bar'>
@@ -193,14 +201,7 @@ function AddBidpage() {
             </button>
             {menuOpen && (
                 <div className="hamburger_dropdown">
-                    <button
-                        className="logout_button"
-                        onClick={() => {
-                            window.location.href = "/";
-                        }}
-                    >
-                        Logout
-                    </button>
+                    <LogoutButton />
                 </div>
             )}
         </div>
@@ -218,11 +219,13 @@ function AddBidpage() {
                     <legend>Assign Inspector</legend>
                     <div className="bid_detail_field">
                         <label htmlFor="add-inspector">Assigned inspector (required)</label>
-                        <select id="add-inspector" name="inspectorId" required value={inspectorId} onChange={(event) => { setInspectorId(event.target.value); setError(''); }}>
-                            <option value="">Select an inspector</option>
+                        <select id="add-inspector" name="inspectorId" required disabled={inspectorsLoading || !!inspectorsError} value={inspectorId} onChange={(event) => { setInspectorId(event.target.value); setError(''); }}>
+                            <option value="">{inspectorsLoading ? 'Loading inspectors…' : 'Select an inspector'}</option>
                             {inspectors.map((inspector) => <option key={inspector.id} value={inspector.id}>{inspector.name}</option>)}
                         </select>
                     </div>
+                    {inspectorsError && <p role="alert" className="add_bid_error">{inspectorsError} <button type="button" className="bid_back_button" onClick={() => setInspectorAttempt((value) => value + 1)}>Retry</button></p>}
+                    {!inspectorsLoading && !inspectorsError && inspectors.length === 0 && <p className="add_bid_error">No inspectors are available.</p>}
                     <p className="add_bid_pricing_help">Assign the inspector responsible for this bid before creating it.</p>
                 </fieldset>
                 {visibleSections.map(([title, fields]) => (
@@ -233,7 +236,7 @@ function AddBidpage() {
                                 <div className={`bid_detail_field add_bid_${field}${type === 'checkbox' ? ' add_bid_checkbox' : ''}`} key={field}>
                                     <label htmlFor={`add-${field}`}>{label}</label>
                                     {type === 'appraisalType' ? (
-                                        <select id={`add-${field}`} name={field} value={draft[field]} onChange={(event) => setDraft({ ...draft, [field]: event.target.value, reportFormat: '' })}>
+                                        <select id={`add-${field}`} name={field} required value={draft[field]} onChange={(event) => setDraft({ ...draft, [field]: event.target.value, reportFormat: '' })}>
                                             <option value="">Select appraisal type</option>
                                             <option value="Business Valuation (BV)">Business Valuation (BV)</option>
                                             <option value="Machinery & Equipment (M&E)">Machinery &amp; Equipment (M&amp;E)</option>
@@ -270,7 +273,7 @@ function AddBidpage() {
                 ))}
                 {error && <p className="add_bid_error" role="alert">{error}</p>}
                 <div className="bid_decision_actions">
-                    <button type="submit" className="bid_accept_button">+ Add Bid</button>
+                    <button type="submit" className="bid_accept_button" disabled={inspectorsLoading || !!inspectorsError || inspectors.length === 0}>+ Add Bid</button>
                 </div>
             </form>
         </main>

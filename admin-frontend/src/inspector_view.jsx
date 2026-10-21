@@ -1,3 +1,4 @@
+import LogoutButton from './LogoutButton';
 import { useEffect, useRef, useState } from 'react';
 import navLogo from './bison_logo_nav.png';
 import { addInvitedInspector, getInspectors } from './inspectorSelection';
@@ -54,7 +55,7 @@ export default function InspectorView() {
                 <button type="button" className="burger_icon_position" aria-label="Account menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>
                     <div className="burger_icon_frame"><div className="top_bun" /><div className="patty" /><div className="bottom_bun" /></div>
                 </button>
-                {menuOpen && <div className="hamburger_dropdown"><a className="logout_button" href="/">Logout</a></div>}
+                {menuOpen && <div className="hamburger_dropdown"><LogoutButton /></div>}
             </nav>
         <header className="bid_page_header"><div className="bid_details_toolbar">
             <a href="/Inspector" className="bid_back_button">← Back</a>

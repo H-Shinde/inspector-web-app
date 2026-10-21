@@ -1,5 +1,7 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within, act } from '@testing-library/react';
 import History from './history';
+import { listBids } from './bidsApi';
+jest.mock('./bidsApi', () => ({ listBids: jest.fn() }));
 
 jest.mock('./ItemImage', () => () => null);
 jest.mock('datatables.net-dt', () => ({ render: { text: () => (value) => value } }));
@@ -16,29 +18,30 @@ jest.mock('datatables.net-react', () => {
 });
 
 beforeEach(() => {
+    listBids.mockResolvedValue([]);
     sessionStorage.clear();
     HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', ''); };
     HTMLDialogElement.prototype.close = function () { this.removeAttribute('open'); };
     sessionStorage.setItem('deletedRecords', JSON.stringify([{ id: 3, recordType: 'Job', name: 'Avery', businessName: 'Example Co', status: 'Deleted', sourceBidId: 42, items: [{ name: 'Visible equipment', make: 'Toyota' }], subjectContactEmail: 'avery@example.com' }]));
 });
 
-test('lists records with Declined or Completed status only', () => {
+test('lists records with Declined or Completed status only', async () => {
     sessionStorage.setItem('completedJobs', JSON.stringify([{ id: 4, recordType: 'Job', name: 'Jordan', businessName: 'Done Co', status: 'Complete' }]));
     sessionStorage.setItem('availableJobs', JSON.stringify([{ id: 5, name: 'Active', businessName: 'Active Co', status: 'Assigned' }]));
-    render(<History />);
+    await act(async () => { render(<History />); });
     expect(screen.getAllByRole('columnheader')).toHaveLength(7);
     expect(screen.getByText('Declined')).toBeInTheDocument();
     expect(screen.getByText('Completed')).toBeInTheDocument();
     expect(screen.queryByText('Active Co')).not.toBeInTheDocument();
 });
 
-test('clicking a record opens a read-only details page instead of a popup', () => {
-    render(<History />);
+test('clicking a record opens a read-only details page instead of a popup', async () => {
+    await act(async () => { render(<History />); });
     fireEvent.click(screen.getByText('Example Co'));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 1, name: 'Job Information' })).toBeInTheDocument();
     expect(screen.getByDisplayValue('avery@example.com')).toBeInTheDocument();
-    expect(screen.getByLabelText('Status')).toHaveValue('Declined');
+    expect(screen.getByRole('textbox', { name: 'Status' })).toHaveValue('Declined');
     const inputs = screen.getAllByRole('textbox');
     expect(inputs.length).toBeGreaterThan(0);
     inputs.forEach((input) => expect(input).toHaveAttribute('readonly'));
@@ -56,8 +59,17 @@ test('clicking a record opens a read-only details page instead of a popup', () =
     expect(screen.getByRole('heading', { level: 1, name: 'History' })).toBeInTheDocument();
 });
 
-test('opens details from the keyboard', () => {
-    render(<History />);
+test('opens details from the keyboard', async () => {
+    await act(async () => { render(<History />); });
     fireEvent.keyDown(screen.getByText('Example Co').closest('tr'), { key: 'Enter' });
     expect(screen.getByRole('heading', { level: 1, name: 'Job Information' })).toBeInTheDocument();
+});
+
+test('loads declined bids from Django and preserves the read-only details page', async () => {
+    listBids.mockResolvedValueOnce([{ id: 52, recordType: 'Bid', status: 'Declined', name: 'Server Subject', businessName: 'Server Bid', appraisalType: 'Business Valuation (BV)', clientEmail: 'client@example.com' }]);
+    render(<History />);
+    fireEvent.click(await screen.findByText('Server Bid'));
+    expect(screen.getByRole('heading', { level: 1, name: 'Bid Information' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Client Email')).toHaveValue('client@example.com');
+    expect(screen.getByLabelText('Client Email')).toHaveAttribute('readonly');
 });

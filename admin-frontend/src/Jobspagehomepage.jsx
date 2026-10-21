@@ -1,3 +1,4 @@
+import LogoutButton from './LogoutButton';
 import { JOB_STATUSES } from './jobStatus';
 import { archiveDeletedRecord, isDeletedRecord, completeJob, isCompletedJob } from './historyRecords';
 import './Jobspagehomepage.css';
@@ -361,14 +362,7 @@ function JobHomepage() {
             </button>
             {menuOpen && (
                 <div className="hamburger_dropdown">
-                    <button
-                        className="logout_button"
-                        onClick={() => {
-                            window.location.href = "/";
-                        }}
-                    >
-                        Logout
-                    </button>
+                    <LogoutButton />
                 </div>
             )}
             

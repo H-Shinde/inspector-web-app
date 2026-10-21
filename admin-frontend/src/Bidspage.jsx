@@ -1,10 +1,10 @@
-import { bidSections, getBidSections } from './bidSections';
+import LogoutButton from './LogoutButton';
+import { getBidSections } from './bidSections';
 import { useEffect, useRef, useState } from 'react';
-import { bidReferenceNumber, calculateTotalBid, readBidEdits, readBidList } from './bidFields';
-import { getInspectors } from './inspectorSelection';
+import { calculateTotalBid } from './bidFields';
+import { getBid, listBidInspectors, updateBid, decideBid, readBidAgreement } from './bidsApi';
 import { moveBidToJobs } from './bidTransfers';
-import { archiveDeletedRecord } from './historyRecords';
-import { downloadAgreement, readAgreement, generateEngagementAgreement } from './engagementAgreement';
+import { downloadAgreement, generateEngagementAgreement } from './engagementAgreement';
 import './Jobspage.css';
 import './AddBidpage.css';
 import { businessValuationEmail, machineryEquipmentEmail, bidEmailLink } from './bidEmail';
@@ -15,14 +15,6 @@ const totalForBid = (values) => {
     const fields = new Set(getBidSections(values.appraisalType).flatMap(([, sectionFields]) => sectionFields.map(([field]) => field)));
     return calculateTotalBid(Object.fromEntries(Object.entries(values).filter(([field]) => fields.has(field))));
 };
-
-const autofillBid = (bid) => ({
-    ...bid,
-    referenceNumber: bid.referenceNumber?.trim() || bidReferenceNumber(bid.id),
-    status: bid.status || 'Pending',
-    rush: bid.rush ?? false,
-    pdfOnly: bid.pdfOnly ?? false,
-});
 
 function Bidspage({ onChange }) {
     const [emailDraft, setEmailDraft] = useState(null);
@@ -44,59 +36,40 @@ function Bidspage({ onChange }) {
         setNotice('');
         setDownloadingAgreement(true);
         try {
-            const blob = await readAgreement(bid.referenceNumber);
+            const blob = await readBidAgreement(bid.id);
             if (!blob) throw new Error('Missing agreement');
             downloadAgreement(blob, bid.engagementAgreement);
         } catch {
-            setNotice('Unable to download the saved engagement agreement from this browser.');
+            setNotice('Unable to download the saved agreement. Please try again.');
         } finally { setDownloadingAgreement(false); }
     };
-    const [createdBidId, setCreatedBidId] = useState(() => sessionStorage.getItem('createdBidMessage'));
+    const [bid, setBid] = useState(null);
+    const [inspectors, setInspectors] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState('');
+    const [busy, setBusy] = useState(false);
+    const [attempt, setAttempt] = useState(0);
     useEffect(() => {
-        if (!createdBidId) return;
-        sessionStorage.removeItem('createdBidMessage');
-        const dismissMessage = () => setCreatedBidId(null);
-        document.addEventListener('click', dismissMessage);
-        document.addEventListener('keydown', dismissMessage);
-        return () => {
-            document.removeEventListener('click', dismissMessage);
-            document.removeEventListener('keydown', dismissMessage);
-        };
-    }, [createdBidId]);
-    const [bid, setBid] = useState(() => {
-        try {
-            const saved = JSON.parse(sessionStorage.getItem('selectedBid') || 'null');
-            const requestedId = window.location.pathname === '/Bidspage' ? new URLSearchParams(window.location.search).get('bidId') : null;
-            const selected = requestedId ? readBidList('availableBids').find((item) => String(item.id) === requestedId) || saved : saved;
-            return selected && selected.status !== 'Accepted' && selected.status !== 'Declined' && (!requestedId || String(selected.id) === requestedId) ? autofillBid({ ...selected, ...readBidEdits()[selected.id] }) : null;
-        } catch {
-            return null;
-        }
-    });
-    const [availableBids, setAvailableBids] = useState(() => {
-        try {
-            const saved = JSON.parse(sessionStorage.getItem('availableBids') || '[]');
-            return Array.isArray(saved) && saved.length ? saved.filter((item) => item.status !== 'Accepted' && item.status !== 'Declined').map((item) => ({ ...item, ...readBidEdits()[item.id] })) : (bid ? [bid] : []);
-        } catch {
-            return bid ? [bid] : [];
-        }
-    });
-    const saveEdits = (event) => {
+        const controller = new AbortController();
+        const id = new URLSearchParams(window.location.search).get('bidId');
+        if (!id) { setLoading(false); return () => controller.abort(); }
+        setLoading(true); setLoadError('');
+        Promise.all([getBid(id, controller.signal), listBidInspectors(controller.signal)]).then(([record, rows]) => {
+            if (!controller.signal.aborted) { setBid(record); setInspectors(rows); }
+        }).catch((error) => { if (!controller.signal.aborted) setLoadError(error.message); })
+            .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+        return () => controller.abort();
+    }, [attempt]);
+    const saveEdits = async (event) => {
         event.preventDefault();
-        if (!editDraft?.name.trim()) return;
-        const updated = autofillBid({ ...editDraft, name: editDraft.name.trim(), totalBid: totalForBid(editDraft) });
-        const editableFields = [...bidSections.flatMap(([, fields]) => fields), ['date'], ['referenceNumber']];
-        const edits = Object.fromEntries(editableFields.filter(([field]) => field !== 'status').map(([field]) => [field, updated[field] ?? '']));
+        if (!editDraft?.name?.trim() || busy) return;
+        setBusy(true); setNotice('');
         try {
-            localStorage.setItem('bidEdits', JSON.stringify({ ...readBidEdits(), [updated.id]: edits }));
-            const updatedBids = availableBids.map((item) => item.id === updated.id ? updated : item);
-            sessionStorage.setItem('availableBids', JSON.stringify(updatedBids));
-            sessionStorage.setItem('selectedBid', JSON.stringify(updated));
-            sessionStorage.setItem('createdBids', JSON.stringify(readBidList('createdBids').map((item) => item.id === updated.id ? updated : item)));
-            setAvailableBids(updatedBids); setBid(updated); setEditDraft(null);
-            onChange?.(updated);
+            const updated = await updateBid(bid.id, { ...editDraft, name: editDraft.name.trim() });
+            setBid(updated); setEditDraft(null); onChange?.(updated);
             setNotice('Bid information has been saved.');
-        } catch { setNotice('Unable to save changes. Please try again.'); }
+        } catch (error) { setNotice(error.message); }
+        finally { setBusy(false); }
     };
     const canGenerateEmail = bid && [BUSINESS_VALUATION, MACHINERY_EQUIPMENT].includes(bid.appraisalType);
     const generateEmailPdf = async (values) => {
@@ -113,7 +86,7 @@ function Bidspage({ onChange }) {
             if (generation === emailGeneration.current) setGeneratingEmailPdf(false);
         }
     };
-    const emailValues = () => ({ ...bid, referenceNumber: bid.referenceNumber || bidReferenceNumber(bid.id) });
+    const emailValues = () => bid;
     const generateEmail = () => {
         if (!canGenerateEmail || editDraft) return;
         const values = emailValues();
@@ -121,53 +94,29 @@ function Bidspage({ onChange }) {
         setEmailDraft((bid.appraisalType === MACHINERY_EQUIPMENT ? machineryEquipmentEmail : businessValuationEmail)(values));
         generateEmailPdf(values);
     };
-    const inspectors = getInspectors();
-    const assignedInspector = inspectors.find((entry) => String(entry.id) === String(bid?.inspectorId)
-        || (!bid?.inspectorId && entry.name === bid?.inspector));
-    const assignInspector = (id) => {
-        if (!bid || editDraft) return;
-        const inspector = inspectors.find((entry) => String(entry.id) === id);
-        const updated = { ...bid, inspectorId: inspector?.id ?? '', inspector: inspector?.name ?? '' };
-        const updatedBids = availableBids.map((entry) => entry.id === bid.id ? updated : entry);
-        sessionStorage.setItem('selectedBid', JSON.stringify(updated));
-        sessionStorage.setItem('availableBids', JSON.stringify(updatedBids));
-        sessionStorage.setItem('createdBids', JSON.stringify(readBidList('createdBids').map((entry) => entry.id === bid.id ? updated : entry)));
-        setBid(updated);
-        setAvailableBids(updatedBids);
-        onChange?.(updated);
-    };
-    const updateStatus = (status) => {
-        if (!bid) return;
-        const updated = { ...bid, status };
-        if (status === 'Accepted') {
-            if (!assignedInspector) { setNotice('Assign an inspector before accepting this bid.'); return; }
-            const acceptedJob = moveBidToJobs(updated);
-            sessionStorage.setItem('availableBids', JSON.stringify(availableBids.filter((item) => item.id !== bid.id)));
-            sessionStorage.removeItem('selectedBid');
-            window.location.href = `/Jobspage?jobId=${encodeURIComponent(acceptedJob.id)}`;
-            return;
-        }
-        if (status === 'Declined') {
-            // Declined bids leave the Bids page and go to History.
-            archiveDeletedRecord(updated, 'Bid');
-            sessionStorage.setItem('availableBids', JSON.stringify(availableBids.filter((item) => item.id !== bid.id)));
-            sessionStorage.removeItem('selectedBid');
-            window.location.href = '/History';
-            return;
-        }
-        const updatedBids = availableBids.map((item) => item.id === bid.id ? updated : item);
-        let savedStatuses = {};
+    const assignedInspector = inspectors.find((entry) => String(entry.id) === String(bid?.inspectorId))
+        || (bid?.inspectorId ? { id: bid.inspectorId, name: bid.inspector } : null);
+    const assignInspector = async (id) => {
+        if (!bid || editDraft || busy) return;
+        setBusy(true); setNotice('');
         try {
-            savedStatuses = JSON.parse(sessionStorage.getItem('bidStatuses') || '{}') || {};
-        } catch {
-            savedStatuses = {};
-        }
-        sessionStorage.setItem('bidStatuses', JSON.stringify({ ...savedStatuses, [bid.id]: status }));
-        sessionStorage.setItem('selectedBid', JSON.stringify(updated));
-        sessionStorage.setItem('availableBids', JSON.stringify(updatedBids));
-        setBid(updated);
-        setAvailableBids(updatedBids);
-        onChange?.(updated);
+            const updated = await updateBid(bid.id, { ...bid, inspectorId: id });
+            setBid(updated); onChange?.(updated);
+        } catch (error) { setNotice(error.message); }
+        finally { setBusy(false); }
+    };
+    const updateStatus = async (status) => {
+        if (!bid || busy) return;
+        setBusy(true); setNotice('');
+        try {
+            const updated = await decideBid(bid.id, status);
+            setBid(updated); onChange?.(updated);
+            if (status === 'Accepted') {
+                const acceptedJob = moveBidToJobs({ ...updated, inspectorEmail: assignedInspector?.email || '', inspectorEmailFor: updated.inspector });
+                window.location.href = `/Jobspage?jobId=${encodeURIComponent(acceptedJob.id)}`;
+            } else { window.location.href = '/History'; }
+        } catch (error) { setNotice(error.message); }
+        finally { setBusy(false); }
     };
     const sections = getBidSections((editDraft || bid)?.appraisalType);
     const fields = sections.find(([title]) => title === activeSection)?.[1] || [];
@@ -177,7 +126,7 @@ function Bidspage({ onChange }) {
         setEditDraft((previous) => ({ ...(previous || bid), [field]: value, ...(field === 'appraisalType' ? { reportFormat: '' } : {}) }));
     };
     const displayValue = (field) => {
-        const value = field === 'totalBid' ? totalForBid(bid || {}) : bid?.[field];
+        const value = field === 'totalBid' ? bid?.totalBid : bid?.[field];
         if (value === undefined || value === null || value === '') return 'Not provided';
         return typeof value === 'boolean' ? (value ? 'Yes' : 'No') : String(value);
     };
@@ -193,16 +142,18 @@ function Bidspage({ onChange }) {
             <button type="button" className="burger_icon_position" aria-label="Account menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>
                 <div className="burger_icon_frame"><div className="top_bun" /><div className="patty" /><div className="bottom_bun" /></div>
             </button>
-            {menuOpen && <div className="hamburger_dropdown"><button className="logout_button" onClick={() => { window.location.href = '/'; }}>Logout</button></div>}
+            {menuOpen && <div className="hamburger_dropdown"><LogoutButton /></div>}
         </div>
         <header className="bid_page_header">
             <div className="bid_details_toolbar">
                 <button type="button" className="bid_back_button" onClick={() => { window.location.href = '/Homepage'; }}><span className="bid_back_icon" aria-hidden="true">←</span> Back</button>
                 <h1 className="bidspage_header">Bid Information</h1>
-                {canGenerateEmail && <button type="button" className="bid_add_button" disabled={!!editDraft} onClick={generateEmail}>Generate Email</button>}
+                {canGenerateEmail && <button type="button" className="bid_add_button" disabled={!!editDraft || busy} onClick={generateEmail}>Generate Email</button>}
             </div>
         </header>
-        <div className="job_details_layout">
+        {loading && <p role="status" className="bid_load_message">Loading bid…</p>}
+        {loadError && <p role="alert" className="bid_load_message">{loadError} <button type="button" className="bid_back_button" onClick={() => setAttempt((value) => value + 1)}>Retry</button></p>}
+        <div className="job_details_layout" aria-busy={loading}>
             <aside className="job_sidebar" aria-label="Bid sections">
                 {[...sections.map(([title]) => title), 'Documents'].map((section) => <button type="button" key={section}
                     className={activeSection === section ? 'active' : ''} aria-current={activeSection === section ? 'page' : undefined}
@@ -218,16 +169,15 @@ function Bidspage({ onChange }) {
                     </div> : <p className="job_empty">No downloadable PDF is associated with this bid.</p>}
                 </div> : <>
 
-                {bid && <div className="bid_inline_controls">{editDraft ? <><span>Editing bid information</span><button type="button" className="bid_back_button" onClick={() => { setEditDraft(null); setNotice(''); }}>Cancel</button><button type="submit" form="bid-inline-edit" className="bid_back_button" disabled={!editDraft.name?.trim()}>Save Changes</button></> : <button type="button" className="bid_back_button" onClick={() => { setEditDraft({ ...bid }); setNotice(''); }}>Edit</button>}</div>}
+                {bid?.status === 'Pending' && <div className="bid_inline_controls">{editDraft ? <><span>Editing bid information</span><button type="button" className="bid_back_button" onClick={() => { setEditDraft(null); setNotice(''); }}>Cancel</button><button type="submit" form="bid-inline-edit" className="bid_back_button" disabled={!editDraft.name?.trim() || busy}>Save Changes</button></> : <button type="button" className="bid_back_button" onClick={() => { setEditDraft({ ...bid }); setNotice(''); }}>Edit</button>}</div>}
         <main className="fieldsframe" aria-label="Bid details">
-            {createdBidId === String(bid?.id) && <p className="bid_creation_message" role="status">Bid has been created.</p>}
             {notice && <p className="bid_creation_message" role="status">{notice}</p>}
             {!bid && <p className="bid_details_empty">Select a bid from the bids homepage to view its information.</p>}
             <form id="bid-inline-edit" className="bid_inline_form" onSubmit={saveEdits}>
             {fields.map(([field, label, inputType = 'text']) => (
                 <div className="bid_detail_field" key={field}>
                     <label htmlFor={`view-${field}`}>{label}</label>
-                    {inputType === 'appraisalType' ? <select id={`view-${field}`} disabled={!bid} value={(editDraft || bid)?.[field] ?? ''} onChange={(event) => changeField(field, event.target.value)}>
+                    {inputType === 'appraisalType' ? <select id={`view-${field}`} disabled={!bid || busy || bid.status !== 'Pending'} value={(editDraft || bid)?.[field] ?? ''} onChange={(event) => changeField(field, event.target.value)}>
                         <option value="">Select appraisal type</option>
                         {(editDraft || bid)?.appraisalType && ![BUSINESS_VALUATION, MACHINERY_EQUIPMENT].includes((editDraft || bid).appraisalType) && <option>{(editDraft || bid).appraisalType}</option>}
                         <option>Business Valuation (BV)</option><option>Machinery &amp; Equipment (M&amp;E)</option>
@@ -246,16 +196,17 @@ function Bidspage({ onChange }) {
             </form>
             {bid && <div className="bid_detail_field">
                 <label htmlFor="bid-inspector">Assigned inspector</label>
-                <select id="bid-inspector" value={assignedInspector?.id ?? ''} disabled={!!editDraft} onChange={(event) => assignInspector(event.target.value)} aria-describedby="bid-inspector-help">
-                    <option value="">Select an inspector</option>
+                <select id="bid-inspector" value={assignedInspector?.id ?? ''} disabled={!!editDraft || busy || bid.status !== 'Pending'} onChange={(event) => assignInspector(event.target.value)} aria-describedby="bid-inspector-help">
+                    <option value="" disabled>Select an inspector</option>
+                    {assignedInspector && !inspectors.some((entry) => entry.id === assignedInspector.id) && <option value={assignedInspector.id}>{assignedInspector.name}</option>}
                     {inspectors.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}</option>)}
                 </select>
                 {!assignedInspector && <p id="bid-inspector-help">Assign an inspector before accepting this bid.</p>}
             </div>}
             <div className="bid_decision_actions">
                 <span role="status">{bid ? `Status: ${bid.status}` : 'Select a bid to accept or decline.'}</span>
-                <button type="button" className="bid_decline_button" disabled={!!editDraft || !bid || bid.status === 'Declined'} onClick={() => updateStatus('Declined')}>Decline</button>
-                <button type="button" className="bid_accept_button" disabled={!!editDraft || !bid || !assignedInspector || bid.status === 'Accepted'} onClick={() => updateStatus('Accepted')}>Accept</button>
+                <button type="button" className="bid_decline_button" disabled={!!editDraft || busy || !bid || bid.status !== 'Pending'} onClick={() => updateStatus('Declined')}>Decline</button>
+                <button type="button" className="bid_accept_button" disabled={!!editDraft || busy || !bid || !assignedInspector || bid.status !== 'Pending'} onClick={() => updateStatus('Accepted')}>Accept</button>
             </div>
         </main>
                 </>}

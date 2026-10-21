@@ -1,4 +1,6 @@
-import { useRef, useState } from 'react';
+import { listBids } from './bidsApi';
+import LogoutButton from './LogoutButton';
+import { useEffect, useRef, useState } from 'react';
 import DataTable from 'datatables.net-react';
 import DT from 'datatables.net-dt';
 import 'datatables.net-dt/css/dataTables.dataTables.css';
@@ -23,7 +25,22 @@ const summaryFields = ['recordType', 'businessName', 'name', 'date', 'status', '
 const columns = summaryFields.map(([data, title]) => ({ data, title, defaultContent: '', render: DT.render.text() }));
 
 export default function History() {
-    const [rows] = useState(readHistoryRecords);
+    const [rows, setRows] = useState(() => readHistoryRecords().filter((row) => row.recordType !== 'Bid'));
+    const [error, setError] = useState('');
+    const [attempt, setAttempt] = useState(0);
+    useEffect(() => {
+        const controller = new AbortController();
+        setError('');
+        listBids(controller.signal, true).then((records) => {
+            if (controller.signal.aborted) return;
+            const bids = records.filter((row) => ['Declined', 'Deleted'].includes(row.status)).map((row) => ({
+                ...row, status: 'Declined', rush: row.rush ? 'Yes' : 'No',
+                cityStateZip: [row.city, [row.state, row.zipCode].filter(Boolean).join(' ')].filter(Boolean).join(', '),
+            }));
+            setRows([...readHistoryRecords().filter((row) => row.recordType !== 'Bid'), ...bids]);
+        }).catch((error) => { if (!controller.signal.aborted) setError(error.message); });
+        return () => controller.abort();
+    }, [attempt]);
     const [menuOpen, setMenuOpen] = useState(false);
     const [filterColumn, setFilterColumn] = useState('all');
     const [filterValue, setFilterValue] = useState('');
@@ -61,11 +78,12 @@ export default function History() {
                     <button type="button" className="burger_icon_position" aria-label="Account menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>
                         <div className="burger_icon_frame"><div className="top_bun" /><div className="patty" /><div className="bottom_bun" /></div>
                     </button>
-                    {menuOpen && <div className="hamburger_dropdown"><a className="logout_button" href="/">Logout</a></div>}
+                    {menuOpen && <div className="hamburger_dropdown"><LogoutButton /></div>}
                 </nav>
             <main className="history_content" aria-label="Bid history" hidden={!!selectedRecord}>
                 <div className="history_page_heading">
                     <h1>History</h1>
+                    {error && <p role="alert">{error} <button type="button" className="bid_back_button" onClick={() => setAttempt((value) => value + 1)}>Retry</button></p>}
                     <p>Review declined bids and jobs and completed jobs.</p>
                 </div>
                 <section className="bids_panel history_table_container" aria-label="History table">
