@@ -1,3 +1,5 @@
+import { readBidList } from './bidFields';
+
 export function readAcceptedJobs() {
     try {
         const jobs = JSON.parse(sessionStorage.getItem('acceptedJobs') || '[]');
@@ -19,7 +21,7 @@ export function moveBidToJobs(bid) {
     const job = {
         ...bid,
         pdf: bid.pdf?.name ?? bid.pdf ?? '',
-        id: existing?.id ?? Math.max(20, ...[...jobs, ...createdJobs].map((item) => Number(item.id))) + 1,
+        id: existing?.id ?? Math.max(20, ...[...jobs, ...createdJobs, ...readBidList('completedJobs')].map((item) => Number(item.id))) + 1,
         sourceBidId: bid.id,
         status: 'Accepted',
     };

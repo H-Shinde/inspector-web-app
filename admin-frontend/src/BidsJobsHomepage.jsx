@@ -10,17 +10,10 @@ import { useEffect, useRef, useState } from 'react';
 import 'datatables.net-dt/css/dataTables.dataTables.css';
 import { FaTrash } from "react-icons/fa";
 import TableFilter from './Tablefilter';
-import Bidspage from './Bidspage';
 import './TableFilter.css';
 
 DataTable.use(DT);
 function Homepage() {
-    const [viewedBid, setViewedBid] = useState(null);
-    const bidDialog = useRef(null);
-    useEffect(() => {
-        if (viewedBid && !bidDialog.current.open) bidDialog.current.showModal();
-    }, [viewedBid]);
-    const closeBid = () => { bidDialog.current.close(); setViewedBid(null); };
     const [menuOpen, setMenuOpen] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState(null);
     const confirmDialog = useRef(null);
@@ -46,7 +39,7 @@ function Homepage() {
             ...bid, pdf: bid.pdf?.name ?? bid.pdf ?? '',
         }))));
         sessionStorage.setItem('selectedBid', JSON.stringify(selectedBid));
-        setViewedBid(selectedBid);
+        window.location.href = `/Bidspage?bidId=${encodeURIComponent(selectedBid.id)}`;
     };
 
     // Clicking anywhere on a row (except its buttons) opens that bid.
@@ -410,13 +403,7 @@ function Homepage() {
             </div>
         </section>
         </main>
-        <dialog ref={bidDialog} className="bid_information_popup" aria-labelledby="bid-popup-title" onCancel={(event) => { event.preventDefault(); closeBid(); }} onClick={(event) => { if (event.target === event.currentTarget) closeBid(); }}>
-            <header className="bid_popup_header">
-                <h2 id="bid-popup-title">Bid Information</h2>
-                <button type="button" className="bid_back_button" onClick={closeBid} aria-label="Close bid information">✕ Close</button>
-            </header>
-            {viewedBid && <Bidspage key={viewedBid.id} onChange={(updated) => setTableData((rows) => rows.map((row) => row.id === updated.id ? updated : row))} />}
-        </dialog>
+
         <div className='footer'></div>
 
     </div>

@@ -17,7 +17,7 @@
     cursor: text;
 }
 
-.agreement_dialog { width: min(560px, calc(100% - 32px)); max-height: calc(100vh - 48px); overflow-y: auto; }
+.popup.confirm_popup.agreement_dialog { width: min(760px, calc(100vw - 32px)); max-height: calc(100vh - 48px); overflow-y: auto; }
 .agreement_dialog .actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 12px; }
 .agreement_dialog button:disabled { opacity: .6; cursor: wait; }
 .add_bid_page .fieldsframe input:disabled { opacity: .5; cursor: not-allowed; }
@@ -38,3 +38,6 @@
 .agreement_pdf_preview { display: block; width: 100%; height: 65vh; margin-top: 20px; border: 1px solid #C8D4E0; border-radius: 6px; }
 
 .agreement_preview_download { display: inline-flex; margin-top: 12px; text-decoration: none; }
+
+.agreement_dialog_heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.agreement_dialog_heading .bid_form_close { flex-shrink: 0; color: #005581; }

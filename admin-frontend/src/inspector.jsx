@@ -5,6 +5,7 @@ import 'datatables.net-dt/css/dataTables.dataTables.css';
 import { FaEnvelope } from 'react-icons/fa';
 import navLogo from './bison_logo_nav.png';
 import './inspector.css';
+import { inspectorFields } from './inspectorFields';
 import { buildInspectorInviteLink, createInspectorInvite, getInspectors, selectGlobalInspector } from './inspectorSelection';
 
 DataTable.use(DT);
@@ -25,6 +26,24 @@ function InspectorActions({ row, onMessage }) {
 }
 
 export default function Inspector() {
+    const [viewedInspector, setViewedInspector] = useState(null);
+    const detailsDialog = useRef(null);
+    const table = useRef(null);
+    useEffect(() => { if (viewedInspector && !detailsDialog.current.open) detailsDialog.current.showModal(); }, [viewedInspector]);
+    const closeDetails = () => { detailsDialog.current.close(); setViewedInspector(null); };
+    const openRow = (event) => {
+        if (event.target.closest('button, a, input, select')) return;
+        const row = event.target.closest('tbody tr');
+        if (!row || !table.current) return;
+        const inspector = table.current.dt().row(row).data();
+        if (inspector) setViewedInspector(inspector);
+    };
+    const handleRowKeyDown = (event) => {
+        if (['Enter', ' '].includes(event.key) && event.target.tagName === 'TR') {
+            event.preventDefault();
+            openRow(event);
+        }
+    };
     const [rows, setRows] = useState(getInspectors);
     const [menuOpen, setMenuOpen] = useState(false);
     const [inviting, setInviting] = useState(false);
@@ -74,8 +93,8 @@ export default function Inspector() {
                     <div className="table_top_header">
                         <button type="button" className="add_bid_button" onClick={openInvite}>+ Invite Inspector</button>
                     </div>
-                    <div className="bids_table_container">
-                        <DataTable data={rows} columns={columns} className="bids_table"
+                    <div className="bids_table_container" onClick={openRow} onKeyDown={handleRowKeyDown}>
+                        <DataTable ref={table} data={rows} columns={columns} className="bids_table"
                             slots={{ [ACTIONS_COLUMN]: (data, type, row) => <InspectorActions row={row}
                                 onMessage={(inspector) => {
                                     selectGlobalInspector(inspector.id);
@@ -83,10 +102,24 @@ export default function Inspector() {
                                 }} /> }}
                             options={{ paging: true, searching: true, ordering: true, info: true, pageLength: 10,
                                 layout: { topStart: 'pageLength', topEnd: 'search', bottomStart: 'info', bottomEnd: 'paging' },
-                                language: { emptyTable: 'No inspectors found.' } }} />
+                                language: { emptyTable: 'No inspectors found.' },
+                                createdRow: (row, data) => { row.tabIndex = 0; row.setAttribute('aria-label', `View details for ${data.name}`); } }} />
                     </div>
                 </section>
             </main>
+            <dialog ref={detailsDialog} className="popup inspector_details_popup" aria-labelledby="inspector-details-title"
+                onCancel={(event) => { event.preventDefault(); closeDetails(); }}
+                onClick={(event) => { if (event.target === event.currentTarget) closeDetails(); }}>
+                {viewedInspector && <>
+                    <div className="bid_form_header"><h2 id="inspector-details-title">Inspector Details</h2><button type="button" className="bid_form_close" aria-label="Close inspector details" onClick={closeDetails}>×</button></div>
+                    <dl className="inspector_details">
+                        {[...inspectorFields, ['status', 'Status']].map(([field, label]) => <div key={field}>
+                            <dt>{label}</dt><dd>{viewedInspector[field] === '' || viewedInspector[field] == null ? 'Not provided' : field === 'distance' ? `${viewedInspector[field]} miles` : String(viewedInspector[field])}</dd>
+                        </div>)}
+                    </dl>
+                    <div className="actions"><button type="button" className="bid_form_cancel" onClick={closeDetails}>Close</button></div>
+                </>}
+            </dialog>
             <dialog ref={dialog} className="popup" aria-labelledby="inspector-dialog-title" onCancel={(event) => { event.preventDefault(); closeInvite(); }}>
                 {inviting && <form onSubmit={copyInviteLink}>
                     <div className="bid_form_header"><h2 id="inspector-dialog-title">Invite Inspector</h2><button type="button" className="bid_form_close" aria-label="Close dialog" onClick={closeInvite}>×</button></div>

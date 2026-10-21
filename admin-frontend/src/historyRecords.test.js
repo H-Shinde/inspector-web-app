@@ -1,4 +1,4 @@
-import { archiveDeletedRecord, isDeletedRecord, readHistoryRecords } from './historyRecords';
+import { archiveDeletedRecord, isDeletedRecord, readHistoryRecords, completeJob, isCompletedJob } from './historyRecords';
 
 beforeEach(() => sessionStorage.clear());
 
@@ -28,4 +28,25 @@ test('keeps jobs without a source bid and preserves assigned inspectors when del
         expect.objectContaining({ id: 1, recordType: 'Job', status: 'Deleted', inspector: 'Alex Morgan' }),
     ]));
     for (const key of ['availableJobs', 'acceptedJobs', 'createdJobs']) expect(JSON.parse(sessionStorage.getItem(key))).toEqual([]);
+});
+
+
+test('completes a job once, preserves its details, and removes only it from active lists', () => {
+    const job = { id: 1, name: 'Jordan', status: 'Pending Review', sourceBidId: 21 };
+    for (const key of ['availableJobs', 'acceptedJobs', 'createdJobs']) sessionStorage.setItem(key, JSON.stringify([job, { id: 2 }]));
+    sessionStorage.setItem('selectedJob', JSON.stringify(job));
+    sessionStorage.setItem('jobAssignments', JSON.stringify([{ jobId: 1, inspector: 'Alex Morgan' }]));
+    sessionStorage.setItem('jobItems', JSON.stringify({ 1: [{ name: 'Forklift' }] }));
+    sessionStorage.setItem('jobSectionDetails', JSON.stringify({ 1: { 'Asset Valuation': { fmv: 500 } } }));
+    completeJob(job);
+    completeJob(job);
+    expect(isCompletedJob('1')).toBe(true);
+    expect(isDeletedRecord('Job', 1)).toBe(false);
+    for (const key of ['availableJobs', 'acceptedJobs', 'createdJobs']) expect(JSON.parse(sessionStorage.getItem(key))).toEqual([{ id: 2 }]);
+    expect(sessionStorage.getItem('selectedJob')).toBeNull();
+    expect(JSON.parse(sessionStorage.getItem('completedJobs'))).toHaveLength(1);
+    expect(readHistoryRecords().find((record) => record.id === 1)).toMatchObject({
+        status: 'Complete', previousStatus: 'Pending Review', completedAt: expect.any(String), recordType: 'Job',
+        inspector: 'Alex Morgan', items: [{ name: 'Forklift' }], sectionDetails: { 'Asset Valuation': { fmv: 500 } },
+    });
 });

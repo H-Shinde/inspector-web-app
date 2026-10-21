@@ -230,3 +230,13 @@ test('fills the M&E email using client details and keeps the PDF and email actio
     await screen.findByRole('button', { name: 'Open Email to Client' });
     expect(screen.getByRole('button', { name: 'Download Agreement PDF' })).toBeInTheDocument();
 });
+
+
+test('Close returns to the form with entered details and no saved bid', () => {
+    submitBusinessValuation();
+    fireEvent.click(screen.getByRole('button', { name: 'Close popup' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Business Name')).toHaveValue('Example Company');
+    expect(screen.getByLabelText('Contact Name')).toHaveValue('Avery Wilson');
+    expect(sessionStorage.getItem('createdBids')).toBeNull();
+});

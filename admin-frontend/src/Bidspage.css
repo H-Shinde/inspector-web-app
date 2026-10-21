@@ -514,3 +514,25 @@
 .bid_popup_header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
 .bid_popup_header h2 { margin: 0; color: #005581; }
 .bid_information_popup .bid_information_layout { width: 100%; margin: 0; }
+
+.bid_information_page .bid_inline_controls { margin-bottom: 0; }
+.bid_information_page .bid_information_content .fieldsframe {
+    margin-top: 24px;
+    padding: 0;
+    gap: 24px;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+}
+
+.bid_documents h2 { margin: 0 0 20px; color: #005581; font-size: 20px; }
+.bid_document_row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; padding: 20px; border: 1px solid #C8D4E0; border-radius: 8px; background: #F8FAFC; }
+.bid_document_row > div { min-width: 0; }
+.bid_document_row h3 { margin: 0 0 8px; color: #334155; font-size: 16px; }
+.bid_document_row p { margin: 0; color: #526477; font-size: 14px; overflow-wrap: anywhere; }
+
+.bid_information_content .bid_detail_field input[type="checkbox"] { width: 20px; min-height: 20px; height: 20px; accent-color: #005581; }
+
+.bid_email_fields { display: flex; flex-direction: column; gap: 16px; }
+.bid_email_fields textarea { width: 100%; box-sizing: border-box; padding: 10px 12px; border: 1px solid #C8D4E0; border-radius: 6px; background: white; color: #1F2937; font: inherit; font-size: 14px; line-height: 1.5; resize: vertical; }
+.bid_email_fields textarea:focus-visible { outline: 2px solid #005581; outline-offset: 2px; }

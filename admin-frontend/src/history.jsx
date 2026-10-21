@@ -70,7 +70,7 @@ export default function History() {
             <main className="history_content" aria-label="Bid history">
                 <div className="history_page_heading">
                     <h1>History</h1>
-                    <p>Review past bids and inspector assignments.</p>
+                    <p>Review past bids, completed jobs, and inspector assignments.</p>
                 </div>
                 <section className="bids_panel history_table_container" aria-label="History table">
                 <div className="table_top_header history_filter_controls">

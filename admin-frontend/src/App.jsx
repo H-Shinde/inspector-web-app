@@ -6,6 +6,7 @@ import Homepage from './BidsJobsHomepage';
 import JobHomepage from './Jobspagehomepage';
 import AddBidpage from './AddBidpage';
 import Jobspage from './Jobspage';
+import Bidspage from './Bidspage';
 import History from './history';
 import Inspector from './inspector';
 import InspectorView from './inspector_view';
@@ -64,7 +65,7 @@ function App() {
     return <JobHomepage />;
   };
   if (window.location.pathname === '/Bidspage') {
-    return <Homepage />;
+    return <Bidspage />;
   };
 
   

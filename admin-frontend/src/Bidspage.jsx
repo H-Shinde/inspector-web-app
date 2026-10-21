@@ -1,15 +1,38 @@
-import { useEffect, useState } from 'react';
-import { bidFields, readBidEdits, readBidList } from './bidFields';
+import { bidSections, getBidSections } from './bidSections';
+import { useEffect, useRef, useState } from 'react';
+import { bidReferenceNumber, calculateTotalBid, readBidEdits, readBidList } from './bidFields';
 import { getInspectors } from './inspectorSelection';
 import { moveBidToJobs } from './bidTransfers';
-import { downloadAgreement, readAgreement } from './engagementAgreement';
-import './Bidspage.css';
+import { downloadAgreement, readAgreement, generateEngagementAgreement } from './engagementAgreement';
+import './Jobspage.css';
+import './AddBidpage.css';
+import { businessValuationEmail, machineryEquipmentEmail, bidEmailLink } from './bidEmail';
+import { BUSINESS_VALUATION, MACHINERY_EQUIPMENT } from './engagementAgreement';
+import navLogo from './bison_logo_nav.png';
+
+const totalForBid = (values) => {
+    const fields = new Set(getBidSections(values.appraisalType).flatMap(([, sectionFields]) => sectionFields.map(([field]) => field)));
+    return calculateTotalBid(Object.fromEntries(Object.entries(values).filter(([field]) => fields.has(field))));
+};
 
 function Bidspage({ onChange }) {
+    const [emailDraft, setEmailDraft] = useState(null);
+    const [emailAgreement, setEmailAgreement] = useState(null);
+    const [generatingEmailPdf, setGeneratingEmailPdf] = useState(false);
+    const [emailPdfError, setEmailPdfError] = useState('');
+    const emailGeneration = useRef(0);
+    const emailDialog = useRef(null);
+    useEffect(() => () => { emailGeneration.current += 1; }, []);
+    useEffect(() => () => { if (emailAgreement?.url) URL.revokeObjectURL(emailAgreement.url); }, [emailAgreement]);
+    useEffect(() => { if (emailDraft && !emailDialog.current.open) emailDialog.current.showModal(); }, [emailDraft]);
+    const closeEmail = () => { emailGeneration.current += 1; emailDialog.current.close(); setEmailDraft(null); setEmailAgreement(null); setGeneratingEmailPdf(false); };
+    const [activeSection, setActiveSection] = useState('Appraisal');
+    const [menuOpen, setMenuOpen] = useState(false);
     const [editDraft, setEditDraft] = useState(null);
     const [notice, setNotice] = useState('');
     const [downloadingAgreement, setDownloadingAgreement] = useState(false);
     const downloadSavedAgreement = async () => {
+        setNotice('');
         setDownloadingAgreement(true);
         try {
             const blob = await readAgreement(bid.referenceNumber);
@@ -52,8 +75,8 @@ function Bidspage({ onChange }) {
     const saveEdits = (event) => {
         event.preventDefault();
         if (!editDraft?.name.trim()) return;
-        const updated = { ...editDraft, name: editDraft.name.trim() };
-        const edits = Object.fromEntries(bidFields.filter(([field]) => field !== 'status').map(([field]) => [field, updated[field] ?? '']));
+        const updated = { ...editDraft, name: editDraft.name.trim(), totalBid: totalForBid(editDraft) };
+        const edits = Object.fromEntries(bidSections.flatMap(([, fields]) => fields).filter(([field]) => !['status', 'referenceNumber'].includes(field)).map(([field]) => [field, updated[field] ?? '']));
         try {
             localStorage.setItem('bidEdits', JSON.stringify({ ...readBidEdits(), [updated.id]: edits }));
             const updatedBids = availableBids.map((item) => item.id === updated.id ? updated : item);
@@ -64,6 +87,29 @@ function Bidspage({ onChange }) {
             onChange?.(updated);
             setNotice('Bid information has been saved.');
         } catch { setNotice('Unable to save changes. Please try again.'); }
+    };
+    const canGenerateEmail = bid && [BUSINESS_VALUATION, MACHINERY_EQUIPMENT].includes(bid.appraisalType);
+    const generateEmailPdf = async (values) => {
+        const generation = ++emailGeneration.current;
+        setGeneratingEmailPdf(true);
+        setEmailPdfError('');
+        try {
+            const blob = await generateEngagementAgreement(values);
+            if (generation !== emailGeneration.current) return;
+            setEmailAgreement({ blob, url: URL.createObjectURL(blob), filename: `${values.referenceNumber}-engagement-agreement.pdf` });
+        } catch {
+            if (generation === emailGeneration.current) setEmailPdfError('Unable to generate the agreement. Please try again.');
+        } finally {
+            if (generation === emailGeneration.current) setGeneratingEmailPdf(false);
+        }
+    };
+    const emailValues = () => ({ ...bid, referenceNumber: bid.referenceNumber || bidReferenceNumber(bid.id) });
+    const generateEmail = () => {
+        if (!canGenerateEmail || editDraft) return;
+        const values = emailValues();
+        setEmailAgreement(null);
+        setEmailDraft((bid.appraisalType === MACHINERY_EQUIPMENT ? machineryEquipmentEmail : businessValuationEmail)(values));
+        generateEmailPdf(values);
     };
     const inspectors = getInspectors();
     const assignedInspector = inspectors.find((entry) => String(entry.id) === String(bid?.inspectorId)
@@ -105,18 +151,51 @@ function Bidspage({ onChange }) {
         setAvailableBids(updatedBids);
         onChange?.(updated);
     };
-    const fields = bidFields;
+    const sections = getBidSections((editDraft || bid)?.appraisalType);
+    const fields = sections.find(([title]) => title === activeSection)?.[1] || [];
+    const changeField = (field, value) => setEditDraft((previous) => ({ ...previous, [field]: value, ...(field === 'appraisalType' ? { reportFormat: '' } : {}) }));
     const displayValue = (field) => {
-        const value = bid?.[field];
+        const value = field === 'totalBid' ? totalForBid(bid || {}) : bid?.[field];
         if (value === undefined || value === null || value === '') return 'Not provided';
         return typeof value === 'boolean' ? (value ? 'Yes' : 'No') : String(value);
     };
 
     return (
-        <div className="bid_details_popup_content">
-        <div className="bid_information_layout">
-            <div className="bid_information_content">
-                {bid?.engagementAgreement && <button type="button" className="bid_back_button" disabled={downloadingAgreement} onClick={downloadSavedAgreement}>{downloadingAgreement ? 'Loading agreement…' : 'Download Engagement Agreement'}</button>}
+        <div className="frame_home bid_details_page job_details_page bid_information_page">
+        <div className="nav_bar">
+            <img className="bison_logo_nav" src={navLogo} alt="Bison" />
+            <div className="nav_links">
+                <div className="bids_box_selected"><a className="nav_bar_text" href="/Homepage" style={{ textDecoration: 'none' }}>Bids</a></div>
+                {['History', 'Inspector', 'Clients', 'Reports', 'Messaging'].map((page) => <div key={page}><a className="nav_bar_text" href={`/${page}`} style={{ textDecoration: 'none' }}>{page}</a></div>)}
+            </div>
+            <button type="button" className="burger_icon_position" aria-label="Account menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>
+                <div className="burger_icon_frame"><div className="top_bun" /><div className="patty" /><div className="bottom_bun" /></div>
+            </button>
+            {menuOpen && <div className="hamburger_dropdown"><button className="logout_button" onClick={() => { window.location.href = '/'; }}>Logout</button></div>}
+        </div>
+        <header className="bid_page_header">
+            <div className="bid_details_toolbar">
+                <button type="button" className="bid_back_button" onClick={() => { window.location.href = '/Homepage'; }}><span className="bid_back_icon" aria-hidden="true">←</span> Back</button>
+                <h1 className="bidspage_header">Bid Information</h1>
+                {canGenerateEmail && <button type="button" className="bid_add_button" disabled={!!editDraft} onClick={generateEmail}>Generate Email</button>}
+            </div>
+        </header>
+        <div className="job_details_layout">
+            <aside className="job_sidebar" aria-label="Bid sections">
+                {[...sections.map(([title]) => title), 'Documents'].map((section) => <button type="button" key={section}
+                    className={activeSection === section ? 'active' : ''} aria-current={activeSection === section ? 'page' : undefined}
+                    onClick={() => setActiveSection(section)}>{section}</button>)}
+            </aside>
+            <section className="job_details_content bid_information_content" aria-label={activeSection}>
+                {activeSection === 'Documents' ? <div className="bid_documents">
+                    <h2>Documents</h2>
+                    {notice && <p role="status" className="job_empty">{notice}</p>}
+                    {bid?.engagementAgreement ? <div className="bid_document_row">
+                        <div><h3>Engagement Agreement</h3><p>{bid.engagementAgreement}</p></div>
+                        <button type="button" className="bid_back_button" disabled={downloadingAgreement} onClick={downloadSavedAgreement}>{downloadingAgreement ? 'Loading agreement…' : 'Download PDF'}</button>
+                    </div> : <p className="job_empty">No downloadable PDF is associated with this bid.</p>}
+                </div> : <>
+
                 {bid && <div className="bid_inline_controls">{editDraft ? <><span>Editing bid information</span><button type="button" className="bid_back_button" onClick={() => { setEditDraft(null); setNotice(''); }}>Cancel</button><button type="submit" form="bid-inline-edit" className="bid_back_button" disabled={!editDraft.name?.trim()}>Save Changes</button></> : <button type="button" className="bid_back_button" onClick={() => { setEditDraft({ ...bid }); setNotice(''); }}>Edit</button>}</div>}
         <main className="fieldsframe" aria-label="Bid details">
             {createdBidId === String(bid?.id) && <p className="bid_creation_message" role="status">Bid has been created.</p>}
@@ -126,12 +205,18 @@ function Bidspage({ onChange }) {
             {fields.map(([field, label, inputType = 'text']) => (
                 <div className="bid_detail_field" key={field}>
                     <label htmlFor={`view-${field}`}>{label}</label>
-                    {editDraft && field === 'rush' ? <select id={`view-${field}`} value={String(editDraft.rush ?? false)} onChange={(event) => setEditDraft({ ...editDraft, rush: event.target.value === 'true' })}><option value="true">Yes</option><option value="false">No</option></select>
-                        : <input id={`view-${field}`} type={editDraft && field === 'subjectContactEmail' ? 'email' : editDraft && field === 'subjectContactPhone' ? 'tel' : editDraft ? inputType : 'text'} readOnly={!editDraft || field === 'status'} required={!!editDraft && field === 'name'}
+                    {editDraft && inputType === 'appraisalType' ? <select id={`view-${field}`} value={editDraft[field] ?? ''} onChange={(event) => changeField(field, event.target.value)}>
+                        <option value="">Select appraisal type</option><option>Business Valuation (BV)</option><option>Machinery &amp; Equipment (M&amp;E)</option>
+                    </select> : editDraft && field === 'reportFormat' && editDraft.appraisalType === 'Machinery & Equipment (M&E)' ? <select id={`view-${field}`} value={editDraft[field] ?? ''} onChange={(event) => changeField(field, event.target.value)}>
+                        <option value="">Select report format</option><option>Onsite</option><option>Desktop</option>
+                    </select> : editDraft && inputType === 'checkbox' ? <input id={`view-${field}`} type="checkbox" checked={!!editDraft[field]} onChange={(event) => changeField(field, event.target.checked)} />
+                        : <input id={`view-${field}`} type={editDraft && !['status', 'total', 'appraisalType'].includes(inputType) ? inputType : 'text'} readOnly={!editDraft || ['status', 'referenceNumber', 'totalBid'].includes(field)} required={!!editDraft && ['name', 'businessName'].includes(field)}
                             min={inputType === 'number' ? 0 : undefined}
                             step={inputType === 'number' ? (field === 'completionDays' ? 1 : 0.01) : undefined}
-                            value={editDraft && field !== 'status' ? editDraft[field] ?? '' : displayValue(field)}
-                            onChange={(event) => setEditDraft({ ...editDraft, [field]: event.target.value })} />}
+                            disabled={!!editDraft && field === 'rushDiscount' && !editDraft.rush}
+                            value={editDraft ? field === 'totalBid' ? totalForBid(editDraft) : editDraft[field] ?? '' : displayValue(field)}
+                            onChange={(event) => changeField(field, event.target.value)} />}
+
                 </div>
             ))}
             </form>
@@ -149,8 +234,40 @@ function Bidspage({ onChange }) {
                 <button type="button" className="bid_accept_button" disabled={!!editDraft || !bid || !assignedInspector || bid.status === 'Accepted'} onClick={() => updateStatus('Accepted')}>Accept</button>
             </div>
         </main>
-            </div>
+                </>}
+            </section>
         </div>
+        <dialog ref={emailDialog} className="popup confirm_popup agreement_dialog" aria-labelledby="bid-email-title"
+            onCancel={(event) => { event.preventDefault(); closeEmail(); }}
+            onClick={(event) => { if (event.target === event.currentTarget) closeEmail(); }}>
+            {emailDraft && <>
+                <div className="confirm_body">
+                    <div className="agreement_dialog_heading"><h2 id="bid-email-title">Bid Email &amp; Agreement</h2><button type="button" className="bid_form_close" aria-label="Close email" onClick={closeEmail}>×</button></div>
+                    <p>Download the filled engagement agreement below.</p>
+                    <p>Signatures and details not provided in the form will remain blank for completion.</p>
+                    <form id="bid-details-email" className="bid_email_preview" onSubmit={(event) => { event.preventDefault(); window.location.href = bidEmailLink(emailDraft); }}>
+                        <h3>Email to client</h3>
+                        <label htmlFor="bid-email-to">To</label><input id="bid-email-to" type="email" required value={emailDraft.to} onChange={(event) => setEmailDraft({ ...emailDraft, to: event.target.value })} />
+                        <label htmlFor="bid-email-subject">Subject</label><input id="bid-email-subject" required value={emailDraft.subject} onChange={(event) => setEmailDraft({ ...emailDraft, subject: event.target.value })} />
+                        <label htmlFor="bid-email-body">Message</label><textarea id="bid-email-body" required rows={12} value={emailDraft.body} onChange={(event) => setEmailDraft({ ...emailDraft, body: event.target.value })} />
+                        <p>Review the message and fill any bracketed details. Open it in your email app to send. Download and attach the engagement agreement there.</p>
+                    </form>
+                    {generatingEmailPdf && <p role="status">Creating engagement agreement…</p>}
+                    {emailPdfError && <p role="alert" className="add_bid_error">{emailPdfError}</p>}
+                    {emailAgreement && <iframe title="Engagement agreement PDF preview" src={emailAgreement.url} className="agreement_pdf_preview" />}
+                </div>
+                <div className="actions">
+                    <button type="button" className="bid_form_cancel" onClick={closeEmail}>Close</button>
+                    {emailPdfError && <button type="button" className="bid_form_cancel" onClick={() => generateEmailPdf(emailValues())}>Retry PDF</button>}
+                    <button type="button" className="bid_accept_button" disabled={!emailAgreement || generatingEmailPdf} onClick={() => {
+                        try { downloadAgreement(emailAgreement.blob, emailAgreement.filename); }
+                        catch { setEmailPdfError('Unable to download the agreement. Please try again.'); }
+                    }}>Download Agreement PDF</button>
+                    <button type="submit" form="bid-details-email" className="bid_accept_button">Open Email to Client</button>
+                </div>
+            </>}
+        </dialog>
+        <div className="bid_page_footer" />
         </div>
     );
 }

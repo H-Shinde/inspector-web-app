@@ -1,42 +1,11 @@
+import { bidSections as sections, getBidSections } from './bidSections';
 import { useEffect, useRef, useState } from 'react';
-import { bidReferenceNumber, calculateTotalBid, clientBidFields, createBid, nextBidId } from './bidFields';
+import { bidReferenceNumber, calculateTotalBid, createBid, nextBidId } from './bidFields';
 import { BUSINESS_VALUATION, MACHINERY_EQUIPMENT, deleteAgreement, downloadAgreement, generateEngagementAgreement, saveAgreement } from './engagementAgreement';
 import './AddBidpage.css';
 import { businessValuationEmail, machineryEquipmentEmail, bidEmailLink } from './bidEmail';
 import navLogo from './bison_logo_nav.png';
 
-const sections = [
-    ['Appraisal', [
-        ['appraisalType', 'Appraisal Type', 'appraisalType'], ['reportFormat', 'Report Format'],
-        ['referenceNumber', 'Reference Number'], ['status', 'Status', 'status'],
-    ]],
-    ['Business', [
-        ['businessName', 'Business Name'], ['propertyType', 'Type of Property'],
-        ['businessAddress', 'Business Address'], ['city', 'City'], ['state', 'State'], ['zipCode', 'Zip'],
-    ]],
-    ['Client Information', clientBidFields],
-    ['Subject Contact', [
-        ['name', 'Contact Name'], ['subjectContactEmail', 'Contact Email', 'email'],
-        ['subjectContactPhone', 'Contact Phone', 'tel'],
-    ]],
-    ['Appraisal Details', [
-        ['valueType', 'Value Type'], ['valueDate', 'Value Date', 'date'],
-        ['intendedUse', 'Intended Use'], ['intendedUser', 'Intended User'],
-        ['completionDays', 'Completion Days', 'number'], ['rush', 'Rush', 'checkbox'],
-    ]],
-    ['Pricing', [
-        ['bidAmount', 'Appraisal Fee', 'number'], ['pdfOnly', 'PDF Only/ No hard copy', 'checkbox'],
-        ['discount', 'Discount', 'number'], ['rushDiscount', 'Rush Discount', 'number'], ['additionalCharges', 'Additional Charges', 'number'],
-        ['totalBid', 'Total Bid', 'total'],
-    ]],
-];
-
-const machineryFields = new Set([
-    'appraisalType', 'reportFormat', 'referenceNumber', 'status',
-    'propertyType', 'businessName', 'businessAddress', 'city',
-    'name', 'subjectContactEmail', 'subjectContactPhone',
-    'valueDate', 'clientCompany', 'clientName', 'clientEmail', 'valueType', 'bidAmount', 'completionDays', 'date',
-]);
 
 function AddBidpage() {
     const [menuOpen, setMenuOpen] = useState(false);
@@ -53,11 +22,9 @@ function AddBidpage() {
     const [emailDraft, setEmailDraft] = useState(null);
     const [agreementError, setAgreementError] = useState('');
     const isMachinery = draft.appraisalType === MACHINERY_EQUIPMENT;
-    const submissionDraft = isMachinery ? Object.fromEntries(Object.entries(draft).filter(([field]) => machineryFields.has(field))) : draft;
-    const visibleSections = isMachinery ? sections.map(([title, fields]) => [title,
-        [...fields.filter(([field]) => machineryFields.has(field)), ...(title === 'Appraisal Details' ? [['date', 'Request Date', 'date']] : [])]
-            .map(([field, label, type]) => [field, field === 'bidAmount' ? 'M&E Bid' : field === 'city' ? 'Business City' : label, type]),
-    ]).filter(([, fields]) => fields.length) : sections;
+    const visibleSections = getBidSections(draft.appraisalType);
+    const visibleFields = new Set(visibleSections.flatMap(([, fields]) => fields.map(([field]) => field)));
+    const submissionDraft = isMachinery ? Object.fromEntries(Object.entries(draft).filter(([field]) => visibleFields.has(field))) : draft;
     const totalBid = calculateTotalBid(submissionDraft);
     const referenceNumber = bidReferenceNumber(nextBidId());
     const handleAdd = (event) => {
@@ -80,6 +47,15 @@ function AddBidpage() {
         });
         sessionStorage.removeItem('createdBidMessage');
         window.location.href = '/Homepage';
+    };
+
+    const closeConfirmation = () => {
+        if (generating) return;
+        if (completedAgreement) {
+            window.location.href = '/Bidspage';
+            return;
+        }
+        confirmDialog.current.close();
     };
 
     const previewAgreement = async () => {
@@ -142,10 +118,14 @@ function AddBidpage() {
     return (
         <div className="frame_home bid_details_page add_bid_page">
         <dialog ref={confirmDialog} className="popup confirm_popup agreement_dialog" aria-labelledby="agreement-confirm-title" onCancel={(event) => {
-            if (generating || completedAgreement) event.preventDefault();
+            event.preventDefault();
+            closeConfirmation();
         }}>
             <div className="confirm_body">
+                <div className="agreement_dialog_heading">
                 <h2 id="agreement-confirm-title">{completedAgreement ? 'Bid and agreement created' : isMachinery ? 'Confirm Machinery & Equipment bid?' : 'Confirm Business Valuation bid?'}</h2>
+                <button type="button" className="bid_form_close" aria-label="Close popup" disabled={generating} onClick={closeConfirmation}>×</button>
+                </div>
                 {completedAgreement ? <p>Your bid is Pending. Download the filled engagement agreement below.</p> : <p>Create this bid and fill the Bison Valuation engagement agreement with its business, contact, report, pricing, and reference details?</p>}
                 <p>Signatures and details not provided in the form will remain blank for completion.</p>
                 {!isMachinery && draft.pdfOnly && Number(draft.discount) !== 100 && <p>The supplied agreement specifies a $100 PDF-only discount. Your entered discount is {`$${Number(draft.discount || 0).toFixed(2)}`}; review this before confirming.</p>}

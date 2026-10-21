@@ -33,3 +33,7 @@
 
 .inspector_page .table_top_header { justify-content: flex-end; }
 .inspector_page .popup .bid_form_body { display: flex; flex-direction: column; gap: 16px; }
+.inspector_page table.bids_table tbody tr { cursor: pointer; }
+.inspector_page table.bids_table tbody tr:focus-visible { outline: 2px solid #005581; outline-offset: -2px; }
+.inspector_details_popup { width: min(760px, calc(100% - 32px)); max-height: 90vh; overflow-y: auto; }
+.inspector_details_popup dd { white-space: pre-wrap; }

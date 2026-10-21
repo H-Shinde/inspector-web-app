@@ -1,4 +1,4 @@
-import { archiveDeletedRecord, isDeletedRecord } from './historyRecords';
+import { archiveDeletedRecord, isDeletedRecord, completeJob, isCompletedJob } from './historyRecords';
 import './Jobspagehomepage.css';
 import { readBidList } from './bidFields';
 import { readAcceptedJobs } from './bidTransfers';
@@ -10,7 +10,7 @@ import 'datatables.net-select-dt';
 import 'datatables.net-responsive-dt';
 import { useEffect, useRef, useState } from 'react';
 import 'datatables.net-dt/css/dataTables.dataTables.css';
-import { FaTrash } from "react-icons/fa";
+import { FaTrash, FaCheck } from "react-icons/fa";
 import TableFilter from './TableFilter';
 import './TableFilter.css';
 
@@ -216,7 +216,7 @@ function JobHomepage() {
         ].concat(readAcceptedJobs(), readBidList('createdJobs')).map(withJobDemoData).map((job) => {
             const inspector = readBidList('jobAssignments').find((assignment) => assignment.jobId === job.id)?.inspector ?? job.inspector ?? '';
             return { ...job, inspector, status: resolveJobStatus(job.status, inspector) };
-        }).filter((job) => !isDeletedRecord('Job', job.id)));
+        }).filter((job) => !isDeletedRecord('Job', job.id) && !isCompletedJob(job.id)));
 
 
     useEffect(() => {
@@ -370,6 +370,8 @@ function JobHomepage() {
                 ),
                 5: (data, type, row) => (
                     <div className="action_buttons">
+                        <button type="button" className="job_complete_button" title="Mark Complete" aria-label={`Mark job for ${row.name} complete`}
+                            onClick={(event) => { event.stopPropagation(); completeJob(row); window.location.href = '/History'; }}><FaCheck aria-hidden="true" /></button>
                         <button
                             className="delete_icon" title="Delete job" aria-label={`Delete job for ${row.name}`}
                             onClick={(event) => { event.stopPropagation(); setDeleteTarget(row); }}

@@ -130,3 +130,32 @@ test('a CSV without a Name column shows an error and changes nothing', async () 
     expect((await screen.findByRole('alert')).textContent).toContain('"Name" column');
     expect(sessionStorage.getItem('jobItems')).toBeNull();
 });
+
+test('marks the job complete and redirects to history', () => {
+    const location = window.location;
+    delete window.location;
+    window.location = { search: '?jobId=1', href: '' };
+    try {
+        const { unmount } = render(<Jobspage />);
+        fireEvent.click(screen.getByRole('button', { name: 'Mark Complete' }));
+        expect(window.location.href).toBe('/History');
+        expect(JSON.parse(sessionStorage.getItem('completedJobs'))[0]).toMatchObject({ id: 1, status: 'Complete' });
+        unmount();
+        render(<Jobspage />);
+        expect(screen.queryByRole('button', { name: 'Mark Complete' })).not.toBeInTheDocument();
+        expect(sessionStorage.getItem('selectedJob')).toBeNull();
+    } finally { window.location = location; }
+});
+
+
+test('offers Send Job to Inspector after assigning an inspector', () => {
+    render(<Jobspage />);
+    expect(screen.queryByRole('button', { name: 'Send Job to Inspector' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Assign Inspector' }));
+    fireEvent.change(screen.getByLabelText('Assign inspector'), { target: { value: 'Alex Morgan' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Assign inspector' }));
+    expect(screen.getByRole('button', { name: 'Send Job to Inspector' })).toBeEnabled();
+    fireEvent.change(screen.getByLabelText('Assign inspector'), { target: { value: '' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Assign inspector' }));
+    expect(screen.queryByRole('button', { name: 'Send Job to Inspector' })).not.toBeInTheDocument();
+});

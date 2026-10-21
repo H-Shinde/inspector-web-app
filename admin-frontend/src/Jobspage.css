@@ -375,3 +375,5 @@
     font-size: 14px;
     font-weight: 600;
 }
+
+.job_send_controls { display: flex; justify-content: flex-end; margin-bottom: 20px; }

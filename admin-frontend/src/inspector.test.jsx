@@ -1,9 +1,12 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import Inspector from './inspector';
 
 jest.mock('datatables.net-react', () => {
     const React = require('react');
-    const Table = React.forwardRef(({ data, slots }, ref) => <div>{data.map((row) => <div key={row.id}><span>{row.name}</span>{slots[5](null, null, row)}</div>)}</div>);
+    const Table = React.forwardRef(({ data, slots }, ref) => {
+        React.useImperativeHandle(ref, () => ({ dt: () => ({ row: (element) => ({ data: () => data.find((row) => String(row.id) === element.dataset.id) }) }) }));
+        return <table><tbody>{data.map((row) => <tr key={row.id} data-id={row.id} tabIndex={0}><td>{row.name}</td><td>{slots[5](null, null, row)}</td></tr>)}</tbody></table>;
+    });
     Table.use = () => {};
     return Table;
 });
@@ -60,4 +63,25 @@ test('the only row action is messaging', () => {
     expect(screen.getByRole('button', { name: 'Message Alex Morgan' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Select Alex Morgan' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'View Alex Morgan' })).toBeNull();
+});
+
+test('clicking an inspector opens their details and Close dismisses the popup', () => {
+    render(<Inspector />);
+    fireEvent.click(screen.getByText('Alex Morgan'));
+    const popup = screen.getByRole('dialog', { name: 'Inspector Details' });
+    expect(within(popup).getByText('Alex Morgan')).toBeInTheDocument();
+    expect(within(popup).getByText('Number of Jobs')).toBeInTheDocument();
+    expect(within(popup).getByText('Notes')).toBeInTheDocument();
+    fireEvent.click(within(popup).getByRole('button', { name: 'Close' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+});
+
+test('keyboard opens details and Escape or backdrop dismisses the popup', () => {
+    render(<Inspector />);
+    fireEvent.keyDown(screen.getByText('Alex Morgan').closest('tr'), { key: 'Enter' });
+    fireEvent(screen.getByRole('dialog', { name: 'Inspector Details' }), new Event('cancel', { bubbles: true }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    fireEvent.keyDown(screen.getByText('Alex Morgan').closest('tr'), { key: ' ' });
+    fireEvent.click(screen.getByRole('dialog', { name: 'Inspector Details' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 });

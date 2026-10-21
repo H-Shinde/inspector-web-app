@@ -13,17 +13,8 @@
 .client_information_layout .fieldsframe select:focus-visible { outline: 2px solid #005581; outline-offset: 2px; }
 .clients_details_page button:disabled { cursor: default; opacity: 0.6; }
 
-.client_information_layout { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 24px; align-items: start; width: min(1240px, calc(100% - 48px)); margin: 0 auto 40px; }
+.client_information_layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; align-items: start; width: min(1240px, calc(100% - 48px)); margin: 0 auto 40px; }
 .client_information_layout .fieldsframe { width: 100%; margin: 0; }
-.client_information_sidebar { padding: 20px 12px; border: 1px solid #C8D4E0; border-radius: 12px; background: white; font-family: Geist, sans-serif; }
-.client_information_sidebar h2 { display: flex; justify-content: space-between; align-items: center; margin: 0 8px 16px; color: #005581; font-size: 18px; }
-.client_information_sidebar h2 span { padding: 3px 8px; border-radius: 12px; background: #F1F5F9; color: #526477; font-size: 12px; }
-.client_information_sidebar ul { list-style: none; padding: 0; margin: 0; max-height: 60vh; overflow-y: auto; }
-.client_information_sidebar button { width: 100%; min-height: 44px; padding: 12px; border: 0; border-radius: 8px; background: transparent; color: #334155; font: inherit; font-size: 14px; text-align: left; overflow-wrap: anywhere; cursor: pointer; }
-.client_information_sidebar button:hover { background: #F1F5F9; }
-.client_information_sidebar button[aria-pressed="true"] { background: #E0F2FE; color: #005581; font-weight: 600; }
-.client_information_sidebar button:focus-visible { outline: 2px solid #005581; outline-offset: -2px; }
-.client_information_sidebar p { margin: 12px 8px; color: #526477; font-size: 14px; }
 
 @media (max-width: 1000px) {
     .client_information_layout .fieldsframe { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -31,5 +22,4 @@
 @media (max-width: 760px) {
     .client_information_layout { grid-template-columns: minmax(0, 1fr); width: calc(100% - 32px); gap: 16px; margin-bottom: 24px; }
     .client_information_layout .fieldsframe { grid-template-columns: minmax(0, 1fr); }
-    .client_information_sidebar ul { max-height: 220px; }
 }

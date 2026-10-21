@@ -1,3 +1,5 @@
+import SendJobToInspector from './SendJobToInspector';
+import { completeJob, isCompletedJob, isDeletedRecord } from './historyRecords';
 import { useEffect, useRef, useState } from 'react';
 import { bidFields, readBidList } from './bidFields';
 import './Jobspage.css';
@@ -115,13 +117,13 @@ function Jobspage() {
         sessionStorage.setItem('jobValuationHistory', JSON.stringify(history));
         setValuationHistory(history);
     };
-    const [jobs, setJobs] = useState(() => readBidList('availableJobs').map(withJobDemoData).map((job) => ({
+    const [jobs, setJobs] = useState(() => readBidList('availableJobs').filter((job) => !isCompletedJob(job.id) && !isDeletedRecord('Job', job.id)).map(withJobDemoData).map((job) => ({
         ...job,
         inspector: readBidList('jobAssignments').find((assignment) => assignment.jobId === job.id)?.inspector ?? job.inspector ?? '',
     })));
     const [selectedId] = useState(() => {
         const requested = new URLSearchParams(window.location.search).get('jobId');
-        return jobs.some((job) => String(job.id) === requested) ? requested : String(jobs[0]?.id ?? '');
+        return requested ?? String(jobs[0]?.id ?? '');
     });
     const job = jobs.find((item) => String(item.id) === selectedId);
     const [pendingInspector, setPendingInspector] = useState(() => selectedInspector?.name ?? job?.inspector ?? '');
@@ -280,6 +282,7 @@ function Jobspage() {
                     <span className="bid_back_icon" aria-hidden="true">←</span> Back
                 </button>
                 <h1 className="bidspage_header">{activeSection}</h1>
+                {job && <button type="button" className="bid_add_button" onClick={() => { completeJob(job); window.location.href = '/History'; }}>Mark Complete</button>}
 
             </div>
         </header>
@@ -292,6 +295,7 @@ function Jobspage() {
                 ))}
             </aside>
             <section className="job_details_content" aria-label={activeSection}>
+                {job?.inspector && <div className="job_send_controls"><SendJobToInspector job={job} sections={details[selectedId]} /></div>}
                 {acceptedJobId === selectedId && <p className="job_acceptance_message" role="status">Bid has been accepted.</p>}
                 {!job ? (
                     <p className="job_empty">Open View from the Jobs table to load job information.</p>
