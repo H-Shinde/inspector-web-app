@@ -1,6 +1,6 @@
 import ItemImage from './ItemImage';
 import { saveItemImage, deleteItemImage } from './itemImages';
-import { JOB_STATUSES, readJobStatuses, saveJobStatus } from './jobStatus';
+import { restoreJobStatus } from './jobStatus';
 import SendJobToInspector from './SendJobToInspector';
 import { completeJob, isCompletedJob, isDeletedRecord } from './historyRecords';
 import { useEffect, useRef, useState } from 'react';
@@ -130,7 +130,7 @@ function Jobspage() {
         setValuationHistory(history);
     };
     const [jobs, setJobs] = useState(() => readBidList('availableJobs').filter((job) => !isCompletedJob(job.id) && !isDeletedRecord('Job', job.id)).map(withJobDemoData).map((job) => ({
-        ...job, status: readJobStatuses()[job.id] ?? job.status,
+        ...job, status: restoreJobStatus({ ...job, inspector: readBidList('jobAssignments').find((assignment) => String(assignment.jobId) === String(job.id))?.inspector ?? job.inspector }),
         inspector: readBidList('jobAssignments').find((assignment) => assignment.jobId === job.id)?.inspector ?? job.inspector ?? '',
     })));
     const [selectedId] = useState(() => {
@@ -317,12 +317,6 @@ function Jobspage() {
                 ))}
             </aside>
             <section className="job_details_content" aria-label={activeSection}>
-                {job && <div className="job_status_controls"><label htmlFor="job-progress-status">Job Status</label>
-                    <select id="job-progress-status" value={job.status} onChange={(event) => { const updated = saveJobStatus(job, event.target.value); setJobs((current) => current.map((entry) => entry.id === job.id ? updated : entry)); }}>
-                        {!JOB_STATUSES.includes(job.status) && <option>{job.status}</option>}
-                        {JOB_STATUSES.map((status) => <option key={status}>{status}</option>)}
-                    </select>
-                </div>}
                 {job?.inspector && <div className="job_send_controls"><SendJobToInspector job={job} sections={details[selectedId]} /></div>}
                 {acceptedJobId === selectedId && <p className="job_acceptance_message" role="status">Bid has been accepted.</p>}
                 {!job ? (

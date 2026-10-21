@@ -30,10 +30,9 @@ test('completes a job from the table and keeps it out of active jobs after reloa
 });
 
 
-test('keeps Submitted to Client after a status change and a page reload', () => {
-    const { unmount } = render(<JobHomepage />);
-    fireEvent.change(screen.getByLabelText('Job status for John Doe'), { target: { value: 'Submitted to Client' } });
-    expect(JSON.parse(sessionStorage.getItem('availableJobs')).find((job) => job.id === 1).status).toBe('Submitted to Client');
-    unmount(); render(<JobHomepage />);
-    expect(screen.getByLabelText('Job status for John Doe')).toHaveValue('Submitted to Client');
+test('shows original status badges without a status dropdown', () => {
+    render(<JobHomepage />);
+    expect(document.querySelector('.bid_status_assigned')).toHaveTextContent('Assigned');
+    expect(screen.queryByLabelText('Job status for John Doe')).not.toBeInTheDocument();
+    expect(screen.queryByText('Submitted to Client')).not.toBeInTheDocument();
 });

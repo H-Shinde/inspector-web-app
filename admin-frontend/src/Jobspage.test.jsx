@@ -167,12 +167,11 @@ test('offers Send Job to Inspector after assigning an inspector', () => {
 });
 
 
-test('persists Submitted to Client status across reopening', () => {
-    const { unmount } = render(<Jobspage />);
-    fireEvent.change(screen.getByLabelText('Job Status'), { target: { value: 'Submitted to Client' } });
-    expect(JSON.parse(sessionStorage.getItem('availableJobs'))[0].status).toBe('Submitted to Client');
-    unmount(); render(<Jobspage />);
-    expect(screen.getByLabelText('Job Status')).toHaveValue('Submitted to Client');
+test('restores previously submitted jobs to the original status without a dropdown', () => {
+    sessionStorage.setItem('availableJobs', JSON.stringify([{ id: 1, name: 'Test job', status: 'Submitted to Client', inspector: 'Alex Morgan', isCreatedJob: true }]));
+    render(<Jobspage />);
+    expect(screen.queryByLabelText('Job Status')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Status')).toHaveValue('Assigned');
 });
 
 test('uploads an image with a new item and persists its image reference', async () => {

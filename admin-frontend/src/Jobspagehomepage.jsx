@@ -1,4 +1,4 @@
-import { JOB_STATUSES, readJobStatuses, saveJobStatus } from './jobStatus';
+import { JOB_STATUSES } from './jobStatus';
 import { archiveDeletedRecord, isDeletedRecord, completeJob, isCompletedJob } from './historyRecords';
 import './Jobspagehomepage.css';
 import { readBidList } from './bidFields';
@@ -19,7 +19,6 @@ DataTable.use(DT);
 
 // No inspector means Unassigned; otherwise keep a valid progress status, defaulting to Assigned.
 const resolveJobStatus = (status, inspector) => {
-    if (status === 'Submitted to Client') return status;
     if (!inspector) return 'Unassigned';
     return ['Assigned', 'In-Progress', 'Pending Review'].includes(status) ? status : 'Assigned';
 };
@@ -216,7 +215,7 @@ function JobHomepage() {
         }
         ].concat(readAcceptedJobs(), readBidList('createdJobs')).map(withJobDemoData).map((job) => {
             const inspector = readBidList('jobAssignments').find((assignment) => assignment.jobId === job.id)?.inspector ?? job.inspector ?? '';
-            return { ...job, inspector, status: resolveJobStatus(readJobStatuses()[job.id] ?? job.status, inspector) };
+            return { ...job, inspector, status: resolveJobStatus(job.status, inspector) };
         }).filter((job) => !isDeletedRecord('Job', job.id) && !isCompletedJob(job.id)));
 
 
@@ -367,10 +366,7 @@ function JobHomepage() {
             className="bids_table"
             slots={{
                 4: (data, type, row) => (
-                    <select className={`job_status_select bid_status_${statusClass(row.status)}`} aria-label={`Job status for ${row.name}`} value={row.status}
-                        onChange={(event) => { const updated = saveJobStatus(row, event.target.value); setTableData((current) => current.map((job) => job.id === row.id ? updated : job)); }}>
-                        {JOB_STATUSES.map((status) => <option key={status}>{status}</option>)}
-                    </select>
+                    <span className={`bid_status bid_status_${statusClass(row.status)}`}>{row.status}</span>
                 ),
                 5: (data, type, row) => (
                     <div className="action_buttons">
