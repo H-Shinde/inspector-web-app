@@ -8,8 +8,8 @@ test('creates bids with cookie authentication, CSRF, and only editable fields', 
   const [url, request] = fetch.mock.calls[1]; expect(url).toBe('/api/bids/'); expect(request.credentials).toBe('include'); expect(request.headers['X-CSRFToken']).toBe('token');
   expect(JSON.parse(request.body)).toEqual({ name: 'Avery', businessName: 'Example', inspectorId: 7 });
 });
-test('M&E payload excludes BV-only pricing', () => {
-  expect(bidPayload({ appraisalType: 'Machinery & Equipment (M&E)', bidAmount: '1000', discount: '100', rush: true, inspectorId: 7 })).toEqual({ appraisalType: 'Machinery & Equipment (M&E)', bidAmount: '1000', inspectorId: 7 });
+test('M&E payload retains Rush and PDF discount', () => {
+  expect(bidPayload({ appraisalType: 'Machinery & Equipment (M&E)', bidAmount: '1000', discount: '100', rush: true, inspectorId: 7 })).toEqual({ appraisalType: 'Machinery & Equipment (M&E)', bidAmount: '1000', discount: '100', rush: true, inspectorId: 7 });
 });
 test('uploads PDFs as multipart without manually setting Content-Type', async () => {
   allowWrite(); await uploadBidAgreement({ id: 52, referenceNumber: 'BID-000052' }, new Blob(['pdf'], { type: 'application/pdf' }));

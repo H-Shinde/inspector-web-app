@@ -45,10 +45,6 @@ class BidForm(forms.ModelForm):
                     "Choose Onsite or Desktop.",
                 )
 
-            data["rush"] = False
-            data["pdfOnly"] = False
-            data["discount"] = Decimal("0")
-            data["rushDiscount"] = Decimal("0")
             data["additionalCharges"] = Decimal("0")
 
         return data

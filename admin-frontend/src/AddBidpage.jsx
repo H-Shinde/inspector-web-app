@@ -251,10 +251,12 @@ function AddBidpage() {
                                         <input id={`add-${field}`} name={field} value={field === 'status' ? 'Pending' : referenceNumber} readOnly />
                                     ) : type === 'total' ? (
                                         <input id={`add-${field}`} name={field} value={totalBid} readOnly aria-describedby="total-bid-help" />
+                                    ) : type === 'textarea' ? (
+                                        <textarea id={`add-${field}`} name={field} rows={3} value={draft[field]} onChange={(event) => setDraft({ ...draft, [field]: event.target.value })} />
                                     ) : (
                                         <input id={`add-${field}`} name={field} type={type}
                                             min={type === 'number' ? 0 : undefined}
-                                            step={type === 'number' ? (field === 'completionDays' ? 1 : 0.01) : undefined}
+                                            step={type === 'number' ? (['completionDays', 'totalInspectedItems', 'totalNonInspectedItems'].includes(field) ? 1 : 0.01) : undefined}
                                             value={type === 'checkbox' ? undefined : draft[field]}
                                             checked={type === 'checkbox' ? draft[field] : undefined}
                                             placeholder={type !== 'checkbox' ? `Enter ${label.toLowerCase()}` : undefined}

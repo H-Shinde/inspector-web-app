@@ -52,7 +52,7 @@ class BidApiTests(TestCase):
     def test_machinery_uses_only_its_fee(self):
         result = self.send(data={**self.payload, 'appraisalType': 'Machinery & Equipment (M&E)', 'reportFormat': 'Desktop', 'additionalCharges': '99'}).json()
         self.assertEqual(Decimal(result['totalBid']), Decimal('1500'))
-        self.assertEqual(Decimal(result['discount']), Decimal('0'))
+        self.assertEqual(Decimal(result['discount']), Decimal('100'))
 
     def test_detail_and_patch_keep_ownership_and_calculate_totals(self):
         result = self.create_bid(); url = f"/api/bids/{result['id']}/"

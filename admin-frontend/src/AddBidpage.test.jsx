@@ -99,3 +99,9 @@ test('allows selecting a sample inspector without an add inspector option', asyn
   expect(screen.queryByRole('button', { name: /add inspector/i })).not.toBeInTheDocument();
   expect(createServerBid).not.toHaveBeenCalled();
 });
+
+test('M&E displays the requested valuation and inspection fields without duplicates', async () => {
+  await openConfirmation('Machinery & Equipment (M&E)');
+  const labels = ['FMV in Continued Use', 'Fair Market Value Removed', 'Orderly Liquidation Value', 'Forced Liquidation Value', 'Other', 'Additional Locations', 'Total Inspected Items', 'Total Non-Inspected Items', 'Total Appraisal', 'Rush', 'PDF Discount', 'Total', 'Non-Rush Total', 'M&E Note'];
+  labels.forEach((label) => expect(screen.getAllByLabelText(label, { exact: true })).toHaveLength(1));
+});

@@ -95,6 +95,19 @@ class Bid(models.Model):
         validators=[MinValueValidator(Decimal("0"))],
     )
 
+    fmvContinuedUse = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, validators=[MinValueValidator(Decimal("0"))])
+    fairMarketValueRemoved = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, validators=[MinValueValidator(Decimal("0"))])
+    orderlyLiquidationValue = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, validators=[MinValueValidator(Decimal("0"))])
+    forcedLiquidationValue = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, validators=[MinValueValidator(Decimal("0"))])
+    totalAppraisal = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, validators=[MinValueValidator(Decimal("0"))])
+    total = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, validators=[MinValueValidator(Decimal("0"))])
+    nonRushTotal = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, validators=[MinValueValidator(Decimal("0"))])
+    totalInspectedItems = models.PositiveIntegerField(null=True, blank=True)
+    totalNonInspectedItems = models.PositiveIntegerField(null=True, blank=True)
+    other = models.TextField(blank=True)
+    additionalLocations = models.TextField(blank=True)
+    meNote = models.TextField(blank=True)
+
     agreement = models.FileField(
         upload_to="bid-agreements/",
         blank=True,
