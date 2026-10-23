@@ -137,6 +137,7 @@ function Jobspage() {
     const job = jobs.find((item) => String(item.id) === selectedId);
     const [pendingInspector, setPendingInspector] = useState(() => selectedInspector?.name ?? job?.inspector ?? '');
     useEffect(() => { setPendingInspector(job?.inspector ?? ''); }, [job?.inspector]);
+    const [sendRequest, setSendRequest] = useState(0);
     const sortedInspectors = job ? sortInspectorsByDistance(inspectorList, job) : [];
     const jobLocation = job ? [job.city, job.state].filter(Boolean).join(', ') : '';
     useEffect(() => {
@@ -241,6 +242,7 @@ function Jobspage() {
         sessionStorage.setItem('availableJobs', JSON.stringify(updatedJobs));
         sessionStorage.setItem('selectedJob', JSON.stringify(updated));
         setJobs(updatedJobs);
+        if (inspector) setSendRequest((count) => count + 1);
     };
     const displayValue = (field) => {
         const value = job?.[field];
@@ -307,7 +309,7 @@ function Jobspage() {
                 ))}
             </aside>
             <section className="job_details_content" aria-label={activeSection}>
-                {job?.inspector && <div className="job_send_controls"><SendJobToInspector job={job} sections={details[selectedId]} /></div>}
+                {job?.inspector && <SendJobToInspector job={job} sections={details[selectedId]} hideButton openRequest={sendRequest} />}
                 {acceptedJobId === selectedId && <p className="job_acceptance_message" role="status">Bid has been accepted.</p>}
                 {!job ? (
                     <p className="job_empty">Open View from the Jobs table to load job information.</p>

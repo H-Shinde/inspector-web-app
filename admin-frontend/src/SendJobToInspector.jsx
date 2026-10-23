@@ -6,7 +6,7 @@ import { bidEmailLink } from './bidEmail';
 import { downloadAgreement } from './engagementAgreement';
 import './AddBidpage.css';
 
-export default function SendJobToInspector({ job, sections, className = 'bid_back_button' }) {
+export default function SendJobToInspector({ job, sections, className = 'bid_back_button', hideButton = false, openRequest = 0 }) {
     const [email, setEmail] = useState(null);
     const [pdf, setPdf] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -40,11 +40,19 @@ export default function SendJobToInspector({ job, sections, className = 'bid_bac
             if (request === generation.current) setError('Unable to generate the inspection request. Please try again.');
         } finally { if (request === generation.current) setLoading(false); }
     };
+    const start = () => { setEmail(inspectorJobEmail(job, inspector)); setPdf(null); generate(); };
+    // Lets a parent open the request (e.g. right after assigning); the initial 0 never fires.
+    const lastOpenRequest = useRef(openRequest);
+    useEffect(() => {
+        if (openRequest === lastOpenRequest.current) return;
+        lastOpenRequest.current = openRequest;
+        if (inspector) start();
+    }, [openRequest]);
     if (!inspector) return null;
     return <>
-        <button type="button" className={className} onClick={(event) => {
-            event.stopPropagation(); setEmail(inspectorJobEmail(job, inspector)); setPdf(null); generate();
-        }}>Send Job to Inspector</button>
+        {!hideButton && <button type="button" className={className} onClick={(event) => {
+            event.stopPropagation(); start();
+        }}>Send Job to Inspector</button>}
         {createPortal(<dialog ref={dialog} className="popup confirm_popup agreement_dialog" aria-labelledby={`inspector-request-title-${job.id}`}
             onClick={(event) => { event.stopPropagation(); if (event.target === event.currentTarget) close(); }}
             onCancel={(event) => { event.preventDefault(); close(); }}>

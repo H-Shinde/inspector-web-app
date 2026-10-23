@@ -40,6 +40,16 @@ test('previews the request, downloads it, and opens an edited draft to the assig
     } finally { window.location = location; }
 });
 
+test('opens the request when openRequest changes and can hide its own button', async () => {
+    const { rerender } = render(<SendJobToInspector job={job} hideButton openRequest={0} />);
+    expect(screen.queryByRole('button', { name: 'Send Job to Inspector' })).not.toBeInTheDocument();
+    expect(generateInspectionRequest).not.toHaveBeenCalled();
+    rerender(<SendJobToInspector job={job} hideButton openRequest={1} />);
+    await screen.findByTitle('Inspection request PDF preview');
+    expect(generateInspectionRequest).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('button', { name: 'Send Job to Inspector' })).not.toBeInTheDocument();
+});
+
 test('can retry generation without losing email edits', async () => {
     generateInspectionRequest.mockRejectedValueOnce(new Error('Template unavailable'));
     render(<SendJobToInspector job={job} />);

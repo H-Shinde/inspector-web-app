@@ -287,7 +287,5 @@
     font-weight: 600;
 }
 
-.job_send_controls { display: flex; justify-content: flex-end; margin-bottom: 20px; }
-
 .job_item_photo { grid-column: 1 / -1; margin: 16px 0; }
 .job_item_photo img { display: block; max-width: 100%; width: auto; max-height: 320px; object-fit: contain; border: 1px solid #C8D4E0; border-radius: 8px; margin-bottom: 12px; }

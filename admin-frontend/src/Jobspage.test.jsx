@@ -4,6 +4,8 @@ import { saveItemImage, readItemImage } from './itemImages';
 jest.mock('./itemImages', () => ({ saveItemImage: jest.fn(), readItemImage: jest.fn(), deleteItemImage: jest.fn().mockResolvedValue(undefined) }));
 import { selectGlobalInspector } from './inspectorSelection';
 import { act } from '@testing-library/react';
+import { generateInspectionRequest } from './inspectionRequest';
+jest.mock('./inspectionRequest', () => ({ ...jest.requireActual('./inspectionRequest'), generateInspectionRequest: jest.fn() }));
 
 jest.mock('datatables.net-react', () => {
     const Table = ({ data }) => <div>{data.map((item) => <p key={item.itemId}>{item.name}</p>)}</div>;
@@ -15,6 +17,7 @@ jest.mock('datatables.net-dt', () => ({}));
 beforeEach(() => {
     sessionStorage.clear();
     saveItemImage.mockResolvedValue(undefined);
+    generateInspectionRequest.mockResolvedValue(new Blob(['pdf'], { type: 'application/pdf' }));
     readItemImage.mockResolvedValue(new Blob(['image']));
     URL.createObjectURL = jest.fn(() => 'blob:item');
     URL.revokeObjectURL = jest.fn();
@@ -157,16 +160,22 @@ test('marks the job complete and redirects to history', () => {
 });
 
 
-test('offers Send Job to Inspector after assigning an inspector', () => {
+test('assigning an inspector opens the send-job review, with no separate send button', async () => {
     render(<Jobspage />);
     expect(screen.queryByRole('button', { name: 'Send Job to Inspector' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Assign Inspector' }));
+    expect(screen.queryByRole('button', { name: 'Send Job to Inspector' })).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Assign inspector'), { target: { value: 'Alex Morgan' } });
     fireEvent.click(screen.getByRole('button', { name: 'Assign inspector' }));
-    expect(screen.getByRole('button', { name: 'Send Job to Inspector' })).toBeEnabled();
+    expect(await screen.findByRole('heading', { name: 'Send Job to Inspector' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Send Job to Inspector' })).not.toBeInTheDocument();
+    expect(generateInspectionRequest).toHaveBeenCalledWith(expect.objectContaining({ inspector: 'Alex Morgan' }), expect.objectContaining({ name: 'Alex Morgan' }), expect.anything());
+    fireEvent.click(screen.getByRole('button', { name: 'Close inspector request' }));
+    expect(screen.queryByRole('heading', { name: 'Send Job to Inspector' })).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Assign inspector'), { target: { value: '' } });
     fireEvent.click(screen.getByRole('button', { name: 'Assign inspector' }));
-    expect(screen.queryByRole('button', { name: 'Send Job to Inspector' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Send Job to Inspector' })).not.toBeInTheDocument();
+    expect(generateInspectionRequest).toHaveBeenCalledTimes(1);
 });
 
 
