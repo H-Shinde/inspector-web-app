@@ -1,5 +1,6 @@
 import LogoutButton from './LogoutButton';
-import { createServerBid, listBidInspectors, uploadBidAgreement } from './bidsApi';
+import { createServerBid, listClients, clientToBidFields, listBidInspectors, uploadBidAgreement } from './bidsApi';
+import { sortInspectorsByDistance } from './inspectorDistance';
 import { bidSections as sections, getBidSections } from './bidSections';
 import { useEffect, useRef, useState } from 'react';
 import { calculateTotalBid } from './bidFields';
@@ -10,22 +11,29 @@ import navLogo from './bison_logo_nav.png';
 
 
 function AddBidpage() {
+    const [clients, setClients] = useState([]);
+    const [clientsLoading, setClientsLoading] = useState(true);
+    const [clientsError, setClientsError] = useState('');
+    const [clientAttempt, setClientAttempt] = useState(0);
+    const [clientId, setClientId] = useState('');
     const [inspectors, setInspectors] = useState([]);
-    const [inspectorsLoading, setInspectorsLoading] = useState(true);
     const [inspectorsError, setInspectorsError] = useState('');
-    const [inspectorAttempt, setInspectorAttempt] = useState(0);
+    useEffect(() => {
+        const controller = new AbortController();
+        listBidInspectors(controller.signal).then((rows) => { if (!controller.signal.aborted) setInspectors(rows); })
+            .catch((error) => { if (!controller.signal.aborted) setInspectorsError(error.message); });
+        return () => controller.abort();
+    }, []);
     const [createdBid, setCreatedBid] = useState(null);
     const savedBid = useRef(null);
     useEffect(() => {
         const controller = new AbortController();
-        setInspectorsLoading(true); setInspectorsError('');
-        listBidInspectors(controller.signal).then((rows) => { if (!controller.signal.aborted) setInspectors(rows); })
-            .catch((error) => { if (!controller.signal.aborted) setInspectorsError(error.message); })
-            .finally(() => { if (!controller.signal.aborted) setInspectorsLoading(false); });
+        setClientsLoading(true); setClientsError('');
+        listClients(controller.signal).then((rows) => { if (!controller.signal.aborted) setClients(rows); })
+            .catch((error) => { if (!controller.signal.aborted) setClientsError(error.message); })
+            .finally(() => { if (!controller.signal.aborted) setClientsLoading(false); });
         return () => controller.abort();
-    }, [inspectorAttempt]);
-    const [inspectorId, setInspectorId] = useState('');
-    const assignedInspector = inspectors.find((inspector) => String(inspector.id) === inspectorId);
+    }, [clientAttempt]);
     const [menuOpen, setMenuOpen] = useState(false);
     const [draft, setDraft] = useState(() => ({ date: '', ...Object.fromEntries(sections.flatMap(([, fields]) => fields.map(([field, , type]) => [field, field === 'status' ? 'Pending' : type === 'checkbox' ? false : '']))) }));
     const [error, setError] = useState('');
@@ -46,14 +54,25 @@ function AddBidpage() {
                 : fields,
     ]);
     const visibleFields = new Set(visibleSections.flatMap(([, fields]) => fields.map(([field]) => field)));
-    const submissionDraft = { ...(isMachinery ? Object.fromEntries(Object.entries(draft).filter(([field]) => visibleFields.has(field))) : draft), inspectorId: assignedInspector?.id ?? '', inspector: assignedInspector?.name ?? '' };
+    const submissionDraft = { ...(isMachinery ? Object.fromEntries(Object.entries(draft).filter(([field]) => visibleFields.has(field))) : draft) };
     const totalBid = calculateTotalBid(submissionDraft);
+    const zipCode = (draft.zipCode || '').trim();
+    const validZip = /^\d{5}(-\d{4})?$/.test(zipCode);
+    const nearestInspectors = validZip
+        ? sortInspectorsByDistance(inspectors, { city: draft.city, state: draft.state, zipCode, businessAddress: draft.businessAddress })
+            .filter(({ distance }) => distance !== null && distance !== undefined).slice(0, 3)
+        : [];
     const referenceNumber = createdBid?.referenceNumber || 'Assigned when bid is created';
+    const selectClient = (id) => {
+        setClientId(id);
+        setError('');
+        const client = clients.find((entry) => String(entry.id) === id);
+        if (client) setDraft((previous) => ({ ...previous, ...clientToBidFields(client) }));
+    };
     const handleAdd = async (event) => {
         event.preventDefault();
-        if (!assignedInspector) { setError('Assign an inspector before creating this bid.'); return; }
         if (!draft.name.trim() || !draft.businessName.trim()) {
-            setError('Enter a contact name and business name.');
+            setError('Enter a business name and contact name.');
             return;
         }
         if (draft.appraisalType === BUSINESS_VALUATION || isMachinery) {
@@ -215,23 +234,20 @@ function AddBidpage() {
         </header>
         <main>
             <form className="fieldsframe" onSubmit={handleAdd} aria-label="Add bid">
-                <fieldset className="add_bid_section add_bid_assignment">
-                    <legend>Assign Inspector</legend>
-                    <div className="bid_detail_field">
-                        <label htmlFor="add-inspector">Assigned inspector (required)</label>
-                        <select id="add-inspector" name="inspectorId" required disabled={inspectorsLoading || !!inspectorsError} value={inspectorId} onChange={(event) => { setInspectorId(event.target.value); setError(''); }}>
-                            <option value="">{inspectorsLoading ? 'Loading inspectors…' : 'Select an inspector'}</option>
-                            {inspectors.map((inspector) => <option key={inspector.id} value={inspector.id}>{inspector.name}</option>)}
-                        </select>
-                    </div>
-                    {inspectorsError && <p role="alert" className="add_bid_error">{inspectorsError} <button type="button" className="bid_back_button" onClick={() => setInspectorAttempt((value) => value + 1)}>Retry</button></p>}
-                    {!inspectorsLoading && !inspectorsError && inspectors.length === 0 && <p className="add_bid_error">No inspectors are available.</p>}
-                    <p className="add_bid_pricing_help">Assign the inspector responsible for this bid before creating it.</p>
-                </fieldset>
                 {visibleSections.map(([title, fields]) => (
                     <fieldset className="add_bid_section" key={title}>
                         <legend>{title}</legend>
                         <div className="add_bid_section_fields">
+                            {title === 'Client Information' && (
+                                <div className="bid_detail_field add_bid_client_select">
+                                    <label htmlFor="add-client-select">Select client</label>
+                                    <select id="add-client-select" disabled={clientsLoading || !!clientsError} value={clientId} onChange={(event) => selectClient(event.target.value)}>
+                                        <option value="">{clientsLoading ? 'Loading clients…' : 'Select a client to autofill'}</option>
+                                        {clients.map((client) => <option key={client.id} value={client.id}>{[client.company ?? client.companyName, client.name ?? client.contactName].filter(Boolean).join(' – ')}</option>)}
+                                    </select>
+                                    {clientsError && <p role="alert" className="add_bid_error">{clientsError} <button type="button" className="bid_back_button" onClick={() => setClientAttempt((value) => value + 1)}>Retry</button></p>}
+                                </div>
+                            )}
                             {fields.map(([field, label, type = 'text']) => (
                                 <div className={`bid_detail_field add_bid_${field}${type === 'checkbox' ? ' add_bid_checkbox' : ''}`} key={field}>
                                     <label htmlFor={`add-${field}`}>{label}</label>
@@ -256,7 +272,7 @@ function AddBidpage() {
                                     ) : (
                                         <input id={`add-${field}`} name={field} type={type}
                                             min={type === 'number' ? 0 : undefined}
-                                            step={type === 'number' ? (['completionDays', 'totalInspectedItems', 'totalNonInspectedItems'].includes(field) ? 1 : 0.01) : undefined}
+                                            step={type === 'number' ? (['completionDays', 'additionalLocations', 'totalInspectedItems', 'totalNonInspectedItems'].includes(field) ? 1 : 0.01) : undefined}
                                             value={type === 'checkbox' ? undefined : draft[field]}
                                             checked={type === 'checkbox' ? draft[field] : undefined}
                                             placeholder={type !== 'checkbox' ? `Enter ${label.toLowerCase()}` : undefined}
@@ -270,12 +286,20 @@ function AddBidpage() {
                                 </div>
                             ))}
                         </div>
+                        {title === 'Business' && validZip && (
+                            <div className="add_bid_nearby" aria-live="polite">
+                                <h3>Closest inspectors to {zipCode}</h3>
+                                {inspectorsError ? <p className="add_bid_error">{inspectorsError}</p>
+                                    : nearestInspectors.length === 0 ? <p className="add_bid_pricing_help">No inspectors with a known location were found near this ZIP code.</p>
+                                        : <ol>{nearestInspectors.map(({ inspector, distance }) => <li key={inspector.id ?? inspector.name}><strong>{inspector.name}</strong> <span className="add_bid_distance">{distance.toFixed(1)} miles away</span></li>)}</ol>}
+                            </div>
+                        )}
                         {title === 'Pricing' && !isMachinery && <p id="total-bid-help" className="add_bid_pricing_help">Total Bid = Appraisal Fee − Discount − Rush Discount + Additional Charges. Enter discounts as amounts. Rush Discount applies only when Rush is checked.</p>}
                     </fieldset>
                 ))}
                 {error && <p className="add_bid_error" role="alert">{error}</p>}
                 <div className="bid_decision_actions">
-                    <button type="submit" className="bid_accept_button" disabled={inspectorsLoading || !!inspectorsError || inspectors.length === 0}>+ Add Bid</button>
+                    <button type="submit" className="bid_accept_button">+ Add Bid</button>
                 </div>
             </form>
         </main>

@@ -40,18 +40,15 @@ test('combines appraisal groups and keeps their rate edits separate', () => {
     expect(within(screen.getByRole('region', { name: 'Non Appraised Items' })).getByLabelText('Inspection rate')).toHaveValue(25);
 });
 
-test('shows valuation and fees together with shared history controls', () => {
+test('shows valuation and fees together without current/history controls', () => {
     render(<Jobspage />);
     fireEvent.click(screen.getByRole('button', { name: 'Valuation & Fees' }));
     fireEvent.change(screen.getByLabelText('FMV in Continued Use'), { target: { value: '10000' } });
-    fireEvent.blur(screen.getByLabelText('FMV in Continued Use'));
     fireEvent.change(screen.getByLabelText('Total'), { target: { value: '500' } });
-    fireEvent.blur(screen.getByLabelText('Total'));
-    fireEvent.click(screen.getByRole('button', { name: 'History' }));
-    expect(screen.getAllByRole('button', { name: 'Current' })).toHaveLength(1);
-    expect(screen.getByLabelText('FMV in Continued Use')).toHaveValue('10000');
-    expect(screen.getByLabelText('Total')).toHaveValue('500');
-    expect(JSON.parse(sessionStorage.getItem('jobValuationHistory')).map((entry) => entry.section)).toEqual(['Inspection Fees', 'Asset Valuation']);
+    expect(screen.getByLabelText('FMV in Continued Use')).toHaveValue(10000);
+    expect(screen.getByLabelText('Total')).toHaveValue(500);
+    expect(screen.queryByRole('button', { name: 'Current' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'History' })).toBeNull();
 });
 
 test('adds and persists an item, then dismisses confirmation on the next click', () => {

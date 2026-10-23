@@ -1,6 +1,7 @@
 import { clientBidFields } from './bidFields';
 
 export const bidSections = [
+    ['Client Information', clientBidFields],
     ['Appraisal', [
         ['appraisalType', 'Appraisal Type', 'appraisalType'], ['reportFormat', 'Report Format'],
         ['referenceNumber', 'Reference Number'], ['status', 'Status', 'status'],
@@ -8,9 +9,6 @@ export const bidSections = [
     ['Business', [
         ['businessName', 'Business Name'], ['propertyType', 'Type of Property'],
         ['businessAddress', 'Business Address'], ['city', 'City'], ['state', 'State'], ['zipCode', 'Zip'],
-    ]],
-    ['Client Information', clientBidFields],
-    ['Subject Contact', [
         ['name', 'Contact Name'], ['subjectContactEmail', 'Contact Email', 'email'],
         ['subjectContactPhone', 'Contact Phone', 'tel'],
     ]],
@@ -20,11 +18,11 @@ export const bidSections = [
         ['completionDays', 'Completion Days', 'number'], ['rush', 'Rush', 'checkbox'],
     ]],
     ['Asset Valuation', [
-        ['fmvContinuedUse', 'FMV in Continued Use', 'number'],
-        ['fairMarketValueRemoved', 'Fair Market Value Removed', 'number'],
-        ['orderlyLiquidationValue', 'Orderly Liquidation Value', 'number'],
-        ['forcedLiquidationValue', 'Forced Liquidation Value', 'number'],
-        ['other', 'Other'], ['additionalLocations', 'Additional Locations'],
+        ['fmvContinuedUse', 'FMV in Continued Use', 'checkbox'],
+        ['fairMarketValueRemoved', 'Fair Market Value Removed', 'checkbox'],
+        ['orderlyLiquidationValue', 'Orderly Liquidation Value', 'checkbox'],
+        ['forcedLiquidationValue', 'Forced Liquidation Value', 'checkbox'],
+        ['other', 'Other'], ['additionalLocations', 'Additional Locations', 'number'],
     ]],
     ['Inspection Fees', [
         ['totalInspectedItems', 'Total Inspected Items', 'number'],

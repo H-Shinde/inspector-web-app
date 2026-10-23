@@ -27,7 +27,7 @@ function Bidspage({ onChange }) {
     useEffect(() => () => { if (emailAgreement?.url) URL.revokeObjectURL(emailAgreement.url); }, [emailAgreement]);
     useEffect(() => { if (emailDraft && !emailDialog.current.open) emailDialog.current.showModal(); }, [emailDraft]);
     const closeEmail = () => { emailGeneration.current += 1; emailDialog.current.close(); setEmailDraft(null); setEmailAgreement(null); setGeneratingEmailPdf(false); };
-    const [activeSection, setActiveSection] = useState('Appraisal');
+    const [activeSection, setActiveSection] = useState('Client Information');
     const [menuOpen, setMenuOpen] = useState(false);
     const [editDraft, setEditDraft] = useState(null);
     const [notice, setNotice] = useState('');
@@ -186,7 +186,7 @@ function Bidspage({ onChange }) {
                     </select> : editDraft && inputType === 'checkbox' ? <input id={`view-${field}`} type="checkbox" checked={!!editDraft[field]} onChange={(event) => changeField(field, event.target.checked)} />
                         : <input id={`view-${field}`} type={editDraft && !['status', 'total', 'appraisalType'].includes(inputType) ? inputType : 'text'} readOnly={!editDraft || ['status', 'referenceNumber', 'totalBid'].includes(field)} required={!!editDraft && ['name', 'businessName'].includes(field)}
                             min={inputType === 'number' ? 0 : undefined}
-                            step={inputType === 'number' ? (field === 'completionDays' ? 1 : 0.01) : undefined}
+                            step={inputType === 'number' ? (['completionDays', 'additionalLocations'].includes(field) ? 1 : 0.01) : undefined}
                             disabled={!!editDraft && ((field === 'rushDiscount' && !editDraft.rush) || (field === 'discount' && !editDraft.pdfOnly))}
                             value={editDraft ? field === 'totalBid' ? totalForBid(editDraft) : editDraft[field] ?? '' : displayValue(field)}
                             onChange={(event) => changeField(field, event.target.value)} />}
