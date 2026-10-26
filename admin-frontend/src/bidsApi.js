@@ -25,7 +25,7 @@ export async function readBidAgreement(id) {
 
 // Maps a client record from the server to the client fields used on a bid.
 export const clientToBidFields = (client) => ({
-  clientCompany: client.company ?? client.companyName ?? '',
+  clientCompany: client.businessName ?? client.company ?? client.companyName ?? '',
   clientName: client.name ?? client.contactName ?? '',
   clientStreetAddress: client.streetAddress ?? client.address ?? '',
   clientCity: client.city ?? '',
@@ -37,3 +37,4 @@ export const clientToBidFields = (client) => ({
 export const listClients = (signal) => apiRequest('/api/clients/', { signal }).then((data) => data.clients);
 
 export const createBidInspector = (data) => apiWrite('/api/bids/inspectors/', data);
+export const createClient = (values) => apiWrite('/api/clients/', values);

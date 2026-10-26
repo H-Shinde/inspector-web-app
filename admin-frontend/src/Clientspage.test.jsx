@@ -1,59 +1,42 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import Clientspage from './Clientspage';
-
+import { listClients, createClient } from './bidsApi';
+jest.mock('./bidsApi', () => ({ listClients: jest.fn(), createClient: jest.fn() }));
+const client = { id: 42, name: 'Database Client', businessName: 'Database Company', streetAddress: '100 Main Street', city: 'Boston', state: 'MA', zipCode: '02108', email: 'client@example.com' };
 beforeEach(() => {
-    localStorage.clear();
-    sessionStorage.clear();
-    window.history.replaceState(null, '', '/Clientspage?clientId=1');
+    jest.clearAllMocks(); localStorage.clear(); sessionStorage.clear();
+    listClients.mockResolvedValue([client]);
+    createClient.mockResolvedValue({ ...client, id: 43, name: 'New Client' });
+    window.history.replaceState(null, '', '/Clientspage?clientId=42');
     HTMLDialogElement.prototype.showModal = function () { this.open = true; };
-    HTMLDialogElement.prototype.close = function () { this.open = false; };
 });
-
-test('loads the requested client without a sidebar', () => {
-    const { unmount } = render(<Clientspage />);
-    expect(screen.queryByRole('complementary', { name: 'Client selection' })).not.toBeInTheDocument();
-    expect(screen.getByLabelText('Name')).toHaveValue('Avery Wilson');
-    unmount();
-    window.history.replaceState(null, '', '/Clientspage?clientId=2');
+test('loads the selected server client and shows separate address fields', async () => {
     render(<Clientspage />);
-    expect(screen.getByLabelText('Name')).toHaveValue('Sam Bennett');
-    expect(screen.getByLabelText('Email')).toHaveValue('sam@example.com');
+    expect(await screen.findByLabelText('Name')).toHaveValue('Database Client');
+    expect(screen.getByLabelText('Street Address')).toHaveValue('100 Main Street');
+    expect(screen.getByLabelText('City')).toHaveValue('Boston');
+    expect(screen.getByLabelText('ZIP')).toHaveValue('02108');
+    expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();
 });
-
-test('adds a client and selects their information', () => {
+test('shows missing client rather than substituting browser data', async () => {
+    window.history.replaceState(null, '', '/Clientspage?clientId=99');
     render(<Clientspage />);
+    expect(await screen.findByText('Client not found.')).toBeInTheDocument();
+});
+test('creates a new client and selects its server ID', async () => {
+    render(<Clientspage />);
+    await screen.findByLabelText('Name');
     fireEvent.click(screen.getByRole('button', { name: '+ Add Client' }));
-    const popup = within(screen.getByRole('dialog'));
-    fireEvent.change(popup.getByLabelText('Name'), { target: { value: 'Riley Stone' } });
-    fireEvent.click(popup.getByRole('button', { name: 'Save Client' }));
-    expect(screen.getByLabelText('Name')).toHaveValue('Riley Stone');
+    fireEvent.change(screen.getByLabelText('Name', { selector: '#add-client-name' }), { target: { value: 'New Client' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save Client' }));
+    expect(await screen.findByText('Client has been added.')).toBeInTheDocument();
+    expect(window.location.search).toBe('?clientId=43');
+    expect(screen.getByLabelText('Name')).toHaveValue('New Client');
 });
-
-test('saves inline edits persistently without changing other clients', () => {
-    const { unmount } = render(<Clientspage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
-    expect(screen.queryByLabelText('# ID')).not.toBeInTheDocument();
-    expect(document.querySelector('input[type=hidden][name=id]')).toHaveValue('1');
-    fireEvent.change(screen.getByLabelText('Name'), { target: { value: ' Avery Updated ' } });
-    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'updated@example.com' } });
-    fireEvent.change(screen.getByLabelText('Total Bids'), { target: { value: '22' } });
-    fireEvent.change(screen.getByLabelText('Status'), { target: { value: 'Pending' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }));
-    const saved = JSON.parse(localStorage.getItem('clients'));
-    expect(saved.find((row) => row.id === 1)).toMatchObject({ name: 'Avery Updated', email: 'updated@example.com', totalBids: 22, status: 'Pending' });
-    expect(saved.find((row) => row.id === 2).name).toBe('Sam Bennett');
-    unmount();
+test('retries loading errors', async () => {
+    listClients.mockRejectedValueOnce(new Error('Server unavailable.'));
     render(<Clientspage />);
-    expect(screen.getByLabelText('Name')).toHaveValue('Avery Updated');
-    expect(screen.getByLabelText('Email')).toHaveValue('updated@example.com');
-});
-
-test('cancels inline changes and keeps the selected client while editing', () => {
-    render(<Clientspage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
-    fireEvent.change(screen.getByLabelText('Name'), { target: { value: '   ' } });
-    expect(screen.getByRole('button', { name: 'Save Changes' })).toBeDisabled();
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-    expect(screen.getByLabelText('Name')).toHaveValue('Avery Wilson');
-    expect(localStorage.getItem('clients')).toBeNull();
+    expect(await screen.findByRole('alert')).toHaveTextContent('Server unavailable.');
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(await screen.findByLabelText('Name')).toHaveValue('Database Client');
 });

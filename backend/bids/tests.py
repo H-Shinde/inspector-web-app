@@ -24,6 +24,27 @@ class BidApiTests(TestCase):
     def send(self, url='/api/bids/', data=None, method='post'):
         return getattr(self.client, method)(url, data=json.dumps(self.payload if data is None else data), content_type='application/json')
 
+    def test_calculation_valuation_can_be_created_and_updated(self):
+        response = self.send(data={**self.payload, 'appraisalType': 'Calculation Valuation'})
+        self.assertEqual(response.status_code, 201, response.content)
+        record = response.json()
+        self.assertEqual(record['appraisalType'], 'Calculation Valuation')
+        self.assertEqual(Decimal(record['totalBid']), Decimal('1400'))
+        response = self.send(url=f"/api/bids/{record['id']}/", method='patch', data={'appraisalType': 'Business Valuation (BV)'})
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(response.json()['appraisalType'], 'Business Valuation (BV)')
+
+    def test_rejects_invalid_contact_and_location_values(self):
+        for field, value in [('clientPhone', '123'), ('subjectContactPhone', 'letters'), ('state', 'ZZ'), ('clientState', 'XX'), ('zipCode', '1234'), ('clientZipCode', '10001oops'), ('city', '123')]:
+            with self.subTest(field=field):
+                response = self.send(data={**self.payload, field: value})
+                self.assertEqual(response.status_code, 400, response.content)
+        self.assertFalse(Bid.objects.exists())
+
+    def test_accepts_formatted_contact_and_location_values(self):
+        response = self.send(data={**self.payload, 'clientPhone': '+1 (202) 555-0101 ext. 42', 'subjectContactPhone': '202-555-0101', 'city': 'New York', 'state': 'NY', 'zipCode': '10001-1234'})
+        self.assertEqual(response.status_code, 201, response.content)
+
     def create_bid(self):
         response = self.send()
         self.assertEqual(response.status_code, 201, response.content)

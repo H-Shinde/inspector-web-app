@@ -1,3 +1,4 @@
+import { appraisalTypeLabel } from './appraisalTypes';
 import { drawLine, PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { calculateTotalBid } from './bidFields';
 
@@ -10,7 +11,7 @@ const money = (value) => value === '' || value === undefined || value === null ?
 
 export function agreementValues(bid) {
     return {
-        Order_Type: 'Business Valuation',
+        Order_Type: appraisalTypeLabel(bid.appraisalType) || 'Business Valuation',
         Report_Type: bid.reportFormat || '',
         BV_RATE: money(bid.bidAmount),
         RUSH_RATE: bid.rush === true && Number(bid.rushDiscount) > 0 ? `-${money(bid.rushDiscount)}` : '',

@@ -1,5 +1,5 @@
 export const inspectorFields = [
-    ['name', 'Inspector', 'text'], ['company', 'Company', 'text'],
+    ['name', 'Inspector', 'text'],
     ['distance', 'Distance (miles)', 'number'], ['focus', 'Focus', 'select'],
     ['phone', 'Phone', 'tel'], ['email', 'E-mail', 'email'],
     ['address', 'Address', 'text'], ['cityStateZip', 'City, State, Zip', 'text'],

@@ -186,26 +186,35 @@ test('restores previously submitted jobs to the original status without a dropdo
     expect(screen.getByLabelText('Status')).toHaveValue('Assigned');
 });
 
-test('uploads an image with a new item and persists its image reference', async () => {
+test('adds an item without a picture upload option', async () => {
     render(<Jobspage />);
     fireEvent.click(screen.getByRole('button', { name: 'Items' }));
     fireEvent.click(screen.getByRole('button', { name: '+ Add item' }));
-    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Forklift photo' } });
-    const file = new File(['image'], 'forklift.png', { type: 'image/png' });
-    fireEvent.change(screen.getByLabelText('Item image'), { target: { files: [file] } });
-    expect(screen.getByAltText('Selected item')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Item image')).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Forklift' } });
     fireEvent.click(screen.getByRole('button', { name: 'Add item' }));
-    await screen.findByText('Forklift photo');
-    expect(saveItemImage).toHaveBeenCalledWith('job-1-item-new-item-id', file);
-    expect(JSON.parse(sessionStorage.getItem('jobItems'))['1'][0]).toMatchObject({ imageId: 'job-1-item-new-item-id', imageName: 'forklift.png' });
+    await screen.findByText('Forklift');
+    expect(JSON.parse(sessionStorage.getItem('jobItems'))['1'][0]).toMatchObject({ name: 'Forklift', itemId: 'new-item-id' });
+    expect(saveItemImage).not.toHaveBeenCalled();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 });
 
-test('rejects non-image attachments', () => {
+test('does not save negative job fees', () => {
+    render(<Jobspage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Valuation & Fees' }));
+    fireEvent.change(screen.getByLabelText('Total Appraisal'), { target: { value: '-10' } });
+    expect(screen.getByLabelText('Total Appraisal')).toBeInvalid();
+    const saved = JSON.parse(sessionStorage.getItem('jobSectionDetails'));
+    expect(saved['1']['Inspection Fees'].totalAppraisal).not.toBe('-10');
+});
+
+test('does not add an item with an invalid year', () => {
     render(<Jobspage />);
     fireEvent.click(screen.getByRole('button', { name: 'Items' }));
     fireEvent.click(screen.getByRole('button', { name: '+ Add item' }));
-    fireEvent.change(screen.getByLabelText('Item image'), { target: { files: [new File(['pdf'], 'file.pdf', { type: 'application/pdf' })] } });
-    expect(screen.getByRole('alert')).toHaveTextContent('Choose a PNG');
-    expect(screen.queryByAltText('Selected item')).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Forklift' } });
+    fireEvent.change(screen.getByLabelText('Year'), { target: { value: 'bad year' } });
+    fireEvent.submit(screen.getByRole('button', { name: 'Add item' }).closest('form'));
+    expect(screen.getByRole('alert')).toHaveTextContent('four-digit year');
+    expect(sessionStorage.getItem('jobItems')).toBeNull();
 });

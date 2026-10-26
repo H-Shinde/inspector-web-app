@@ -17,6 +17,7 @@ test('requests a reset link and confirms the request only after the server succe
 test('reset failures do not pretend an email was sent', async () => {
   authPost.mockRejectedValue(new Error('Password reset is not available yet.'));
   render(<ForgotPassword />);
+  fireEvent.change(screen.getByLabelText('Registered email address'), { target: { value: 'user@example.com' } });
   fireEvent.submit(screen.getByRole('form'));
   expect(await screen.findByRole('alert')).toHaveTextContent('not available');
   expect(screen.queryByRole('status')).not.toBeInTheDocument();

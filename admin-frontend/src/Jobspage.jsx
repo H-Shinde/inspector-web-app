@@ -1,6 +1,8 @@
+import { fieldError, validateInput } from './fieldValidation';
+import ValidatedForm from './ValidatedForm';
+import { appraisalTypeLabel } from './appraisalTypes';
 import LogoutButton from './LogoutButton';
 import ItemImage from './ItemImage';
-import { saveItemImage, deleteItemImage } from './itemImages';
 import { restoreJobStatus } from './jobStatus';
 import SendJobToInspector from './SendJobToInspector';
 import { completeJob, isCompletedJob, isDeletedRecord } from './historyRecords';
@@ -78,15 +80,8 @@ function Jobspage() {
     const inspectors = inspectorList.map((inspector) => inspector.name);
     const [menuOpen, setMenuOpen] = useState(false);
     const [viewedItemId, setViewedItemId] = useState(null);
-    const [itemImageFile, setItemImageFile] = useState(null);
-    const [itemImageError, setItemImageError] = useState('');
+    const [itemSaveError, setItemSaveError] = useState('');
     const [savingItem, setSavingItem] = useState(false);
-    const [itemImagePreview, setItemImagePreview] = useState('');
-    useEffect(() => {
-        if (!itemImageFile) { setItemImagePreview(''); return; }
-        const url = URL.createObjectURL(itemImageFile); setItemImagePreview(url);
-        return () => URL.revokeObjectURL(url);
-    }, [itemImageFile]);
     const [itemEditor, setItemEditor] = useState(null);
     const [itemAdded, setItemAdded] = useState(false);
     useEffect(() => {
@@ -116,7 +111,7 @@ function Jobspage() {
     useEffect(() => {
         if (itemEditor && !itemDialog.current.open) itemDialog.current.showModal();
     }, [itemEditor]);
-    const closeItem = () => { if (savingItem) return; itemDialog.current.close(); setItemEditor(null); setItemImageFile(null); setItemImageError(''); };
+    const closeItem = () => { if (savingItem) return; if (itemEditor?.mode === 'edit') { const inputs = itemDialog.current.querySelectorAll('input'); for (const input of inputs) validateInput(input); if (!itemDialog.current.querySelector('form').reportValidity()) return; } itemDialog.current.close(); setItemEditor(null); setItemSaveError(''); };
     const [activeSection, setActiveSection] = useState('Job Information');
     const [details, setDetails] = useState(() => seedJobDemoSections(readBidList('availableJobs').map(withJobDemoData)));
     const updateField = (sectionName, field, value) => {
@@ -179,7 +174,7 @@ function Jobspage() {
     };
     const editItemField = (field, value) => {
         const updated = { ...itemEditor.item, [field]: value };
-        if (itemEditor.mode === 'edit') {
+        if (itemEditor.mode === 'edit' && !fieldError('year', updated.year) && updated.name?.trim()) {
             persistItems(items.map((item) => item.itemId === updated.itemId ? updated : item));
         }
         setItemEditor({ ...itemEditor, item: updated });
@@ -189,19 +184,16 @@ function Jobspage() {
         if (itemEditor.mode !== 'add' || savingItem) return;
         const name = itemEditor.item.name?.trim();
         if (!name) return;
-        setItemImageError('');
+        setItemSaveError('');
         const itemId = crypto.randomUUID();
-        const imageId = itemImageFile ? `job-${job.id}-item-${itemId}` : null;
         setSavingItem(true);
         try {
-            if (imageId) await saveItemImage(imageId, itemImageFile);
-            persistItems([...items, { ...itemEditor.item, name, itemId, ...(imageId ? { imageId, imageName: itemImageFile.name } : {}) }]);
+            persistItems([...items, { ...itemEditor.item, name, itemId }]);
             setViewedItemId(null);
-            itemDialog.current.close(); setItemEditor(null); setItemImageFile(null); setItemImageError('');
+            itemDialog.current.close(); setItemEditor(null); setItemSaveError('');
             setItemAdded(true);
         } catch {
-            if (imageId) await deleteItemImage(imageId).catch(() => {});
-            setItemImageError('Unable to save the item. Please try again.');
+            setItemSaveError('Unable to save the item. Please try again.');
         } finally { setSavingItem(false); }
     };
     const importCsv = (event) => {
@@ -247,6 +239,7 @@ function Jobspage() {
     const displayValue = (field) => {
         const value = job?.[field];
         if (value === undefined || value === null || value === '') return 'Not provided';
+        if (field === 'appraisalType') return appraisalTypeLabel(value);
         return typeof value === 'boolean' ? (value ? 'Yes' : 'No') : String(value);
     };
 
@@ -332,10 +325,10 @@ function Jobspage() {
                                     {sectionFields[sectionName].map(([field, label]) => (
                                         <div className="bid_detail_field" key={field}>
                                             <label htmlFor={`section-${sectionName}-${field}`}>{label}</label>
-                                            <input id={`section-${sectionName}-${field}`} type={['other', 'additionalLocations', 'rush', 'meNote'].includes(field) ? 'text' : 'number'}
-                                                min="0" step={['count', 'totalInspectedItems', 'totalNonInspectedItems'].includes(field) ? '1' : '0.01'}
+                                            <input id={`section-${sectionName}-${field}`} type={['other', 'rush', 'meNote'].includes(field) ? 'text' : 'number'}
+                                                min="0" step={['count', 'additionalLocations', 'totalInspectedItems', 'totalNonInspectedItems'].includes(field) ? '1' : '0.01'}
                                                 value={details[selectedId]?.[sectionName]?.[field] ?? ''}
-                                                onChange={(event) => updateField(sectionName, field, event.target.value)} />
+                                                onChange={(event) => { if (validateInput(event.target)) { event.target.reportValidity(); return; } updateField(sectionName, field, event.target.value); }} />
                                         </div>
                                     ))}
                                 </div>
@@ -420,26 +413,13 @@ function Jobspage() {
         </main>
         <dialog ref={itemDialog} className="popup" aria-labelledby="item-dialog-title" onCancel={(event) => { event.preventDefault(); closeItem(); }}>
             {itemEditor && (
-                <form onSubmit={addItem}>
+                <ValidatedForm onSubmit={addItem}>
                     <div className="bid_form_header">
                         <h2 id="item-dialog-title">{itemEditor.mode === 'add' ? 'Add item' : 'Edit item'}</h2>
                         <button type="button" className="bid_form_close" aria-label="Close item" onClick={closeItem} disabled={savingItem}>×</button>
                     </div>
                     <div className="bid_form_body bid_form_grid">
-                        {itemEditor.mode === 'add' && <div className="bid_form_field bid_form_full">
-                            <label htmlFor="item-image">Item image</label>
-                            <input id="item-image" type="file" accept="image/png,image/jpeg,image/webp,image/gif" disabled={savingItem} onChange={(event) => {
-                                const file = event.target.files?.[0];
-                                setItemImageFile(null); setItemImageError('');
-                                if (!file) return;
-                                if (!['image/png', 'image/jpeg', 'image/webp', 'image/gif'].includes(file.type)) { setItemImageError('Choose a PNG, JPEG, WebP, or GIF image.'); event.target.value = ''; return; }
-                                if (file.size > 10 * 1024 * 1024) { setItemImageError('Choose an image smaller than 10 MB.'); event.target.value = ''; return; }
-                                setItemImageFile(file);
-                            }} />
-                            <p className="bid_form_hint">PNG, JPEG, WebP, or GIF, up to 10 MB.</p>
-                            {itemImagePreview && <div className="job_item_photo"><img src={itemImagePreview} alt="Selected item" /><button type="button" className="bid_form_cancel" disabled={savingItem} onClick={() => { setItemImageFile(null); setItemImageError(''); document.getElementById('item-image').value = ''; }}>Remove image</button></div>}
-                        </div>}
-                        {itemImageError && <p className="add_bid_error" role="alert">{itemImageError}</p>}
+                        {itemSaveError && <p className="add_bid_error" role="alert">{itemSaveError}</p>}
                         {itemEditor.mode !== 'add' && <ItemImage item={itemEditor.item} />}
                         {[...itemDetailFields, ['type', 'Type']].map(([field, title]) => (
                             <div className="bid_form_field" key={field}>
@@ -454,7 +434,7 @@ function Jobspage() {
                         <button type="button" className="bid_form_cancel" disabled={savingItem} onClick={closeItem}>{itemEditor.mode === 'add' ? 'Cancel' : 'Done'}</button>
                         {itemEditor.mode === 'add' && <button type="submit" className="bid_form_save" disabled={!itemEditor.item.name?.trim() || savingItem}>{savingItem ? 'Saving…' : 'Add item'}</button>}
                     </div>
-                </form>
+                </ValidatedForm>
             )}
         </dialog>
         <dialog ref={completeDialog} className="popup confirm_popup" aria-labelledby="complete-job-title" onCancel={(event) => { event.preventDefault(); closeCompleteConfirm(); }}>

@@ -1,3 +1,4 @@
+import { appraisalTypeLabel } from './appraisalTypes';
 import { getBidSections } from './bidSections';
 import { useState } from 'react';
 import { FaEye } from 'react-icons/fa';
@@ -104,7 +105,7 @@ export default function HistoryRecordDetails({ record, onBack }) {
                             <ReadOnlyField id="record-status" label="Status" value={show(record.status)} />
                             {dateValue && <ReadOnlyField id="record-status-date" label={dateLabel} value={dateValue} />}
                             {recordFields.filter(([field]) => field !== 'status').map(([field, label]) => (
-                                <ReadOnlyField key={field} id={`record-${field}`} label={label} value={show(record[field])} />
+                                <ReadOnlyField key={field} id={`record-${field}`} label={label} value={show(field === 'appraisalType' ? appraisalTypeLabel(record[field]) : record[field])} />
                             ))}
                         </div>
                     ) : sectionGroups[activeSection] ? (

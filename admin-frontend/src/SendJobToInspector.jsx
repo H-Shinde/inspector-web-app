@@ -1,3 +1,4 @@
+import ValidatedForm from './ValidatedForm';
 import { createPortal } from 'react-dom';
 import { useEffect, useRef, useState } from 'react';
 import { getInspectors } from './inspectorSelection';
@@ -61,13 +62,13 @@ export default function SendJobToInspector({ job, sections, className = 'bid_bac
                     <div className="agreement_dialog_heading"><h2 id={`inspector-request-title-${job.id}`}>Send Job to Inspector</h2><button type="button" className="bid_form_close" aria-label="Close inspector request" onClick={close}>×</button></div>
                     <p>Review the inspection request and email draft for {inspector.name}.</p>
                     <p>Details not provided remain blank in the PDF for completion.</p>
-                    <form id={`inspector-request-email-${job.id}`} className="bid_email_preview" onSubmit={(event) => { event.preventDefault(); window.location.href = bidEmailLink(email); }}>
+                    <ValidatedForm id={`inspector-request-email-${job.id}`} className="bid_email_preview" onSubmit={(event) => { event.preventDefault(); window.location.href = bidEmailLink(email); }}>
                         <h3>Email to inspector</h3>
                         <label htmlFor={`inspector-request-to-${job.id}`}>To</label><input id={`inspector-request-to-${job.id}`} type="email" required value={email.to} onChange={(event) => setEmail({ ...email, to: event.target.value })} />
                         <label htmlFor={`inspector-request-subject-${job.id}`}>Subject</label><input id={`inspector-request-subject-${job.id}`} required value={email.subject} onChange={(event) => setEmail({ ...email, subject: event.target.value })} />
                         <label htmlFor={`inspector-request-body-${job.id}`}>Message</label><textarea id={`inspector-request-body-${job.id}`} required rows={12} value={email.body} onChange={(event) => setEmail({ ...email, body: event.target.value })} />
                         <p>Review the message and fill any bracketed details. Download the inspection request and attach it in your email app before sending.</p>
-                    </form>
+                    </ValidatedForm>
                     {loading && <p role="status">Creating inspection request…</p>}
                     {error && <p role="alert" className="add_bid_error">{error}</p>}
                     {pdf && <iframe title="Inspection request PDF preview" className="agreement_pdf_preview" src={pdf.url} />}

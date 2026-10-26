@@ -29,7 +29,7 @@ export function withJobDemoData(job) {
         && existingItems.length === 4 && existingItems.every((item, index) => item.name === items[index].name);
     const expandedItems = isOriginalDemoList ? [...existingItems, ...items.slice(4)] : existingItems ?? items;
     return {
-        appraisalType: ['Commercial appraisal', 'Equipment appraisal', 'Market valuation'][(n - 1) % 3],
+        appraisalType: ['Business Valuation (BV)', 'Machinery & Equipment (M&E)', 'Calculation Valuation'][(n - 1) % 3],
         subjectContactPhone: `202-555-${String(100 + n % 100).padStart(4, '0')}`,
         propertyType: ['Office', 'Warehouse', 'Retail', 'Industrial'][(n - 1) % 4],
         rush,

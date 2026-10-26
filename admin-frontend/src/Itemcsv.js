@@ -1,3 +1,4 @@
+import { fieldError } from './fieldValidation';
 // Converts CSV text into job items. Header names are matched loosely
 // (case, spaces and symbols are ignored), e.g. "Hours/Miles", "hours_miles" and "Mileage/hours" all map to hoursMiles.
 
@@ -57,7 +58,11 @@ export function csvToItems(text) {
             const value = cells[index]?.trim();
             if (field && value && item[field] === undefined) item[field] = value;
         });
-        if (item.name) items.push(item); else skipped++;
+        if (item.name) {
+            const error = fieldError('year', item.year);
+            if (error) throw new Error(`CSV row ${items.length + skipped + 2}: ${error}`);
+            items.push(item);
+        } else skipped++;
     }
     return { items, skipped, ignoredColumns };
 }

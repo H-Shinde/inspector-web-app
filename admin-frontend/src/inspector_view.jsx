@@ -1,3 +1,4 @@
+import ValidatedForm from './ValidatedForm';
 import LogoutButton from './LogoutButton';
 import { useEffect, useRef, useState } from 'react';
 import navLogo from './bison_logo_nav.png';
@@ -66,7 +67,7 @@ export default function InspectorView() {
             <aside className="inspector_profile_sidebar" aria-label="Inspector list">
                 <h2>Inspectors <span>{inspectors.length}</span></h2>
                 <ul>{[...inspectors].sort((a, b) => a.name.localeCompare(b.name)).map((entry) => <li key={entry.id}>
-                    <button type="button" aria-pressed={inspector?.id === entry.id} onClick={() => openInspector(entry)}>{entry.name}<small>{entry.company}</small></button>
+                    <button type="button" aria-pressed={inspector?.id === entry.id} onClick={() => openInspector(entry)}>{entry.name}<small>{entry.cityStateZip}</small></button>
                 </li>)}</ul>
                 {!inspectors.length && <p>No inspectors available.</p>}
             </aside>
@@ -81,11 +82,11 @@ export default function InspectorView() {
         </main>
         </div>
         <dialog ref={dialog} className="popup" aria-labelledby="add-inspector-title" onCancel={(event) => { event.preventDefault(); close(); }}>
-            {adding && <form onSubmit={submit}>
+            {adding && <ValidatedForm onSubmit={submit}>
                 <div className="bid_form_header"><h2 id="add-inspector-title">Add Inspector</h2><button type="button" className="bid_form_close" aria-label="Close dialog" onClick={close}>×</button></div>
                 <InspectorFormFields draft={draft} onChange={(field, value) => setDraft({ ...draft, [field]: value })} />
                 <div className="actions"><button type="button" className="bid_form_cancel" onClick={close}>Cancel</button><button type="submit" className="bid_form_save" disabled={!draft.name.trim() || !draft.email.trim()}>Send Invite</button></div>
-            </form>}
+            </ValidatedForm>}
         </dialog>
         <footer className="bid_page_footer" />
     </div>;

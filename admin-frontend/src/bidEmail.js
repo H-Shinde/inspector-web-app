@@ -1,3 +1,4 @@
+import { appraisalTypeLabel } from './appraisalTypes';
 import { calculateTotalBid } from './bidFields';
 
 export function businessValuationEmail(bid) {
@@ -5,7 +6,7 @@ export function businessValuationEmail(bid) {
     const days = bid.completionDays ? `${bid.completionDays} business days` : '[completion time]';
     return {
         to: bid.clientEmail?.trim() || '',
-        subject: `Business Valuation Bid – ${bid.businessName || '[Business name]'}`,
+        subject: `${appraisalTypeLabel(bid.appraisalType) || 'Business Valuation'} Bid – ${bid.businessName || '[Business name]'}`,
         body: `${firstName},\n\nBison Valuation can complete a USPAP ${bid.reportFormat || '[Report type]'} report of ${bid.businessName || '[Business name]'} for\n$${calculateTotalBid(bid)} completed in ${days}, from a signed Engagement Agreement.\n\nBison Valuation is accredited by 2 separate business valuation societies, the National\nAssociation of Certified Valuators and Analysts and the International Society of\nBusiness Appraisers.\n\nRef.: ${bid.referenceNumber || '[Reference number]'}`,
     };
 }

@@ -1,3 +1,4 @@
+import ValidatedForm from './ValidatedForm';
 import LogoutButton from './LogoutButton';
 import { useEffect, useRef, useState } from 'react';
 import DataTable from 'datatables.net-react';
@@ -11,11 +12,9 @@ import { buildInspectorInviteLink, createInspectorInvite, getInspectors, selectG
 
 DataTable.use(DT);
 
-const fields = [['id', '# ID'], ['name', 'Name'], ['distance', 'Distance'], ['company', 'Company'], ['status', 'Status']];
+const fields = [['id', '# ID'], ['name', 'Name'], ['cityStateZip', 'Location'], ['status', 'Status']];
 const columns = [
-    ...fields.map(([data, title]) => ({ data, title, visible: data !== 'id', searchable: data !== 'id', defaultContent: '', render: data === 'distance'
-        ? (value, type) => type === 'display' ? (value === '' || value == null ? 'Not provided' : `${Number(value)} miles`) : value
-        : DT.render.text() })),
+    ...fields.map(([data, title]) => ({ data, title, visible: data !== 'id', searchable: data !== 'id', defaultContent: '', render: DT.render.text() })),
     { data: null, title: 'Actions', orderable: false, searchable: false },
 ];
 const ACTIONS_COLUMN = fields.length;
@@ -122,7 +121,7 @@ export default function Inspector() {
                 </>}
             </dialog>
             <dialog ref={dialog} className="popup" aria-labelledby="inspector-dialog-title" onCancel={(event) => { event.preventDefault(); closeInvite(); }}>
-                {inviting && <form onSubmit={copyInviteLink}>
+                {inviting && <ValidatedForm onSubmit={copyInviteLink}>
                     <div className="bid_form_header"><h2 id="inspector-dialog-title">Invite Inspector</h2><button type="button" className="bid_form_close" aria-label="Close dialog" onClick={closeInvite}>×</button></div>
                     <div className="bid_form_body">
                         <div className="bid_form_field">
@@ -139,7 +138,7 @@ export default function Inspector() {
                         <button type="button" className="bid_form_cancel" onClick={closeInvite}>Close</button>
                         <button type="submit" className="bid_form_save" disabled={!email.trim()}>Copy invite link</button>
                     </div>
-                </form>}
+                </ValidatedForm>}
             </dialog>
             <footer className="bid_page_footer" />
         </div>

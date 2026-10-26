@@ -1,3 +1,4 @@
+import { appraisalTypeLabel } from './appraisalTypes';
 import { listBids } from './bidsApi';
 import LogoutButton from './LogoutButton';
 import { useEffect, useRef, useState } from 'react';
@@ -22,7 +23,7 @@ const fields = [
     ['pdf', 'PDF'], ['discount', 'Discount'], ['inspector', 'Assigned inspector'],
 ];
 const summaryFields = ['recordType', 'businessName', 'name', 'date', 'status', 'inspector', 'appraisalType'].map((key) => fields.find(([field]) => field === key));
-const columns = summaryFields.map(([data, title]) => ({ data, title, defaultContent: '', render: DT.render.text() }));
+const columns = summaryFields.map(([data, title]) => ({ data, title, defaultContent: '', render: data === 'appraisalType' ? (value, type) => DT.render.text().display(appraisalTypeLabel(value)) : DT.render.text() }));
 
 export default function History() {
     const [rows, setRows] = useState(() => readHistoryRecords().filter((row) => row.recordType !== 'Bid'));

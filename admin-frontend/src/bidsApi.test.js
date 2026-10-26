@@ -21,3 +21,17 @@ test('updates, decisions, deletes, and archives use the correct API URLs', async
   fetch.mockReset(); allowWrite(); await deleteBid(52); expect(fetch.mock.calls[1][1].method).toBe('DELETE');
   fetch.mockReset(); fetch.mockResolvedValueOnce(response({ bids: [] })); await listBids(undefined, true); expect(fetch.mock.calls[0][0]).toBe('/api/bids/?history=1');
 });
+
+test('creates and lists clients using authentication and CSRF', async () => {
+  const { createClient, listClients, clientToBidFields } = await import('./bidsApi');
+  const client = { id: 42, name: 'Avery', businessName: 'Example Co', streetAddress: '100 Main St', city: 'Boston', state: 'MA', zipCode: '02108' };
+  allowWrite(client);
+  expect(await createClient({ name: 'Avery' })).toEqual(client);
+  const [url, request] = fetch.mock.calls[1];
+  expect(url).toBe('/api/clients/');
+  expect(request.credentials).toBe('include');
+  expect(request.headers['X-CSRFToken']).toBe('token');
+  fetch.mockReset(); fetch.mockResolvedValueOnce(response({ clients: [client] }));
+  expect(await listClients()).toEqual([client]);
+  expect(clientToBidFields(client)).toMatchObject({ clientCompany: 'Example Co', clientName: 'Avery', clientStreetAddress: '100 Main St', clientCity: 'Boston', clientState: 'MA', clientZipCode: '02108' });
+});

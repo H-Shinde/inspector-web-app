@@ -43,7 +43,10 @@ test('signed-out users see login and return to their requested private URL after
 test('failed login stays on the form and displays the error', async () => {
   authPost.mockRejectedValue(new Error('Invalid email or password.'));
   render(<App />);
-  fireEvent.submit(await screen.findByRole('form', { name: 'Sign in' }));
+  await screen.findByRole('form', { name: 'Sign in' });
+  fireEvent.change(screen.getByLabelText('Email address'), { target: { value: 'user@example.com' } });
+  fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'secret' } });
+  fireEvent.submit(screen.getByRole('form', { name: 'Sign in' }));
   expect(await screen.findByRole('alert')).toHaveTextContent('Invalid email or password.');
   expect(window.location.assign).not.toHaveBeenCalled();
   expect(screen.getByRole('button', { name: 'Sign in' })).toBeEnabled();
@@ -62,6 +65,9 @@ test('session errors keep private pages hidden and offer retry', async () => {
 test('never redirects a login to an external next URL', async () => {
   window.location.search = '?next=https://example.com';
   render(<App />);
-  fireEvent.submit(await screen.findByRole('form', { name: 'Sign in' }));
+  await screen.findByRole('form', { name: 'Sign in' });
+  fireEvent.change(screen.getByLabelText('Email address'), { target: { value: 'user@example.com' } });
+  fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'secret' } });
+  fireEvent.submit(screen.getByRole('form', { name: 'Sign in' }));
   await waitFor(() => expect(window.location.assign).toHaveBeenCalledWith('/Homepage'));
 });

@@ -1,3 +1,5 @@
+import ValidatedForm from './ValidatedForm';
+import { CALCULATION_VALUATION, appraisalTypeLabel } from './appraisalTypes';
 import LogoutButton from './LogoutButton';
 import { createServerBid, listClients, clientToBidFields, listBidInspectors, uploadBidAgreement } from './bidsApi';
 import { sortInspectorsByDistance } from './inspectorDistance';
@@ -75,7 +77,7 @@ function AddBidpage() {
             setError('Enter a business name and contact name.');
             return;
         }
-        if (draft.appraisalType === BUSINESS_VALUATION || isMachinery) {
+        if ([BUSINESS_VALUATION, CALCULATION_VALUATION].includes(draft.appraisalType) || isMachinery) {
             setAgreementError('');
             setPreviewUrl('');
             setEmailDraft((isMachinery ? machineryEquipmentEmail : businessValuationEmail)({ ...submissionDraft, referenceNumber }));
@@ -159,13 +161,13 @@ function AddBidpage() {
         }}>
             <div className="confirm_body">
                 <div className="agreement_dialog_heading">
-                <h2 id="agreement-confirm-title">{completedAgreement ? 'Bid and agreement created' : isMachinery ? 'Confirm Machinery & Equipment bid?' : 'Confirm Business Valuation bid?'}</h2>
+                <h2 id="agreement-confirm-title">{completedAgreement ? 'Bid and agreement created' : `Confirm ${appraisalTypeLabel(draft.appraisalType)} bid?`}</h2>
                 <button type="button" className="bid_form_close" aria-label="Close popup" disabled={generating} onClick={closeConfirmation}>×</button>
                 </div>
                 {completedAgreement ? <p>Your bid is Pending. Download the filled engagement agreement below.</p> : <p>Create this bid and fill the Bison Valuation engagement agreement with its business, contact, report, pricing, and reference details?</p>}
                 <p>Signatures and details not provided in the form will remain blank for completion.</p>
                 {!isMachinery && draft.pdfOnly && Number(draft.discount) !== 100 && <p>The supplied agreement specifies a $100 PDF-only discount. Your entered discount is {`$${Number(draft.discount || 0).toFixed(2)}`}; review this before confirming.</p>}
-                {emailDraft && <form id="bv-client-email" className="bid_email_preview" onSubmit={openClientEmail}>
+                {emailDraft && <ValidatedForm id="bv-client-email" className="bid_email_preview" onSubmit={openClientEmail}>
                     <h3>Email to client</h3>
                     <label htmlFor="bid-email-to">To</label>
                     <input id="bid-email-to" type="email" required value={emailDraft.to} disabled={generating} onChange={(event) => setEmailDraft({ ...emailDraft, to: event.target.value })} />
@@ -174,7 +176,7 @@ function AddBidpage() {
                     <label htmlFor="bid-email-body">Message</label>
                     <textarea id="bid-email-body" required rows={12} value={emailDraft.body} disabled={generating} onChange={(event) => setEmailDraft({ ...emailDraft, body: event.target.value })} />
                     <p>Review the message and fill any bracketed details. After creating the bid, open it in your email app to send. Download and attach the engagement agreement there.</p>
-                </form>}
+                </ValidatedForm>}
                 {previewUrl && <div>
                     <iframe title="Engagement agreement PDF preview" src={previewUrl} className="agreement_pdf_preview" />
                     <a className="bid_back_button agreement_preview_download" href={previewUrl} download={previewFilename}>Download Preview PDF</a>
@@ -233,7 +235,7 @@ function AddBidpage() {
             </div>
         </header>
         <main>
-            <form className="fieldsframe" onSubmit={handleAdd} aria-label="Add bid">
+            <ValidatedForm className="fieldsframe" onSubmit={handleAdd} aria-label="Add bid">
                 {visibleSections.map(([title, fields]) => (
                     <fieldset className="add_bid_section" key={title}>
                         <legend>{title}</legend>
@@ -243,7 +245,7 @@ function AddBidpage() {
                                     <label htmlFor="add-client-select">Select client</label>
                                     <select id="add-client-select" disabled={clientsLoading || !!clientsError} value={clientId} onChange={(event) => selectClient(event.target.value)}>
                                         <option value="">{clientsLoading ? 'Loading clients…' : 'Select a client to autofill'}</option>
-                                        {clients.map((client) => <option key={client.id} value={client.id}>{[client.company ?? client.companyName, client.name ?? client.contactName].filter(Boolean).join(' – ')}</option>)}
+                                        {clients.map((client) => <option key={client.id} value={client.id}>{[client.businessName ?? client.company ?? client.companyName, client.name ?? client.contactName].filter(Boolean).join(' – ')}</option>)}
                                     </select>
                                     {clientsError && <p role="alert" className="add_bid_error">{clientsError} <button type="button" className="bid_back_button" onClick={() => setClientAttempt((value) => value + 1)}>Retry</button></p>}
                                 </div>
@@ -254,8 +256,9 @@ function AddBidpage() {
                                     {type === 'appraisalType' ? (
                                         <select id={`add-${field}`} name={field} required value={draft[field]} onChange={(event) => setDraft({ ...draft, [field]: event.target.value, reportFormat: '' })}>
                                             <option value="">Select appraisal type</option>
-                                            <option value="Business Valuation (BV)">Business Valuation (BV)</option>
-                                            <option value="Machinery & Equipment (M&E)">Machinery &amp; Equipment (M&amp;E)</option>
+                                            <option value="Business Valuation (BV)">Business Valuation</option>
+                                            <option value={CALCULATION_VALUATION}>Calculation Valuation</option>
+                                            <option value="Machinery & Equipment (M&E)">Machinery and Equipment</option>
                                         </select>
                                     ) : field === 'reportFormat' && draft.appraisalType === 'Machinery & Equipment (M&E)' ? (
                                         <select id={`add-${field}`} name={field} value={draft[field]} onChange={(event) => setDraft({ ...draft, [field]: event.target.value })}>
@@ -301,7 +304,7 @@ function AddBidpage() {
                 <div className="bid_decision_actions">
                     <button type="submit" className="bid_accept_button">+ Add Bid</button>
                 </div>
-            </form>
+            </ValidatedForm>
         </main>
         <footer className="bid_page_footer" />
         </div>

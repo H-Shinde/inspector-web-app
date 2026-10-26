@@ -5,7 +5,7 @@ jest.mock('datatables.net-react', () => {
     const React = require('react');
     const Table = React.forwardRef(({ data, slots }, ref) => {
         React.useImperativeHandle(ref, () => ({ dt: () => ({ row: (element) => ({ data: () => data.find((row) => String(row.id) === element.dataset.id) }) }) }));
-        return <table><tbody>{data.map((row) => <tr key={row.id} data-id={row.id} tabIndex={0}><td>{row.name}</td><td>{slots[5](null, null, row)}</td></tr>)}</tbody></table>;
+        return <table><tbody>{data.map((row) => <tr key={row.id} data-id={row.id} tabIndex={0}><td>{row.name}</td><td>{slots[4](null, null, row)}</td></tr>)}</tbody></table>;
     });
     Table.use = () => {};
     return Table;

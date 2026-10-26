@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import JobHomepage from './Jobspagehomepage';
 
 jest.mock('datatables.net-react', () => {
-    const Table = ({ data, slots }) => <div>{data.map((row) => <div key={row.id}>{row.name}{slots[4](null, null, row)}{slots[5](null, null, row)}</div>)}</div>;
+    const Table = ({ data, slots }) => <div>{data.map((row) => <div key={row.id}>{row.name}{slots[4](null, null, row)}{slots[5](null, null, row)}{slots[7](null, null, row)}</div>)}</div>;
     Table.use = () => {};
     return Table;
 });

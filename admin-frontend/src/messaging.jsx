@@ -1,3 +1,4 @@
+import ValidatedForm from './ValidatedForm';
 import LogoutButton from './LogoutButton';
 import { useState } from 'react';
 import navLogo from './bison_logo_nav.png';
@@ -85,7 +86,7 @@ export default function Messaging() {
                                     </article>
                                 )) : <p className="messaging_empty">No messages with {recipient.name} yet.</p>}
                             </div>
-                            <form className="messaging_composer" onSubmit={sendMessage}>
+                            <ValidatedForm className="messaging_composer" onSubmit={sendMessage}>
                                 <label htmlFor="message-draft">Message {recipient.name}</label>
                                 <textarea id="message-draft" rows={3} placeholder="Type your message…" value={draft}
                                     onChange={(event) => setDrafts((current) => ({ ...current, [recipientId]: event.target.value }))} />
@@ -93,7 +94,7 @@ export default function Messaging() {
                                     <small>Demo messages are saved in this browser session.</small>
                                     <button type="submit" disabled={!draft.trim()}>Send Message</button>
                                 </div>
-                            </form>
+                            </ValidatedForm>
                         </> : <p className="messaging_empty">Select an inspector to message.</p>}
                     </section>
                 </div>

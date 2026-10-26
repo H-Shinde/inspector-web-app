@@ -1,3 +1,4 @@
+import ValidatedForm from './ValidatedForm';
 import { useEffect, useState } from 'react';
 import { authPost, getCurrentUser } from './authApi';
 import './App.css';
@@ -49,7 +50,7 @@ function Login({ destination }) {
     } catch (error) { setError(error.message); setBusy(false); }
   };
   return <AuthLayout title="Welcome back" description="Sign in to manage your bids, inspections, and appraisal jobs.">
-    <form className="auth_form" onSubmit={handleLogin} aria-label="Sign in" aria-busy={busy}>
+    <ValidatedForm className="auth_form" onSubmit={handleLogin} aria-label="Sign in" aria-busy={busy}>
       <div className="auth_field">
         <label htmlFor="login-email">Email address</label>
         <input id="login-email" name="email" type="email" required autoComplete="username" placeholder="you@example.com" disabled={busy} />
@@ -60,7 +61,7 @@ function Login({ destination }) {
       </div>
       {error && <p role="alert" className="auth_error">{error}</p>}
       <button className="auth_submit" type="submit" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</button>
-    </form>
+    </ValidatedForm>
   </AuthLayout>;
 }
 

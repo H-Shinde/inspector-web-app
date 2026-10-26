@@ -1,3 +1,5 @@
+import ValidatedForm from './ValidatedForm';
+import { CALCULATION_VALUATION, appraisalTypeLabel } from './appraisalTypes';
 import LogoutButton from './LogoutButton';
 import { getBidSections } from './bidSections';
 import { useEffect, useRef, useState } from 'react';
@@ -71,7 +73,7 @@ function Bidspage({ onChange }) {
         } catch (error) { setNotice(error.message); }
         finally { setBusy(false); }
     };
-    const canGenerateEmail = bid && [BUSINESS_VALUATION, MACHINERY_EQUIPMENT].includes(bid.appraisalType);
+    const canGenerateEmail = bid && [BUSINESS_VALUATION, CALCULATION_VALUATION, MACHINERY_EQUIPMENT].includes(bid.appraisalType);
     const generateEmailPdf = async (values) => {
         const generation = ++emailGeneration.current;
         setGeneratingEmailPdf(true);
@@ -128,6 +130,7 @@ function Bidspage({ onChange }) {
     const displayValue = (field) => {
         const value = field === 'totalBid' ? bid?.totalBid : bid?.[field];
         if (value === undefined || value === null || value === '') return 'Not provided';
+        if (field === 'appraisalType') return appraisalTypeLabel(value);
         return typeof value === 'boolean' ? (value ? 'Yes' : 'No') : String(value);
     };
 
@@ -173,14 +176,14 @@ function Bidspage({ onChange }) {
         <main className="fieldsframe" aria-label="Bid details">
             {notice && <p className="bid_creation_message" role="status">{notice}</p>}
             {!bid && <p className="bid_details_empty">Select a bid from the bids homepage to view its information.</p>}
-            <form id="bid-inline-edit" className="bid_inline_form" onSubmit={saveEdits}>
+            <ValidatedForm id="bid-inline-edit" className="bid_inline_form" onSubmit={saveEdits}>
             {fields.map(([field, label, inputType = 'text']) => (
                 <div className="bid_detail_field" key={field}>
                     <label htmlFor={`view-${field}`}>{label}</label>
                     {inputType === 'appraisalType' ? <select id={`view-${field}`} disabled={!bid || busy || bid.status !== 'Pending'} value={(editDraft || bid)?.[field] ?? ''} onChange={(event) => changeField(field, event.target.value)}>
                         <option value="">Select appraisal type</option>
-                        {(editDraft || bid)?.appraisalType && ![BUSINESS_VALUATION, MACHINERY_EQUIPMENT].includes((editDraft || bid).appraisalType) && <option>{(editDraft || bid).appraisalType}</option>}
-                        <option>Business Valuation (BV)</option><option>Machinery &amp; Equipment (M&amp;E)</option>
+                        {(editDraft || bid)?.appraisalType && ![BUSINESS_VALUATION, CALCULATION_VALUATION, MACHINERY_EQUIPMENT].includes((editDraft || bid).appraisalType) && <option>{(editDraft || bid).appraisalType}</option>}
+                        <option value={BUSINESS_VALUATION}>Business Valuation</option><option value={CALCULATION_VALUATION}>Calculation Valuation</option><option value={MACHINERY_EQUIPMENT}>Machinery and Equipment</option>
                     </select> : editDraft && field === 'reportFormat' && editDraft.appraisalType === 'Machinery & Equipment (M&E)' ? <select id={`view-${field}`} value={editDraft[field] ?? ''} onChange={(event) => changeField(field, event.target.value)}>
                         <option value="">Select report format</option><option>Onsite</option><option>Desktop</option>
                     </select> : editDraft && inputType === 'checkbox' ? <input id={`view-${field}`} type="checkbox" checked={!!editDraft[field]} onChange={(event) => changeField(field, event.target.checked)} />
@@ -193,7 +196,7 @@ function Bidspage({ onChange }) {
 
                 </div>
             ))}
-            </form>
+            </ValidatedForm>
             {bid && <div className="bid_detail_field">
                 <label htmlFor="bid-inspector">Assigned inspector</label>
                 <select id="bid-inspector" value={assignedInspector?.id ?? ''} disabled={!!editDraft || busy || bid.status !== 'Pending'} onChange={(event) => assignInspector(event.target.value)} aria-describedby="bid-inspector-help">
@@ -220,13 +223,13 @@ function Bidspage({ onChange }) {
                     <div className="agreement_dialog_heading"><h2 id="bid-email-title">Bid Email &amp; Agreement</h2><button type="button" className="bid_form_close" aria-label="Close email" onClick={closeEmail}>×</button></div>
                     <p>Download the filled engagement agreement below.</p>
                     <p>Signatures and details not provided in the form will remain blank for completion.</p>
-                    <form id="bid-details-email" className="bid_email_preview" onSubmit={(event) => { event.preventDefault(); window.location.href = bidEmailLink(emailDraft); }}>
+                    <ValidatedForm id="bid-details-email" className="bid_email_preview" onSubmit={(event) => { event.preventDefault(); window.location.href = bidEmailLink(emailDraft); }}>
                         <h3>Email to client</h3>
                         <label htmlFor="bid-email-to">To</label><input id="bid-email-to" type="email" required value={emailDraft.to} onChange={(event) => setEmailDraft({ ...emailDraft, to: event.target.value })} />
                         <label htmlFor="bid-email-subject">Subject</label><input id="bid-email-subject" required value={emailDraft.subject} onChange={(event) => setEmailDraft({ ...emailDraft, subject: event.target.value })} />
                         <label htmlFor="bid-email-body">Message</label><textarea id="bid-email-body" required rows={12} value={emailDraft.body} onChange={(event) => setEmailDraft({ ...emailDraft, body: event.target.value })} />
                         <p>Review the message and fill any bracketed details. Open it in your email app to send. Download and attach the engagement agreement there.</p>
-                    </form>
+                    </ValidatedForm>
                     {generatingEmailPdf && <p role="status">Creating engagement agreement…</p>}
                     {emailPdfError && <p role="alert" className="add_bid_error">{emailPdfError}</p>}
                     {emailAgreement && <iframe title="Engagement agreement PDF preview" src={emailAgreement.url} className="agreement_pdf_preview" />}

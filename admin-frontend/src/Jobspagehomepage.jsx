@@ -1,3 +1,4 @@
+import { appraisalTypeLabel } from './appraisalTypes';
 import LogoutButton from './LogoutButton';
 import { JOB_STATUSES } from './jobStatus';
 import { archiveDeletedRecord, isDeletedRecord, completeJob, isCompletedJob } from './historyRecords';
@@ -268,6 +269,17 @@ function JobHomepage() {
         title: "Status"
     },
     {
+        data: "inspector",
+        title: "Assigned Inspector",
+        defaultContent: "Unassigned"
+    },
+    {
+        data: "appraisalType",
+        title: "Job Type",
+        defaultContent: "",
+        render: (value) => appraisalTypeLabel(value) || '—'
+    },
+    {
         data: null,
         title: "Actions",
         orderable: false,
@@ -397,7 +409,8 @@ function JobHomepage() {
                 4: (data, type, row) => (
                     <span className={`bid_status bid_status_${statusClass(row.status)}`}>{row.status}</span>
                 ),
-                5: (data, type, row) => (
+                5: (data, type, row) => <span>{row.inspector || 'Unassigned'}</span>,
+                7: (data, type, row) => (
                     <div className="action_buttons">
                         <button type="button" className="job_complete_button" title="Mark Complete" aria-label={`Mark job for ${row.name} complete`}
                             onClick={(event) => { event.stopPropagation(); setCompleteTarget(row); }}><FaCheck aria-hidden="true" /></button>

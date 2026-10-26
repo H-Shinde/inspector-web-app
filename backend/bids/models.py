@@ -5,7 +5,24 @@ from django.core.validators import MinValueValidator
 from django.db import models
 from django.utils import timezone
 
+class Client(models.Model):
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+    )
+    name = models.CharField(max_length=200)
+    businessName = models.CharField(max_length=250, blank=True)
+    email = models.EmailField(blank=True)
+    phone = models.CharField(max_length=50, blank=True)
+    fax = models.CharField(max_length=50, blank=True)
+    streetAddress = models.CharField(max_length=300, blank=True)
+    city = models.CharField(max_length=150, blank=True)
+    state = models.CharField(max_length=2, blank=True)
+    zipCode = models.CharField(max_length=10, blank=True)
 
+    def __str__(self):
+        return self.name
+        
 class Inspector(models.Model):
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -21,10 +38,11 @@ class Inspector(models.Model):
 
 class Bid(models.Model):
     APPRAISAL_TYPES = [
-        ("Business Valuation (BV)", "Business Valuation (BV)"),
+        ("Business Valuation (BV)", "Business Valuation"),
+        ("Calculation Valuation", "Calculation Valuation"),
         (
             "Machinery & Equipment (M&E)",
-            "Machinery & Equipment (M&E)",
+            "Machinery and Equipment",
         ),
     ]
 

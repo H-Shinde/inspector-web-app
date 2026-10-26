@@ -9,9 +9,10 @@ beforeEach(() => {
     HTMLDialogElement.prototype.close = function () { this.open = false; };
 });
 
-test('shows twelve inspector detail fields and a back link', () => {
+test('shows inspector details without a company field and a back link', () => {
     render(<InspectorView />);
-    expect(within(screen.getByRole('main')).getAllByRole('textbox')).toHaveLength(12);
+    expect(within(screen.getByRole('main')).getAllByRole('textbox')).toHaveLength(11);
+    expect(screen.queryByLabelText('Company')).not.toBeInTheDocument();
     expect(screen.getByLabelText('Inspector').value).toBe('Alex Morgan');
     expect(screen.getByRole('link', { name: '← Back' }).getAttribute('href')).toBe('/Inspector');
 });
@@ -41,6 +42,7 @@ test('adds all inspector details to the shared directory and shows demo confirma
     fireEvent.click(popup.getByRole('button', { name: 'Send Invite' }));
     expect(getInspectors().find((entry) => entry.name === 'Riley Stone')).toMatchObject({ email: 'riley@example.com', region: 'Northeast', numberOfJobs: 12, status: 'Invited' });
     expect(screen.getByRole('status').textContent).toContain('an invite has been sent to riley@example.com');
+    expect(screen.queryByLabelText('Company')).not.toBeInTheDocument();
     expect(screen.getByLabelText('Inspector').value).toBe('Riley Stone');
     expect(within(screen.getByRole('complementary')).getByRole('button', { name: 'Riley Stone' })).toHaveAttribute('aria-pressed', 'true');
 });
