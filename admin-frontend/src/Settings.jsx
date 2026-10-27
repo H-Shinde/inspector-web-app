@@ -60,16 +60,16 @@ export default function Settings() {
                     <label htmlFor="settings-type">Bid type</label>
                     <select id="settings-type" value={type} onChange={(event) => setType(event.target.value)}>{data.types.map((value) => <option key={value} value={value}>{appraisalTypeLabel(value)}</option>)}</select>
                     <p>Each contribution is field value × multiplier. Checkboxes contribute 1 when checked and 0 otherwise, so their multiplier is a fixed fee. Each contribution is rounded to cents.</p>
-                    <div className="settings_table"><table className="bids_table"><thead><tr><th>Field</th><th>Operation</th><th>Multiplier / checkbox fee</th><th>Apply when</th></tr></thead><tbody>
+                    <div className="settings_rule_grid">
                         {fields.map(({ field, label }) => {
                             const term = rules[type].find((entry) => entry.field === field);
-                            return <tr key={field}><th scope="row">{label}</th>
-                                <td><select aria-label={`${label} operation`} value={term?.operation || 'ignore'} onChange={(event) => update(field, { operation: event.target.value })}><option value="ignore">Ignore</option><option value="add">Add</option><option value="subtract">Subtract</option></select></td>
-                                <td><input id={`rule-${field}-multiplier`} aria-label={`${label} multiplier`} type="number" required={!!term} disabled={!term} min="0" max="1000000" step="0.01" value={term?.multiplier ?? ''} onChange={(event) => update(field, { multiplier: event.target.value })} /></td>
-                                <td><select aria-label={`${label} condition`} disabled={!term} value={term?.when || 'always'} onChange={(event) => update(field, { when: event.target.value })}><option value="always">Always</option><option value="rush">Rush checked</option><option value="notRush">Rush unchecked</option><option value="pdfOnly">PDF Only checked</option><option value="notPdfOnly">PDF Only unchecked</option></select></td>
-                            </tr>;
+                            return <div key={field} className={`settings_rule_card${term ? ' settings_rule_active' : ''}`}><h3>{label}</h3><div className="settings_rule_controls">
+                                <label><span>Operation</span><select aria-label={`${label} operation`} value={term?.operation || 'ignore'} onChange={(event) => update(field, { operation: event.target.value })}><option value="ignore">Ignore</option><option value="add">Add</option><option value="subtract">Subtract</option></select></label>
+                                <label><span>Rate / fee</span><input id={`rule-${field}-multiplier`} aria-label={`${label} multiplier`} type="number" required={!!term} disabled={!term} min="0" max="1000000" step="0.01" value={term?.multiplier ?? ''} onChange={(event) => update(field, { multiplier: event.target.value })} /></label>
+                                <label><span>Apply when</span><select aria-label={`${label} condition`} disabled={!term} value={term?.when || 'always'} onChange={(event) => update(field, { when: event.target.value })}><option value="always">Always</option><option value="rush">Rush checked</option><option value="notRush">Rush unchecked</option><option value="pdfOnly">PDF Only checked</option><option value="notPdfOnly">PDF Only unchecked</option></select></label>
+                            </div></div>;
                         })}
-                    </tbody></table></div>
+                    </div>
                     <div className="actions"><button type="button" className="bid_form_cancel" onClick={() => { setRules((previous) => ({ ...previous, [type]: data.defaults[type].map((term) => ({ ...term })) })); setNotice(''); }}>Restore defaults for this type</button><button type="submit" className="bid_form_save">{busy ? 'Saving…' : 'Save Settings'}</button></div>
                 </fieldset>
             </ValidatedForm>
