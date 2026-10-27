@@ -36,9 +36,4 @@ export function readBidList(key) {
     }
 }
 
-export function calculateTotalBid(draft) {
-    return ((Math.round(Number(draft.bidAmount || 0) * 100)
-        - Math.round(Number(draft.discount || 0) * 100)
-        - (draft.rush === true ? Math.round(Number(draft.rushDiscount || 0) * 100) : 0)
-        + Math.round(Number(draft.additionalCharges || 0) * 100)) / 100).toFixed(2);
-}
+export { calculateConfiguredTotal as calculateTotalBid } from './bidCalculation';

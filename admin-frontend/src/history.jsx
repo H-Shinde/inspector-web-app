@@ -72,7 +72,7 @@ export default function History() {
                     <div className="nav_links">
                         <div><a className="nav_bar_text" href="/Homepage">Bids</a></div>
                         <div className="bids_box_selected"><a className="nav_bar_text" href="/History" aria-current="page">History</a></div>
-                        {['Inspector', 'Clients', 'Reports', 'Messaging'].map((label) => (
+                        {['Inspector', 'Clients', 'Reports', 'Messaging', 'Settings'].map((label) => (
                             <div key={label}><a className="nav_bar_text" href={`/${label}`}>{label}</a></div>
                         ))}
                     </div>

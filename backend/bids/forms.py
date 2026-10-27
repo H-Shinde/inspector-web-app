@@ -1,7 +1,7 @@
 from decimal import Decimal
 from django import forms
 
-from .models import Bid, Inspector, Client
+from .models import Bid, Inspector, Client, BidSettings
 from .validation import contact_error
 
 
@@ -11,7 +11,14 @@ class BidForm(forms.ModelForm):
         exclude = ["owner", "status", "agreement", "createdAt"]
 
     def __init__(self, *args, user, **kwargs):
+        if args and args[0] is not None:
+            data = args[0].copy()
+            for field in ['fmvContinuedUse', 'fairMarketValueRemoved', 'orderlyLiquidationValue', 'forcedLiquidationValue']:
+                if isinstance(data.get(field), bool):
+                    data[field] = '1' if data[field] else '0'
+            args = (data, *args[1:])
         super().__init__(*args, **kwargs)
+        self.user = user
 
         self.fields["inspector"].queryset = Inspector.objects.filter(
             owner=user,
@@ -25,6 +32,16 @@ class BidForm(forms.ModelForm):
             "additionalCharges",
         ]:
             self.fields[field].required = False
+
+    def save(self, commit=True):
+        bid = super().save(commit=False)
+        if bid._state.adding:
+            settings, _ = BidSettings.objects.get_or_create(owner=self.user)
+            bid.calculationRules = settings.rules
+        if commit:
+            bid.save()
+            self.save_m2m()
+        return bid
 
     def clean(self):
         data = super().clean()

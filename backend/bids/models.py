@@ -4,6 +4,7 @@ from django.conf import settings
 from django.core.validators import MinValueValidator
 from django.db import models
 from django.utils import timezone
+from .calculation import default_rules, calculate_total
 
 class Client(models.Model):
     owner = models.ForeignKey(
@@ -130,6 +131,7 @@ class Bid(models.Model):
         upload_to="bid-agreements/",
         blank=True,
     )
+    calculationRules = models.JSONField(null=True, blank=True, editable=False)
     createdAt = models.DateTimeField(auto_now_add=True)
 
     @property
@@ -138,15 +140,11 @@ class Bid(models.Model):
 
     @property
     def totalBid(self):
-        if self.appraisalType == "Machinery & Equipment (M&E)":
-            return self.bidAmount
-
-        return (
-            self.bidAmount
-            - self.discount
-            - (self.rushDiscount if self.rush else Decimal("0"))
-            + self.additionalCharges
-        )
+        return calculate_total(self)
 
     def __str__(self):
         return f"{self.referenceNumber} — {self.businessName}"
+
+class BidSettings(models.Model):
+    owner = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    rules = models.JSONField(default=default_rules)

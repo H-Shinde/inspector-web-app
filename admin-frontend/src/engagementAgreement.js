@@ -55,7 +55,7 @@ export function machineryAgreementValues(bid) {
         Value_Date: agreementDate(bid.valueDate),
         Company_Name: bid.clientCompany || '',
         Value_Type: bid.valueType || '',
-        MAE_Bid: money(bid.bidAmount),
+        MAE_Bid: money(calculateTotalBid(bid)),
         business_days: bid.completionDays !== undefined && bid.completionDays !== null && bid.completionDays !== '' ? `${bid.completionDays} business days` : '',
         Request_Date: agreementDate(bid.date),
         Reference_Number: bid.referenceNumber || '',

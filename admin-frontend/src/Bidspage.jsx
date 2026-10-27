@@ -15,7 +15,7 @@ import navLogo from './bison_logo_nav.png';
 
 const totalForBid = (values) => {
     const fields = new Set(getBidSections(values.appraisalType).flatMap(([, sectionFields]) => sectionFields.map(([field]) => field)));
-    return calculateTotalBid(Object.fromEntries(Object.entries(values).filter(([field]) => fields.has(field))));
+    return calculateTotalBid({ ...Object.fromEntries(Object.entries(values).filter(([field]) => fields.has(field))), calculationRules: values.calculationRules });
 };
 
 function Bidspage({ onChange }) {
@@ -140,7 +140,7 @@ function Bidspage({ onChange }) {
             <img className="bison_logo_nav" src={navLogo} alt="Bison" />
             <div className="nav_links">
                 <div className="bids_box_selected"><a className="nav_bar_text" href="/Homepage" style={{ textDecoration: 'none' }}>Bids</a></div>
-                {['History', 'Inspector', 'Clients', 'Reports', 'Messaging'].map((page) => <div key={page}><a className="nav_bar_text" href={`/${page}`} style={{ textDecoration: 'none' }}>{page}</a></div>)}
+                {['History', 'Inspector', 'Clients', 'Reports', 'Messaging', 'Settings'].map((page) => <div key={page}><a className="nav_bar_text" href={`/${page}`} style={{ textDecoration: 'none' }}>{page}</a></div>)}
             </div>
             <button type="button" className="burger_icon_position" aria-label="Account menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>
                 <div className="burger_icon_frame"><div className="top_bun" /><div className="patty" /><div className="bottom_bun" /></div>
@@ -186,11 +186,11 @@ function Bidspage({ onChange }) {
                         <option value={BUSINESS_VALUATION}>Business Valuation</option><option value={CALCULATION_VALUATION}>Calculation Valuation</option><option value={MACHINERY_EQUIPMENT}>Machinery and Equipment</option>
                     </select> : editDraft && field === 'reportFormat' && editDraft.appraisalType === 'Machinery & Equipment (M&E)' ? <select id={`view-${field}`} value={editDraft[field] ?? ''} onChange={(event) => changeField(field, event.target.value)}>
                         <option value="">Select report format</option><option>Onsite</option><option>Desktop</option>
-                    </select> : editDraft && inputType === 'checkbox' ? <input id={`view-${field}`} type="checkbox" checked={!!editDraft[field]} onChange={(event) => changeField(field, event.target.checked)} />
+                    </select> : editDraft && inputType === 'checkbox' ? <input id={`view-${field}`} type="checkbox" checked={['fmvContinuedUse', 'fairMarketValueRemoved', 'orderlyLiquidationValue', 'forcedLiquidationValue'].includes(field) ? Number(editDraft[field]) !== 0 : !!editDraft[field]} onChange={(event) => changeField(field, event.target.checked)} />
                         : <input id={`view-${field}`} type={editDraft && !['status', 'total', 'appraisalType'].includes(inputType) ? inputType : 'text'} readOnly={!editDraft || ['status', 'referenceNumber', 'totalBid'].includes(field)} required={!!editDraft && ['name', 'businessName'].includes(field)}
                             min={inputType === 'number' ? 0 : undefined}
                             step={inputType === 'number' ? (['completionDays', 'additionalLocations'].includes(field) ? 1 : 0.01) : undefined}
-                            disabled={!!editDraft && ((field === 'rushDiscount' && !editDraft.rush) || (field === 'discount' && !editDraft.pdfOnly))}
+
                             value={editDraft ? field === 'totalBid' ? totalForBid(editDraft) : editDraft[field] ?? '' : displayValue(field)}
                             onChange={(event) => changeField(field, event.target.value)} />}
 

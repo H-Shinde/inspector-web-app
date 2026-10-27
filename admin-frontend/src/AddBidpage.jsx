@@ -1,3 +1,4 @@
+import useBidSettings from './useBidSettings';
 import ValidatedForm from './ValidatedForm';
 import { CALCULATION_VALUATION, appraisalTypeLabel } from './appraisalTypes';
 import LogoutButton from './LogoutButton';
@@ -13,6 +14,7 @@ import navLogo from './bison_logo_nav.png';
 
 
 function AddBidpage() {
+    const calculationSettings = useBidSettings();
     const [clients, setClients] = useState([]);
     const [clientsLoading, setClientsLoading] = useState(true);
     const [clientsError, setClientsError] = useState('');
@@ -56,7 +58,7 @@ function AddBidpage() {
                 : fields,
     ]);
     const visibleFields = new Set(visibleSections.flatMap(([, fields]) => fields.map(([field]) => field)));
-    const submissionDraft = { ...(isMachinery ? Object.fromEntries(Object.entries(draft).filter(([field]) => visibleFields.has(field))) : draft) };
+    const submissionDraft = { inspectorId: draft.inspectorId, calculationRules: calculationSettings.data?.rules, ...(isMachinery ? Object.fromEntries(Object.entries(draft).filter(([field]) => visibleFields.has(field))) : draft) };
     const totalBid = calculateTotalBid(submissionDraft);
     const zipCode = (draft.zipCode || '').trim();
     const validZip = /^\d{5}(-\d{4})?$/.test(zipCode);
@@ -73,6 +75,7 @@ function AddBidpage() {
     };
     const handleAdd = async (event) => {
         event.preventDefault();
+        if (calculationSettings.loading || calculationSettings.error) { setError('Load bid calculation settings before creating a bid.'); return; }
         if (!draft.name.trim() || !draft.businessName.trim()) {
             setError('Enter a business name and contact name.');
             return;
@@ -191,7 +194,7 @@ function AddBidpage() {
         <div className = 'nav_bar'>
             <img
                 className="bison_logo_nav" src={navLogo} alt="Bison"
-              
+
             />
             <div className='nav_links'>
                 <div className='bids_box_selected'>
@@ -212,6 +215,7 @@ function AddBidpage() {
                 <div className='messaging'>
                   <a className='nav_bar_text' href='/Messaging' style={{ textDecoration: 'none' }}>Messaging</a>
                 </div>
+                <div className="settings_box"><a className="nav_bar_text" href="/Settings">Settings</a></div>
             </div>
             <button type="button" className='burger_icon_position' aria-label="Account menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>
                 <div className = 'burger_icon_frame'>
@@ -235,7 +239,18 @@ function AddBidpage() {
             </div>
         </header>
         <main>
+            {calculationSettings.loading && <p role="status">Loading bid calculation settings…</p>}
+            {calculationSettings.error && <p role="alert">{calculationSettings.error} <button type="button" onClick={calculationSettings.retry}>Retry calculation settings</button></p>}
             <ValidatedForm className="fieldsframe" onSubmit={handleAdd} aria-label="Add bid">
+                <div className="bid_detail_field">
+                    <label htmlFor="add-inspectorId">Assigned inspector (required)</label>
+                    <select id="add-inspectorId" name="inspectorId" required value={draft.inspectorId ?? ''} onChange={(event) => setDraft({ ...draft, inspectorId: event.target.value })}>
+                        <option value="">Select an inspector</option>
+                        {inspectors.map((inspector) => <option key={inspector.id} value={inspector.id}>{inspector.name}</option>)}
+                    </select>
+                    {inspectorsError && <p role="alert" className="add_bid_error">{inspectorsError}</p>}
+                    {!inspectorsError && inspectors.length === 0 && <p>Add an inspector before creating a bid.</p>}
+                </div>
                 {visibleSections.map(([title, fields]) => (
                     <fieldset className="add_bid_section" key={title}>
                         <legend>{title}</legend>
@@ -269,7 +284,7 @@ function AddBidpage() {
                                     ) : type === 'status' || field === 'referenceNumber' ? (
                                         <input id={`add-${field}`} name={field} value={field === 'status' ? 'Pending' : referenceNumber} readOnly />
                                     ) : type === 'total' ? (
-                                        <input id={`add-${field}`} name={field} value={totalBid} readOnly aria-describedby="total-bid-help" />
+                                        <input id={`add-${field}`} name={field} value={calculationSettings.loading ? 'Loading…' : calculationSettings.error ? 'Unavailable' : totalBid} readOnly aria-describedby="total-bid-help" />
                                     ) : type === 'textarea' ? (
                                         <textarea id={`add-${field}`} name={field} rows={3} value={draft[field]} onChange={(event) => setDraft({ ...draft, [field]: event.target.value })} />
                                     ) : (
@@ -280,7 +295,7 @@ function AddBidpage() {
                                             checked={type === 'checkbox' ? draft[field] : undefined}
                                             placeholder={type !== 'checkbox' ? `Enter ${label.toLowerCase()}` : undefined}
                                             required={['name', 'businessName'].includes(field)}
-                                            disabled={(field === 'rushDiscount' && !draft.rush) || (field === 'discount' && !draft.pdfOnly)}
+
                                             onChange={(event) => {
                                                 setDraft((previous) => ({ ...previous, [field]: type === 'checkbox' ? event.target.checked : event.target.value }));
                                                 setError('');
@@ -297,12 +312,12 @@ function AddBidpage() {
                                         : <ol>{nearestInspectors.map(({ inspector, distance }) => <li key={inspector.id ?? inspector.name}><strong>{inspector.name}</strong> <span className="add_bid_distance">{distance.toFixed(1)} miles away</span></li>)}</ol>}
                             </div>
                         )}
-                        {title === 'Pricing' && !isMachinery && <p id="total-bid-help" className="add_bid_pricing_help">Total Bid = Appraisal Fee − Discount − Rush Discount + Additional Charges. Enter discounts as amounts. Rush Discount applies only when Rush is checked.</p>}
+                        {title === 'Pricing' && <p id="total-bid-help" className="add_bid_pricing_help">Total uses your saved <a href="/Settings">calculation settings</a>. Checkbox conditions apply automatically.</p>}
                     </fieldset>
                 ))}
                 {error && <p className="add_bid_error" role="alert">{error}</p>}
                 <div className="bid_decision_actions">
-                    <button type="submit" className="bid_accept_button">+ Add Bid</button>
+                    <button type="submit" className="bid_accept_button" disabled={calculationSettings.loading || !!calculationSettings.error}>+ Add Bid</button>
                 </div>
             </ValidatedForm>
         </main>

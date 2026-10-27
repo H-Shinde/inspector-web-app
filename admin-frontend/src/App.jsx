@@ -18,7 +18,9 @@ import Clients from './clients';
 import Clientspage from './Clientspage';
 import Reports from './reports';
 import ReportsNext from './reports_next';
+import Settings from './Settings';
 const privateRoutes = {
+  '/Settings': Settings, '/settings': Settings,
   '/ReportsNext': ReportsNext, '/Reports': Reports, '/reports': Reports,
   '/Clientspage': Clientspage, '/clientspage': Clientspage,
   '/Clients': Clients, '/clients': Clients,

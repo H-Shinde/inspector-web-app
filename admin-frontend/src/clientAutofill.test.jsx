@@ -1,8 +1,12 @@
+import { getBidSettings } from './bidSettingsApi';
+import { defaultCalculationRules } from './bidCalculation';
+jest.mock('./bidSettingsApi', () => ({ getBidSettings: jest.fn() }));
 import { fireEvent, render, screen } from '@testing-library/react';
 import AddBidpage from './AddBidpage';
 import { listClients, listBidInspectors } from './bidsApi';
 jest.mock('./bidsApi', () => ({ ...jest.requireActual('./bidsApi'), listClients: jest.fn(), listBidInspectors: jest.fn() }));
 test('selecting a database client fills the bid client fields', async () => {
+    getBidSettings.mockResolvedValue({ rules: defaultCalculationRules });
     listClients.mockResolvedValue([{ id: 42, name: 'Avery', businessName: 'Example Co', email: 'avery@example.com', phone: '202-555-0101', streetAddress: '100 Main Street', city: 'Boston', state: 'MA', zipCode: '02108' }]);
     listBidInspectors.mockResolvedValue([]);
     render(<AddBidpage />);

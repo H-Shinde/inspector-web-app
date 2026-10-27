@@ -1,0 +1,44 @@
+import { fireEvent, render, screen } from '@testing-library/react';
+import AddBidpage from './AddBidpage';
+import { getBidSettings } from './bidSettingsApi';
+import { createServerBid, listClients, listBidInspectors, uploadBidAgreement } from './bidsApi';
+import { generateEngagementAgreement } from './engagementAgreement';
+import { defaultCalculationRules, calculationTypes } from './bidCalculation';
+jest.mock('./bidSettingsApi', () => ({ getBidSettings: jest.fn() }));
+jest.mock('./bidsApi', () => ({ ...jest.requireActual('./bidsApi'), createServerBid: jest.fn(), listClients: jest.fn(), listBidInspectors: jest.fn(), uploadBidAgreement: jest.fn() }));
+jest.mock('./engagementAgreement', () => ({ ...jest.requireActual('./engagementAgreement'), generateEngagementAgreement: jest.fn() }));
+beforeEach(() => {
+    jest.clearAllMocks();
+    listClients.mockResolvedValue([]); listBidInspectors.mockResolvedValue([{ id: 7, name: 'Inspector' }]);
+    const rules = JSON.parse(JSON.stringify(defaultCalculationRules)); rules[calculationTypes[0]][0].multiplier = '2';
+    getBidSettings.mockResolvedValue({ rules });
+    createServerBid.mockImplementation(async (values) => ({ ...values, id: 42, referenceNumber: 'BID-000042', totalBid: '2000.00' }));
+    uploadBidAgreement.mockImplementation(async (bid) => ({ ...bid, hasAgreement: true }));
+    generateEngagementAgreement.mockResolvedValue(new Blob(['pdf'], { type: 'application/pdf' }));
+    URL.createObjectURL = jest.fn(() => 'blob:agreement'); URL.revokeObjectURL = jest.fn();
+    HTMLDialogElement.prototype.showModal = function () { this.open = true; };
+    HTMLDialogElement.prototype.close = function () { this.open = false; };
+});
+test('uses settings for the live preview and the saved snapshot for the agreement', async () => {
+    render(<AddBidpage />);
+    await screen.findByRole('option', { name: 'Inspector' });
+    fireEvent.change(screen.getByLabelText('Appraisal Type'), { target: { value: calculationTypes[0] } });
+    fireEvent.change(screen.getByLabelText('Assigned inspector (required)'), { target: { value: '7' } });
+    fireEvent.change(screen.getByLabelText('Business Name'), { target: { value: 'Example' } });
+    fireEvent.change(screen.getByLabelText('Contact Name'), { target: { value: 'Contact' } });
+    fireEvent.change(screen.getByLabelText('Appraisal Fee'), { target: { value: '1000' } });
+    expect(screen.getByLabelText('Total Bid')).toHaveValue('2000.00');
+    fireEvent.click(screen.getByRole('button', { name: '+ Add Bid' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm & Create' }));
+    await screen.findByRole('heading', { name: 'Bid and agreement created' });
+    expect(generateEngagementAgreement).toHaveBeenCalledWith(expect.objectContaining({ referenceNumber: 'BID-000042', calculationRules: expect.any(Object), totalBid: '2000.00' }));
+});
+test('blocks creation if settings fail to load and allows retry', async () => {
+    getBidSettings.mockRejectedValueOnce(new Error('Settings unavailable.'));
+    render(<AddBidpage />);
+    expect(await screen.findByText('Settings unavailable.', { exact: false })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '+ Add Bid' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry calculation settings' }));
+    await screen.findByDisplayValue('0.00');
+    expect(screen.getByRole('button', { name: '+ Add Bid' })).toBeEnabled();
+});

@@ -364,6 +364,7 @@ function JobHomepage() {
                 <div className='messaging'>
                   <a className='nav_bar_text' href='/Messaging' style={{ textDecoration: 'none' }}>Messaging</a>
                 </div>
+                <div className="settings_box"><a className="nav_bar_text" href="/Settings">Settings</a></div>
             </div>
             <button type="button" className='burger_icon_position' aria-label="Account menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>
                 <div className = 'burger_icon_frame'>

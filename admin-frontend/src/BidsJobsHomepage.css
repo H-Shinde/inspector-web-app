@@ -70,6 +70,7 @@
 }
 
 .frame_home .nav_bar_text {
+    text-decoration: none;
     margin: 0;
     color: #EBF0F5;
     font-size: 14px;

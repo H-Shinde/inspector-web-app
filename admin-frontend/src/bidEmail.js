@@ -14,7 +14,7 @@ export function businessValuationEmail(bid) {
 export function machineryEquipmentEmail(bid) {
     const firstName = bid.clientName?.trim().split(/\s+/)[0] || '[Client first name]';
     const days = bid.completionDays ? `${bid.completionDays} business days` : '[completion time]';
-    const fee = bid.bidAmount === '' || bid.bidAmount == null ? '[M&E bid]' : `$${Number(bid.bidAmount).toFixed(2)}`;
+    const fee = bid.bidAmount === '' || bid.bidAmount == null ? '[M&E bid]' : `$${calculateTotalBid(bid)}`;
     return {
         to: bid.clientEmail?.trim() || '',
         subject: `Machinery & Equipment Bid – ${bid.businessName || '[Business name]'}`,

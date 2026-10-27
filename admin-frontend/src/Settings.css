@@ -1,0 +1,8 @@
+@import './BidsJobsHomepage.css';
+@import './Bidspage.css';
+
+.settings_fields { border: 1px solid #dbe1ea; border-radius: 12px; padding: 24px; background: white; min-width: 0; }
+.settings_table { overflow-x: auto; margin: 20px 0; }
+.settings_page select, .settings_page input[type=number] { padding: 9px; border: 1px solid #c8ced8; border-radius: 6px; max-width: 100%; }
+.settings_table th, .settings_table td { padding: 12px; text-align: left; }
+.settings_preview { padding: 24px; margin-top: 24px; border-radius: 12px; background: white; }

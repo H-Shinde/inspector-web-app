@@ -76,7 +76,7 @@ export default function Inspector() {
             <nav className="nav_bar" aria-label="Main navigation">
                 <a href="/Homepage"><img className="bison_logo_nav" src={navLogo} alt="Bison home" /></a>
                 <div className="nav_links">
-                    {['Bids', 'History', 'Inspector', 'Clients', 'Reports', 'Messaging'].map((label) => (
+                    {['Bids', 'History', 'Inspector', 'Clients', 'Reports', 'Messaging', 'Settings'].map((label) => (
                         <div key={label} className={label === 'Inspector' ? 'bids_box_selected' : ''}>
                             <a className="nav_bar_text" href={label === 'Bids' ? '/Homepage' : `/${label}`} aria-current={label === 'Inspector' ? 'page' : undefined}>{label}</a>
                         </div>

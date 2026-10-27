@@ -101,3 +101,11 @@ The Downloads frontend is now connected to `/api/bids/`. Add Bid loads and creat
 Agreements are private files under `media/`, accessed only through the agreement API. Do not expose that folder as unauthenticated static media. PDF generation still uses the existing frontend template: create the bid first, generate the PDF using its returned reference, then upload it.
 
 Run `python manage.py test bids accounts --noinput` to verify bid ownership, validation, uploads, archival, and authentication/reset behavior. Run `python manage.py migrate` if installing these source files on another machine.
+
+## Bid calculation settings
+
+Open **Settings** in the app navigation to configure a separate formula for Business Valuation, Calculation Valuation, and Machinery and Equipment. Settings belong to the signed-in account. Each included field adds or subtracts its value multiplied by a configurable rate; checkbox fields use 1 when checked and 0 otherwise. Contributions can depend on Rush/PDF Only being checked or unchecked. Each contribution rounds to cents before summing. Defaults retain the original calculation, including the fee-only Machinery and Equipment total.
+
+`GET /api/bid-settings/` returns saved rules, defaults, and available fields. `PUT /api/bid-settings/` saves `{ "rules": ... }` with session authentication and CSRF. New bids snapshot the account's rules on the server; editing an existing bid uses its saved rules, and changing settings does not reprice existing bids. Bids created before this feature keep the original default formula. Agreements and email amounts use the same calculation as the total preview.
+
+Apply the database migration with `python manage.py migrate`. Run `python manage.py test bids.test_settings --noinput` to check formula validation, ownership, CSRF, rounding, and existing-bid preservation.
