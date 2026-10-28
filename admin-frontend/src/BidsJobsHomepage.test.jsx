@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import Homepage from './BidsJobsHomepage';
 import { listBids, deleteBid } from './bidsApi';
 jest.mock('./bidsApi', () => ({ listBids: jest.fn(), deleteBid: jest.fn() }));
-jest.mock('datatables.net-react', () => { const React = require('react'); const Table = React.forwardRef(({ data, slots }, ref) => <div>{data.map((row) => <div key={row.id}>{row.name}{slots[5](null, null, row)}</div>)}</div>); Table.use = () => {}; return Table; });
+jest.mock('datatables.net-react', () => { const React = require('react'); const Table = React.forwardRef(({ data, slots }, ref) => <div>{data.map((row) => <div key={row.id}>{row.name}{slots[6](null, null, row)}</div>)}</div>); Table.use = () => {}; return Table; });
 jest.mock('datatables.net-dt', () => ({})); jest.mock('datatables.net-select-dt', () => ({})); jest.mock('datatables.net-responsive-dt', () => ({}));
 beforeEach(() => { jest.clearAllMocks(); listBids.mockResolvedValue([{ id: 52, name: 'Database Bid', businessName: 'Example', status: 'Pending' }]); deleteBid.mockResolvedValue({}); HTMLDialogElement.prototype.showModal = function () { this.open = true; }; HTMLDialogElement.prototype.close = function () { this.open = false; }; });
 test('lists server bids without demo or cached browser records', async () => {

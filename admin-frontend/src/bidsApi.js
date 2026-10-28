@@ -3,7 +3,7 @@ import { getBidSections } from './bidSections';
 
 export function bidPayload(values) {
   const fields = new Set(getBidSections(values.appraisalType).flatMap(([, entries]) => entries.map(([field]) => field)));
-  return Object.fromEntries(Object.entries(values).filter(([key]) => (fields.has(key) && !['status', 'referenceNumber', 'totalBid'].includes(key)) || key === 'inspectorId'));
+  return Object.fromEntries(Object.entries(values).filter(([key]) => (fields.has(key) && !['status', 'referenceNumber', 'totalBid'].includes(key))));
 }
 export const listBids = (signal, history = false) => apiRequest(`/api/bids/${history ? '?history=1' : ''}`, { signal }).then((data) => data.bids);
 export const listBidInspectors = (signal) => apiRequest('/api/bids/inspectors/', { signal }).then((data) => data.inspectors);

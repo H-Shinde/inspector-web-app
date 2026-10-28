@@ -1,220 +1,108 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import Jobspage from './Jobspage';
-import { saveItemImage, readItemImage } from './itemImages';
-jest.mock('./itemImages', () => ({ saveItemImage: jest.fn(), readItemImage: jest.fn(), deleteItemImage: jest.fn().mockResolvedValue(undefined) }));
-import { selectGlobalInspector } from './inspectorSelection';
-import { act } from '@testing-library/react';
-import { generateInspectionRequest } from './inspectionRequest';
-jest.mock('./inspectionRequest', () => ({ ...jest.requireActual('./inspectionRequest'), generateInspectionRequest: jest.fn() }));
-
+import { getJob, updateJob } from './jobsApi';
+jest.mock('./jobsApi', () => ({ getJob: jest.fn(), listJobs: jest.fn(), updateJob: jest.fn() }));
+jest.mock('./useInspectorDirectory', () => () => ({ inspectors: [{ id: 7, name: 'Database Inspector', distanceMiles: 2 }], loading: false, error: '' }));
+jest.mock('./SendJobToInspector', () => () => null);
+jest.mock('./ItemImage', () => () => null);
 jest.mock('datatables.net-react', () => {
-    const Table = ({ data }) => <div>{data.map((item) => <p key={item.itemId}>{item.name}</p>)}</div>;
-    Table.use = () => {};
-    return Table;
+    const Table = ({ data, slots }) => <div>{data.map((item) => <div key={item.itemId}>{item.name}{slots?.[6]?.(null, null, item)}</div>)}</div>;
+    Table.use = () => {}; return Table;
 });
 jest.mock('datatables.net-dt', () => ({}));
-
+let saved;
 beforeEach(() => {
-    sessionStorage.clear();
-    saveItemImage.mockResolvedValue(undefined);
-    generateInspectionRequest.mockResolvedValue(new Blob(['pdf'], { type: 'application/pdf' }));
-    readItemImage.mockResolvedValue(new Blob(['image']));
-    URL.createObjectURL = jest.fn(() => 'blob:item');
-    URL.revokeObjectURL = jest.fn();
-    sessionStorage.setItem('availableJobs', JSON.stringify([
-        { id: 1, name: 'Test job', status: 'Accepted', isCreatedJob: true, items: [] },
-    ]));
+    jest.clearAllMocks(); sessionStorage.clear();
+    window.history.replaceState(null, '', '/Jobspage?jobId=42');
+    saved = { id: 42, sourceBidId: 52, referenceNumber: 'JOB-000042', name: 'Contact', businessName: 'Database Job', status: 'Unassigned', inspector: '', inspectorId: null, items: [], sectionDetails: {}, revision: 0 };
+    getJob.mockImplementation(async () => saved);
+    updateJob.mockImplementation(async (id, changes) => {
+        const sectionDetails = { ...saved.sectionDetails };
+        for (const [section, values] of Object.entries(changes.sectionDetails || {})) sectionDetails[section] = { ...sectionDetails[section], ...values };
+        saved = { ...saved, ...changes, sectionDetails, revision: saved.revision + 1 };
+        if (changes.inspectorId === 7) { saved.inspector = 'Database Inspector'; saved.status = 'Assigned'; }
+        return saved;
+    });
     HTMLDialogElement.prototype.showModal = function () { this.open = true; };
     HTMLDialogElement.prototype.close = function () { this.open = false; };
     Object.defineProperty(global, 'crypto', { configurable: true, value: { randomUUID: () => 'new-item-id' } });
 });
-
-test('combines appraisal groups and keeps their rate edits separate', () => {
-    const { unmount } = render(<Jobspage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Item Appraisal' }));
-    const appraised = within(screen.getByRole('region', { name: 'Appraised Items' }));
-    const nonAppraised = within(screen.getByRole('region', { name: 'Non Appraised Items' }));
-    fireEvent.change(appraised.getByLabelText('Inspection rate'), { target: { value: '45' } });
-    fireEvent.change(nonAppraised.getByLabelText('Inspection rate'), { target: { value: '25' } });
-    unmount();
-    render(<Jobspage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Item Appraisal' }));
-    expect(within(screen.getByRole('region', { name: 'Appraised Items' })).getByLabelText('Inspection rate')).toHaveValue(45);
-    expect(within(screen.getByRole('region', { name: 'Non Appraised Items' })).getByLabelText('Inspection rate')).toHaveValue(25);
+async function open() { render(<Jobspage />); await screen.findByDisplayValue('Contact'); }
+test('loads the server job instead of browser demo data', async () => {
+    sessionStorage.setItem('availableJobs', JSON.stringify([{ id: 42, name: 'Stale browser job' }]));
+    await open();
+    expect(getJob).toHaveBeenCalledWith('42', expect.anything());
+    expect(screen.queryByDisplayValue('Stale browser job')).not.toBeInTheDocument();
 });
-
-test('shows valuation and fees together without current/history controls', () => {
-    render(<Jobspage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Valuation & Fees' }));
-    fireEvent.change(screen.getByLabelText('FMV in Continued Use'), { target: { value: '10000' } });
-    fireEvent.change(screen.getByLabelText('Total'), { target: { value: '500' } });
-    expect(screen.getByLabelText('FMV in Continued Use')).toHaveValue(10000);
-    expect(screen.getByLabelText('Total')).toHaveValue(500);
-    expect(screen.queryByRole('button', { name: 'Current' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'History' })).toBeNull();
+test('saves numeric section edits sequentially with current revisions', async () => {
+    await open(); fireEvent.click(screen.getByRole('button', { name: 'Valuation & Fees' }));
+    fireEvent.change(screen.getByLabelText('Total Appraisal'), { target: { value: '100' } });
+    fireEvent.change(screen.getByLabelText('Total'), { target: { value: '150' } });
+    await waitFor(() => expect(updateJob).toHaveBeenCalledTimes(2));
+    expect(updateJob.mock.calls[0][1]).toMatchObject({ revision: 0, sectionDetails: { 'Inspection Fees': { totalAppraisal: '100' } } });
+    expect(updateJob.mock.calls[1][1]).toMatchObject({ revision: 1, sectionDetails: { 'Inspection Fees': { total: '150' } } });
+    expect(sessionStorage.getItem('jobSectionDetails')).toBeNull();
 });
-
-test('adds and persists an item, then dismisses confirmation on the next click', () => {
-    const { unmount } = render(<Jobspage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Items' }));
-    fireEvent.click(screen.getByRole('button', { name: '+ Add item' }));
-    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'New forklift' } });
-    fireEvent.change(screen.getByLabelText('Make'), { target: { value: 'Toyota' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Add item' }));
-    expect(screen.getByRole('status').textContent).toBe('Item has been added.');
-    expect(screen.getByText('New forklift')).toBeTruthy();
-    expect(JSON.parse(sessionStorage.getItem('jobItems'))['1'][0]).toMatchObject({ name: 'New forklift', make: 'Toyota' });
-    fireEvent.click(screen.getByRole('heading', { name: 'Items', level: 2 }));
-    expect(screen.queryByRole('status')).toBeNull();
-    unmount();
-    render(<Jobspage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Items' }));
-    expect(screen.getByText('New forklift')).toBeTruthy();
-});
-
-test('canceling an item draft leaves the list unchanged', () => {
-    render(<Jobspage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Items' }));
-    fireEvent.click(screen.getByRole('button', { name: '+ Add item' }));
-    expect(screen.getByRole('button', { name: 'Add item' }).disabled).toBe(true);
-    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Unsaved item' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-    expect(screen.queryByText('Unsaved item')).toBeNull();
-    expect(screen.queryByRole('status')).toBeNull();
-    expect(sessionStorage.getItem('jobItems')).toBeNull();
-});
-
-test('shows global selection in the dropdown and assigns only when the button is clicked', () => {
-    selectGlobalInspector(2);
-    render(<Jobspage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Assign Inspector' }));
-    expect(screen.getByLabelText('Assign inspector').value).toBe('Jordan Lee');
-    act(() => selectGlobalInspector(3));
-    expect(screen.getByLabelText('Assign inspector').value).toBe('Taylor Brooks');
-    const assignButton = screen.getByRole('button', { name: 'Assign inspector' });
-    expect(assignButton.disabled).toBe(true);
-    fireEvent.change(screen.getByLabelText('Assign inspector'), { target: { value: 'Alex Morgan' } });
-    expect(sessionStorage.getItem('selectedInspectorId')).not.toBe('1');
-    expect(assignButton.disabled).toBe(false);
-    fireEvent.click(assignButton);
-    expect(sessionStorage.getItem('selectedInspectorId')).toBe('1');
-    expect(JSON.parse(sessionStorage.getItem('jobAssignments'))[0].inspector).toBe('Alex Morgan');
-    expect(screen.getByRole('button', { name: 'Assign inspector' }).disabled).toBe(true);
-});
-
-test('page title follows the selected tab and the old dropdowns are gone', () => {
-    render(<Jobspage />);
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Job Information');
-    fireEvent.click(screen.getByRole('button', { name: 'Item Appraisal' }));
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Item Appraisal');
-    expect(screen.queryByLabelText('Jobs')).toBeNull();
-    expect(screen.queryByLabelText('Assign inspector')).toBeNull();
-});
-test('uploading a CSV adds its rows as items and keeps them after reload', async () => {
-    let count = 0;
-    Object.defineProperty(global, 'crypto', { configurable: true, value: { randomUUID: () => `csv-item-${++count}` } });
-    const { unmount } = render(<Jobspage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Items' }));
-    const csv = 'Name,Make,Model,Year,Hours/Miles,Notes\nForklift,Toyota,8FGCU25,2020,"1,200 hours","Good, clean"\n,Skip,Me,,,\nPallet jack,Crown,WP 3000,2021,480 hours,\n';
-    fireEvent.change(screen.getByLabelText('Upload items CSV'), { target: { files: [new File([csv], 'items.csv', { type: 'text/csv' })] } });
-    expect(await screen.findByText(/Imported 2 items from items\.csv/)).toBeTruthy();
-    expect(screen.getByText('Forklift')).toBeTruthy();
-    expect(screen.getByText('Pallet jack')).toBeTruthy();
-    const saved = JSON.parse(sessionStorage.getItem('jobItems'))['1'];
-    expect(saved).toHaveLength(2);
-    expect(saved[0]).toMatchObject({ name: 'Forklift', make: 'Toyota', hoursMiles: '1,200 hours', comments: 'Good, clean' });
-    unmount();
-    render(<Jobspage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Items' }));
-    expect(screen.getByText('Forklift')).toBeTruthy();
-});
-
-test('a CSV without a Name column shows an error and changes nothing', async () => {
-    render(<Jobspage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Items' }));
-    fireEvent.change(screen.getByLabelText('Upload items CSV'), { target: { files: [new File(['Make,Model\nToyota,X'], 'bad.csv', { type: 'text/csv' })] } });
-    expect((await screen.findByRole('alert')).textContent).toContain('"Name" column');
-    expect(sessionStorage.getItem('jobItems')).toBeNull();
-});
-
-test('marks the job complete and redirects to history', () => {
-    const location = window.location;
-    delete window.location;
-    window.location = { search: '?jobId=1', href: '' };
-    try {
-        const { unmount } = render(<Jobspage />);
-        fireEvent.click(screen.getByRole('button', { name: 'Mark Complete' }));
-        expect(window.location.href).toBe('');
-        expect(sessionStorage.getItem('completedJobs')).toBeNull();
-        fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-        expect(sessionStorage.getItem('completedJobs')).toBeNull();
-        fireEvent.click(screen.getByRole('button', { name: 'Mark Complete' }));
-        fireEvent.click(screen.getByRole('button', { name: 'Complete job' }));
-        expect(window.location.href).toBe('/History');
-        expect(JSON.parse(sessionStorage.getItem('completedJobs'))[0]).toMatchObject({ id: 1, status: 'Complete' });
-        unmount();
-        render(<Jobspage />);
-        expect(screen.queryByRole('button', { name: 'Mark Complete' })).not.toBeInTheDocument();
-        expect(sessionStorage.getItem('selectedJob')).toBeNull();
-    } finally { window.location = location; }
-});
-
-
-test('assigning an inspector opens the send-job review, with no separate send button', async () => {
-    render(<Jobspage />);
-    expect(screen.queryByRole('button', { name: 'Send Job to Inspector' })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Assign Inspector' }));
-    expect(screen.queryByRole('button', { name: 'Send Job to Inspector' })).not.toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText('Assign inspector'), { target: { value: 'Alex Morgan' } });
+test('assigns a database inspector on the job', async () => {
+    await open(); fireEvent.click(screen.getByRole('button', { name: 'Assign Inspector' }));
+    fireEvent.change(screen.getByLabelText('Assign inspector'), { target: { value: '7' } });
     fireEvent.click(screen.getByRole('button', { name: 'Assign inspector' }));
-    expect(await screen.findByRole('heading', { name: 'Send Job to Inspector' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Send Job to Inspector' })).not.toBeInTheDocument();
-    expect(generateInspectionRequest).toHaveBeenCalledWith(expect.objectContaining({ inspector: 'Alex Morgan' }), expect.objectContaining({ name: 'Alex Morgan' }), expect.anything());
-    fireEvent.click(screen.getByRole('button', { name: 'Close inspector request' }));
-    expect(screen.queryByRole('heading', { name: 'Send Job to Inspector' })).not.toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText('Assign inspector'), { target: { value: '' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Assign inspector' }));
-    expect(screen.queryByRole('heading', { name: 'Send Job to Inspector' })).not.toBeInTheDocument();
-    expect(generateInspectionRequest).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(updateJob).toHaveBeenCalledWith(42, { inspectorId: 7, revision: 0 }));
 });
-
-
-test('restores previously submitted jobs to the original status without a dropdown', () => {
-    sessionStorage.setItem('availableJobs', JSON.stringify([{ id: 1, name: 'Test job', status: 'Submitted to Client', inspector: 'Alex Morgan', isCreatedJob: true }]));
-    render(<Jobspage />);
-    expect(screen.queryByLabelText('Job Status')).not.toBeInTheDocument();
-    expect(screen.getByLabelText('Status')).toHaveValue('Assigned');
-});
-
-test('adds an item without a picture upload option', async () => {
-    render(<Jobspage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Items' }));
+test('adds an item through Django and closes only after success', async () => {
+    await open(); fireEvent.click(screen.getByRole('button', { name: 'Items' }));
     fireEvent.click(screen.getByRole('button', { name: '+ Add item' }));
-    expect(screen.queryByLabelText('Item image')).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Forklift' } });
     fireEvent.click(screen.getByRole('button', { name: 'Add item' }));
     await screen.findByText('Forklift');
-    expect(JSON.parse(sessionStorage.getItem('jobItems'))['1'][0]).toMatchObject({ name: 'Forklift', itemId: 'new-item-id' });
-    expect(saveItemImage).not.toHaveBeenCalled();
+    expect(updateJob).toHaveBeenCalledWith(42, { revision: 0, items: [{ name: 'Forklift', itemId: 'new-item-id' }] });
+    expect(sessionStorage.getItem('jobItems')).toBeNull();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 });
-
-test('does not save negative job fees', () => {
-    render(<Jobspage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Valuation & Fees' }));
-    fireEvent.change(screen.getByLabelText('Total Appraisal'), { target: { value: '-10' } });
-    expect(screen.getByLabelText('Total Appraisal')).toBeInvalid();
-    const saved = JSON.parse(sessionStorage.getItem('jobSectionDetails'));
-    expect(saved['1']['Inspection Fees'].totalAppraisal).not.toBe('-10');
-});
-
-test('does not add an item with an invalid year', () => {
-    render(<Jobspage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Items' }));
+test('retains item draft when saving fails', async () => {
+    updateJob.mockRejectedValueOnce(new Error('Server unavailable'));
+    await open(); fireEvent.click(screen.getByRole('button', { name: 'Items' }));
     fireEvent.click(screen.getByRole('button', { name: '+ Add item' }));
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Forklift' } });
-    fireEvent.change(screen.getByLabelText('Year'), { target: { value: 'bad year' } });
-    fireEvent.submit(screen.getByRole('button', { name: 'Add item' }).closest('form'));
-    expect(screen.getByRole('alert')).toHaveTextContent('four-digit year');
-    expect(sessionStorage.getItem('jobItems')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Add item' }));
+    await screen.findByText('Unable to save the item. Please try again.');
+    expect(screen.getByLabelText('Name')).toHaveValue('Forklift');
+});
+test('does not save negative fees', async () => {
+    await open(); fireEvent.click(screen.getByRole('button', { name: 'Valuation & Fees' }));
+    fireEvent.change(screen.getByLabelText('Total Appraisal'), { target: { value: '-1' } });
+    expect(updateJob).not.toHaveBeenCalled();
+});
+test('shows load errors and retries', async () => {
+    getJob.mockRejectedValueOnce(new Error('Job not found'));
+    render(<Jobspage />); expect(await screen.findByRole('alert')).toHaveTextContent('Job not found');
+    fireEvent.click(screen.getByRole('button', { name: 'Reload job' }));
+    await screen.findByDisplayValue('Contact');
+});
+
+test('edits and deletes items through the job API', async () => {
+    saved.items = [{ itemId: 'item-1', name: 'Old item' }];
+    await open(); fireEvent.click(screen.getByRole('button', { name: 'Items' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Old item' }));
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Updated item' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(saved.items[0].name).toBe('Updated item');
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Updated item' }));
+    await waitFor(() => expect(screen.queryByText('Updated item')).not.toBeInTheDocument());
+    expect(saved.items).toEqual([]);
+});
+test('imports CSV items into Django', async () => {
+    await open(); fireEvent.click(screen.getByRole('button', { name: 'Items' }));
+    const file = new File(['Name,Year\nCSV Forklift,2020'], 'items.csv', { type: 'text/csv' });
+    fireEvent.change(screen.getByLabelText('Upload items CSV'), { target: { files: [file] } });
+    await screen.findByText('CSV Forklift');
+    expect(saved.items[0]).toMatchObject({ name: 'CSV Forklift', year: '2020' });
+});
+test('completed jobs display read-only item controls', async () => {
+    saved.status = 'Complete';
+    await open();
+    expect(screen.getByRole('button', { name: 'Mark Complete' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Items' }));
+    expect(screen.getByRole('button', { name: '+ Add item' })).toBeDisabled();
 });

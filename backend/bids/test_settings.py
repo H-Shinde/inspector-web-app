@@ -87,3 +87,29 @@ class BidSettingsTests(TestCase):
         self.assertEqual(calculate_total(bid), Decimal('0.01'))
         bid.rush = True
         self.assertEqual(calculate_total(bid), Decimal('0.00'))
+
+    def test_asset_percentages_use_net_subtotal_without_compounding(self):
+        rules = default_rules()
+        for term in rules[TYPES[0]]:
+            if term['field'] == 'fmvContinuedUse': term['multiplier'] = '10.00'
+            if term['field'] == 'fairMarketValueRemoved': term['multiplier'] = '5.00'
+        self.assertEqual(self.put(rules).status_code, 200)
+        result = self.create_bid(bidAmount='1000', discount='100', additionalCharges='100', fmvContinuedUse=True, fairMarketValueRemoved=True)
+        self.assertEqual(result['totalBid'], '1150.00')
+        unchecked = self.create_bid(bidAmount='1000', discount='100', additionalCharges='100', fmvContinuedUse=False, fairMarketValueRemoved=False)
+        self.assertEqual(unchecked['totalBid'], '1000.00')
+        rules[TYPES[0]][0]['multiplier'] = '2'
+        self.put(rules)
+        self.assertEqual(self.client.get(f"/api/bids/{result['id']}/").json()['totalBid'], '1150.00')
+
+    def test_asset_percentage_limits_and_legacy_snapshots(self):
+        rules = default_rules()
+        term = next(term for term in rules[TYPES[0]] if term['field'] == 'fmvContinuedUse')
+        term['multiplier'] = '100.01'
+        self.assertEqual(self.put(rules).status_code, 400)
+        term['multiplier'] = '-1'
+        self.assertEqual(self.put(rules).status_code, 400)
+        old_rules = default_rules()
+        old_rules[TYPES[0]] = [{'field': 'bidAmount', 'operation': 'add', 'multiplier': '1', 'when': 'always'}, {'field': 'fmvContinuedUse', 'operation': 'add', 'multiplier': '5', 'when': 'always'}]
+        bid = SimpleNamespace(calculationRules=old_rules, appraisalType=TYPES[0], bidAmount=Decimal('1000'), fmvContinuedUse=Decimal('1'), rush=False, pdfOnly=False)
+        self.assertEqual(calculate_total(bid), Decimal('1005.00'))

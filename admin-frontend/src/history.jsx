@@ -1,3 +1,4 @@
+import { listJobs } from './jobsApi';
 import { appraisalTypeLabel } from './appraisalTypes';
 import { listBids } from './bidsApi';
 import LogoutButton from './LogoutButton';
@@ -5,7 +6,6 @@ import { useEffect, useRef, useState } from 'react';
 import DataTable from 'datatables.net-react';
 import DT from 'datatables.net-dt';
 import 'datatables.net-dt/css/dataTables.dataTables.css';
-import { readHistoryRecords } from './historyRecords';
 import HistoryRecordDetails from './Historyrecorddetails';
 import navLogo from './bison_logo_nav.png';
 import './history.css';
@@ -26,19 +26,19 @@ const summaryFields = ['recordType', 'businessName', 'name', 'date', 'status', '
 const columns = summaryFields.map(([data, title]) => ({ data, title, defaultContent: '', render: data === 'appraisalType' ? (value, type) => DT.render.text().display(appraisalTypeLabel(value)) : DT.render.text() }));
 
 export default function History() {
-    const [rows, setRows] = useState(() => readHistoryRecords().filter((row) => row.recordType !== 'Bid'));
+    const [rows, setRows] = useState([]);
     const [error, setError] = useState('');
     const [attempt, setAttempt] = useState(0);
     useEffect(() => {
         const controller = new AbortController();
         setError('');
-        listBids(controller.signal, true).then((records) => {
+        Promise.all([listBids(controller.signal, true), listJobs(controller.signal, true)]).then(([records, jobs]) => {
             if (controller.signal.aborted) return;
             const bids = records.filter((row) => ['Declined', 'Deleted'].includes(row.status)).map((row) => ({
                 ...row, status: 'Declined', rush: row.rush ? 'Yes' : 'No',
                 cityStateZip: [row.city, [row.state, row.zipCode].filter(Boolean).join(' ')].filter(Boolean).join(', '),
             }));
-            setRows([...readHistoryRecords().filter((row) => row.recordType !== 'Bid'), ...bids]);
+            setRows([...jobs.map((job) => ({ ...job, status: job.status === 'Complete' ? 'Completed' : 'Declined' })), ...bids]);
         }).catch((error) => { if (!controller.signal.aborted) setError(error.message); });
         return () => controller.abort();
     }, [attempt]);

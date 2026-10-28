@@ -31,3 +31,12 @@ test('accepts decimal input shorthand and scientific notation', () => {
     const rules = { [calculationTypes[0]]: [{ field: 'bidAmount', operation: 'add', multiplier: '.50', when: 'always' }] };
     expect(calculateConfiguredTotal({ calculationRules: rules, bidAmount: '1e3' })).toBe('500.00');
 });
+
+test('asset percentages apply to the fixed subtotal and do not compound', () => {
+    const rules = JSON.parse(JSON.stringify(defaultCalculationRules));
+    rules[calculationTypes[0]].find((term) => term.field === 'fmvContinuedUse').multiplier = '10';
+    const values = { appraisalType: calculationTypes[0], calculationRules: rules, bidAmount: '1000', discount: '100', additionalCharges: '100', fmvContinuedUse: true, fairMarketValueRemoved: true };
+    expect(calculateConfiguredTotal(values)).toBe('1150.00');
+    expect(calculateConfiguredTotal({ ...values, fmvContinuedUse: false, fairMarketValueRemoved: false })).toBe('1000.00');
+    expect(calculateConfiguredTotal({ ...values, fmvContinuedUse: '1.00', fairMarketValueRemoved: '0.00' })).toBe('1100.00');
+});

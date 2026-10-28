@@ -67,7 +67,7 @@ export default function HistoryRecordDetails({ record, onBack }) {
     const sections = isJob ? [infoSection, ...Object.keys(sectionGroups), 'Items', 'Assigned Inspector'] : [infoSection];
     const [activeSection, setActiveSection] = useState(infoSection);
     const [valuationView, setValuationView] = useState('Current');
-    const [historyStatus, setHistoryStatus] = useState('Accepted');
+    const [historyStatus, setHistoryStatus] = useState(() => record.valuationHistory?.some((entry) => entry.status === 'Saved') ? 'Saved' : 'Accepted');
     const [viewedItemId, setViewedItemId] = useState(null);
 
     const recordId = String(record.id);
@@ -128,7 +128,7 @@ export default function HistoryRecordDetails({ record, onBack }) {
                                                 {valuationView === 'History' && (
                                                     <label className="valuation_status">Status
                                                         <select value={historyStatus} onChange={(event) => setHistoryStatus(event.target.value)}>
-                                                            <option>Accepted</option><option>Pending</option><option>Declined</option>
+                                                            <option>Saved</option><option>Accepted</option><option>Pending</option><option>Declined</option>
                                                         </select>
                                                     </label>
                                                 )}

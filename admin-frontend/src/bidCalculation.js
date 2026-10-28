@@ -1,3 +1,4 @@
+export const assetPercentageFields = ['fmvContinuedUse', 'fairMarketValueRemoved', 'orderlyLiquidationValue', 'forcedLiquidationValue'];
 export const calculationTypes = ['Business Valuation (BV)', 'Calculation Valuation', 'Machinery & Equipment (M&E)'];
 const valuation = [
     { field: 'bidAmount', operation: 'add', multiplier: '1.00', when: 'always' },
@@ -5,10 +6,11 @@ const valuation = [
     { field: 'rushDiscount', operation: 'subtract', multiplier: '1.00', when: 'rush' },
     { field: 'additionalCharges', operation: 'add', multiplier: '1.00', when: 'always' },
 ];
+const percentages = assetPercentageFields.map((field) => ({ field, operation: 'add', multiplier: '5.00', when: 'always', mode: 'percentage' }));
 export const defaultCalculationRules = {
-    [calculationTypes[0]]: valuation,
-    [calculationTypes[1]]: valuation,
-    [calculationTypes[2]]: [valuation[0]],
+    [calculationTypes[0]]: [...valuation, ...percentages],
+    [calculationTypes[1]]: [...valuation, ...percentages],
+    [calculationTypes[2]]: [valuation[0], ...percentages],
 };
 const checkboxes = new Set(['rush', 'pdfOnly', 'fmvContinuedUse', 'fairMarketValueRemoved', 'orderlyLiquidationValue', 'forcedLiquidationValue']);
 function cents(value) {
@@ -30,13 +32,17 @@ export function calculationTerms(draft) {
 }
 export function calculateConfiguredTotal(draft) {
     let total = 0n;
+    const rates = [];
     for (const term of calculationTerms(draft)) {
         if (term.when === 'rush' && !draft.rush || term.when === 'pdfOnly' && !draft.pdfOnly) continue;
         if (term.when === 'notRush' && draft.rush || term.when === 'notPdfOnly' && draft.pdfOnly) continue;
         const value = checkboxes.has(term.field) ? (Number(draft[term.field]) ? 100n : 0n) : cents(draft[term.field]);
+        if (term.mode === 'percentage') { if (value) rates.push(cents(term.multiplier)); continue; }
         const contribution = (value * cents(term.multiplier) + 50n) / 100n;
         total += term.operation === 'subtract' ? -contribution : contribution;
     }
+    const base = total > 0n ? total : 0n;
+    for (const rate of rates) total += (base * rate + 5000n) / 10000n;
     const absolute = total < 0n ? -total : total;
     return `${total < 0n ? '-' : ''}${absolute / 100n}.${String(absolute % 100n).padStart(2, '0')}`;
 }

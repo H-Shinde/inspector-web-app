@@ -94,6 +94,16 @@ function Homepage() {
         title: "Status"
     },
     {
+        data: "bidAmount",
+        title: "Bid Amount",
+        defaultContent: "",
+        render: (value, type) => {
+            if (value === null || value === undefined || value === '') return type === 'display' ? '—' : '';
+            const amount = Number(value);
+            return type === 'display' ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount) : amount;
+        }
+    },
+    {
         data: null,
         title: "Actions",
         orderable: false,
@@ -211,7 +221,7 @@ function Homepage() {
                 4: (data, type, row) => (
                     <span className={`bid_status bid_status_${row.status.toLowerCase()}`}>{row.status}</span>
                 ),
-                5: (data, type, row) => (
+                6: (data, type, row) => (
                     <div className="action_buttons">
                         <button
                             className="delete_icon" title="Delete bid" aria-label={`Delete bid for ${row.name}`}

@@ -65,10 +65,18 @@ class BidApiTests(TestCase):
         self.client.force_login(self.other)
         self.assertEqual(self.client.get('/api/bids/').json()['bids'], [])
 
-    def test_inspector_is_required_and_cannot_belong_to_another_user(self):
-        for inspector_id in ['', self.foreign_inspector.pk, 999999]:
-            self.assertEqual(self.send(data={**self.payload, 'inspectorId': inspector_id}).status_code, 400)
-        self.assertEqual(Bid.objects.count(), 0)
+    def test_bid_does_not_require_or_accept_inspector_assignment(self):
+        payload = {key: value for key, value in self.payload.items() if key != 'inspectorId'}
+        response = self.send(data=payload)
+        self.assertEqual(response.status_code, 201, response.content)
+        self.assertNotIn('inspectorId', response.json())
+        self.assertIsNone(Bid.objects.get(pk=response.json()['id']).inspector_id)
+        for inspector_id in [self.inspector.pk, self.foreign_inspector.pk]:
+            response = self.send(data={**payload, 'inspectorId': inspector_id})
+            self.assertEqual(response.status_code, 201, response.content)
+            self.assertIsNone(Bid.objects.get(pk=response.json()['id']).inspector_id)
+        response = self.send(url=f"/api/bids/{response.json()['id']}/", method='patch', data={'status': 'Accepted'})
+        self.assertEqual(response.status_code, 200, response.content)
 
     def test_machinery_uses_only_its_fee(self):
         result = self.send(data={**self.payload, 'appraisalType': 'Machinery & Equipment (M&E)', 'reportFormat': 'Desktop', 'additionalCharges': '99'}).json()

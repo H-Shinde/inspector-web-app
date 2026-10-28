@@ -1,3 +1,5 @@
+import { createJob } from './jobsApi';
+jest.mock('./jobsApi', () => ({ createJob: jest.fn() }));
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import Bidspage from './Bidspage';
 import { getBid, listBidInspectors, updateBid, decideBid, readBidAgreement } from './bidsApi';
@@ -6,7 +8,7 @@ jest.mock('./bidsApi', () => ({ getBid: jest.fn(), listBidInspectors: jest.fn(),
 jest.mock('./engagementAgreement', () => ({ ...jest.requireActual('./engagementAgreement'), downloadAgreement: jest.fn(), generateEngagementAgreement: jest.fn() }));
 const bid = { id: 52, referenceNumber: 'BID-000052', appraisalType: 'Business Valuation (BV)', name: 'Avery', businessName: 'Example', status: 'Pending', totalBid: '1000.00', inspectorId: 7, inspector: 'Database Inspector', hasAgreement: true, engagementAgreement: 'BID-000052-engagement-agreement.pdf' };
 beforeEach(() => {
-  jest.clearAllMocks(); sessionStorage.clear(); localStorage.clear();
+  jest.clearAllMocks(); createJob.mockResolvedValue({ id: 42, inspector: '', inspectorId: null }); sessionStorage.clear(); localStorage.clear();
   window.history.replaceState(null, '', '/Bidspage?bidId=52');
   getBid.mockResolvedValue(bid); listBidInspectors.mockResolvedValue([{ id: 7, name: 'Database Inspector' }, { id: 8, name: 'New Inspector' }]);
   updateBid.mockImplementation(async (id, values) => ({ ...bid, ...values }));
@@ -70,4 +72,21 @@ test('shows an API error with retry instead of cached bid data', async () => {
   getBid.mockRejectedValueOnce(new Error('Bid not found'));
   render(<Bidspage />); expect(await screen.findByRole('alert')).toHaveTextContent('Bid not found');
   fireEvent.click(screen.getByRole('button', { name: 'Retry' })); await screen.findByDisplayValue('BID-000052');
+});
+
+test('accepts a bid without an inspector and creates an unassigned job', async () => {
+  const original = window.location;
+  delete window.location;
+  window.location = { search: '?bidId=52', href: '' };
+  try {
+    getBid.mockResolvedValue({ ...bid, inspectorId: null, inspector: '' });
+    render(<Bidspage />);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Accept' })).toBeEnabled());
+    expect(screen.queryByLabelText('Assigned inspector')).not.toBeInTheDocument();
+    expect(listBidInspectors).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Accept' }));
+    await waitFor(() => expect(window.location.href).toMatch(/^\/Jobspage\?jobId=/));
+    expect(createJob).toHaveBeenCalledWith(52);
+    expect(sessionStorage.getItem('acceptedJobs')).toBeNull();
+  } finally { window.location = original; }
 });

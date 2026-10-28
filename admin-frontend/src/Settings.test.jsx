@@ -5,7 +5,7 @@ import { defaultCalculationRules, calculationTypes } from './bidCalculation';
 jest.mock('./bidSettingsApi', () => ({ getBidSettings: jest.fn(), saveBidSettings: jest.fn() }));
 const response = () => ({
     rules: JSON.parse(JSON.stringify(defaultCalculationRules)), defaults: JSON.parse(JSON.stringify(defaultCalculationRules)), types: calculationTypes,
-    fields: [{ field: 'bidAmount', label: 'Appraisal fee' }, { field: 'discount', label: 'PDF discount' }, { field: 'rush', label: 'Rush checkbox', checkbox: true }, { field: 'pdfOnly', label: 'PDF Only checkbox', checkbox: true }],
+    fields: [{ field: 'fmvContinuedUse', label: 'FMV in continued use', checkbox: true, percentage: true }, { field: 'bidAmount', label: 'Appraisal fee' }, { field: 'discount', label: 'PDF discount' }, { field: 'rush', label: 'Rush checkbox', checkbox: true }, { field: 'pdfOnly', label: 'PDF Only checkbox', checkbox: true }],
 });
 beforeEach(() => { jest.clearAllMocks(); getBidSettings.mockResolvedValue(response()); saveBidSettings.mockImplementation(async (rules) => ({ ...response(), rules })); });
 test('changes a formula, previews checkbox fees and saves all bid types', async () => {
@@ -65,4 +65,15 @@ test('keeps navigation tabs and contains logout in the account dropdown', async 
     fireEvent.click(screen.getByRole('button', { name: 'Account menu' }));
     expect(screen.getByRole('button', { name: 'Logout' }).closest('.hamburger_dropdown')).not.toBeNull();
     expect(screen.getByRole('button', { name: 'Account menu' })).toHaveAttribute('aria-expanded', 'true');
+});
+
+test('edits asset checkbox percentages and previews the surcharge', async () => {
+    render(<Settings />); await screen.findByLabelText('Bid type');
+    fireEvent.change(screen.getByLabelText('FMV in continued use percentage'), { target: { value: '10' } });
+    const preview = within(screen.getByRole('region', { name: 'Calculation preview' }));
+    fireEvent.click(preview.getByLabelText('FMV in continued use'));
+    expect(preview.getByText('$1155.00')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Save Settings' }));
+    await screen.findByText('Bid calculation settings saved.');
+    expect(saveBidSettings.mock.calls[0][0][calculationTypes[0]]).toEqual(expect.arrayContaining([expect.objectContaining({ field: 'fmvContinuedUse', multiplier: '10', mode: 'percentage' })]));
 });

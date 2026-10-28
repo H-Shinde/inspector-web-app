@@ -1,11 +1,8 @@
+import { listJobs, finishJob, deleteJob } from './jobsApi';
 import { appraisalTypeLabel } from './appraisalTypes';
 import LogoutButton from './LogoutButton';
 import { JOB_STATUSES } from './jobStatus';
-import { archiveDeletedRecord, isDeletedRecord, completeJob, isCompletedJob } from './historyRecords';
 import './Jobspagehomepage.css';
-import { readBidList } from './bidFields';
-import { readAcceptedJobs } from './bidTransfers';
-import { withJobDemoData, seedJobDemoSections } from './jobDemoData';
 import navLogo from './bison_logo_nav.png';
 import DataTable from 'datatables.net-react';
 import DT from 'datatables.net-dt';
@@ -19,11 +16,6 @@ import './TableFilter.css';
 
 DataTable.use(DT);
 
-// No inspector means Unassigned; otherwise keep a valid progress status, defaulting to Assigned.
-const resolveJobStatus = (status, inspector) => {
-    if (!inspector) return 'Unassigned';
-    return ['Assigned', 'In-Progress', 'Pending Review'].includes(status) ? status : 'Assigned';
-};
 const statusClass = (status) => status.toLowerCase().replace(/\s+/g, '-');
 
 function JobHomepage() {
@@ -47,10 +39,12 @@ function JobHomepage() {
         setCompleteTarget(null);
     };
 
-    const confirmComplete = () => {
-        if (!completeTarget) return;
-        completeJob(completeTarget);
-        window.location.href = '/History';
+    const confirmComplete = async () => {
+        if (!completeTarget || busy) return;
+        setBusy(true); setError('');
+        try { await finishJob(completeTarget); window.location.href = '/History'; }
+        catch (error) { setError(error.message); }
+        finally { setBusy(false); }
     };
 
     const closeConfirm = () => {
@@ -58,9 +52,12 @@ function JobHomepage() {
         setDeleteTarget(null);
     };
 
-    const confirmDelete = () => {
-        if (deleteTarget) handleDelete(deleteTarget.id);
-        closeConfirm();
+    const confirmDelete = async () => {
+        if (!deleteTarget || busy) return;
+        setBusy(true); setError('');
+        try { await deleteJob(deleteTarget); closeConfirm(); setAttempt((value) => value + 1); }
+        catch (error) { setError(error.message); }
+        finally { setBusy(false); }
     };
 
     const handleBidsClick = () => {
@@ -68,9 +65,6 @@ function JobHomepage() {
     };
 
     const handleView = (row) => {
-        const jobs = tableData.map((job) => ({ ...job, pdf: job.pdf?.name ?? job.pdf ?? '' }));
-        sessionStorage.setItem('availableJobs', JSON.stringify(jobs));
-        sessionStorage.setItem('selectedJob', JSON.stringify(jobs.find((job) => job.id === row.id)));
         window.location.href = `/Jobspage?jobId=${encodeURIComponent(row.id)}`;
     };
 
@@ -87,163 +81,18 @@ function JobHomepage() {
         if (event.key === 'Enter' && event.target.tagName === 'TR') handleRowClick(event);
     };
 
-    const [tableData, setTableData] = useState([
-        {
-            id: 1,
-            name: "John Doe",
-            date: "08/10/2006",
-            businessName: "Vertex Logistics",
-            status: "In-Progress"
-        },
-        {
-            id: 2,
-            name: "Saige Fuentes",
-            date: "01/12/2016",
-            businessName: "Lumina Marketing",
-            status: "Assigned"
-        },
-        {
-            id: 3,
-            name: "Bowen Higgins",
-            date: "02/10/2006",
-            businessName: "BlueWave Digital",
-            status: "Pending Review"
-        },
-        {
-            id: 4,
-            name: "Kylan Gentry",
-            date: "03/10/2016",
-            businessName: "Apex Financial Group",
-            status: "Assigned"
-        },
-        {
-            id: 5,
-            name: "Aaron Paul",
-            date: "04/10/2017",
-            businessName: "Ironclad Security Services",
-            status: "Unassigned",
-            inspector: ""
-        },
-        {
-            id: 6,
-            name: "Sarah Hopkins",
-            date: "02/15/2012",
-            businessName: "Zenith Healthcare",
-            status: "In-Progress"
-        },
-        {
-            id: 7,
-            name: "Xavier Pace",
-            date: "03/10/2012",
-            businessName: "Vanguard Consulting",
-            status: "Assigned"
-        },
-        {
-            id: 8,
-            name: "Charles Xavier",
-            date: "04/12/2026",
-            businessName: "Horizon Eco Solutions",
-            status: "Pending Review"
-        },
-        {
-            id: 9,
-            name: "Maya Bennett",
-            date: "05/06/2026",
-            businessName: "Cedar Grove Realty",
-            status: "Assigned"
-        },
-        {
-            id: 10,
-            name: "Ethan Brooks",
-            date: "05/14/2026",
-            businessName: "Summit Manufacturing",
-            status: "Unassigned",
-            inspector: ""
-        },
-        {
-            id: 11,
-            name: "Olivia Chen",
-            date: "06/02/2026",
-            businessName: "Harborview Hospitality",
-            status: "In-Progress"
-        },
-        {
-            id: 12,
-            name: "Noah Carter",
-            date: "06/18/2026",
-            businessName: "Pinecrest Construction",
-            status: "Assigned"
-        },
-        {
-            id: 13,
-            name: "Amara Williams",
-            date: "07/08/2026",
-            businessName: "BrightPath Education",
-            status: "Pending Review"
-        },
-        {
-            id: 14,
-            name: "Lucas Rivera",
-            date: "07/22/2026",
-            businessName: "Stonebridge Auto Services",
-            status: "Assigned"
-        },
-        {
-            id: 15,
-            name: "Karen Patel",
-            date: "08/05/2026",
-            businessName: "Maple Leaf Retail",
-            status: "Unassigned",
-            inspector: ""
-        },
-        {
-            id: 16,
-            name: "Jackson Reed",
-            date: "08/19/2026",
-            businessName: "Northstar Warehousing",
-            status: "In-Progress"
-        },
-        {
-            id: 17,
-            name: "Isabella Morgan",
-            date: "09/03/2026",
-            businessName: "Willow Creek Wellness",
-            status: "Assigned"
-        },
-        {
-            id: 18,
-            name: "Elijah Foster",
-            date: "09/16/2026",
-            businessName: "Clearwater Engineering",
-            status: "Pending Review"
-        },
-        {
-            id: 19,
-            name: "Ava Thompson",
-            date: "10/01/2026",
-            businessName: "Oakridge Food Services",
-            status: "Assigned"
-        },
-        {
-            id: 20,
-            name: "Liam Hayes",
-            date: "10/08/2026",
-            businessName: "Silverline Technology",
-            status: "Unassigned",
-            inspector: ""
-        }
-        ].concat(readAcceptedJobs(), readBidList('createdJobs')).map(withJobDemoData).map((job) => {
-            const inspector = readBidList('jobAssignments').find((assignment) => assignment.jobId === job.id)?.inspector ?? job.inspector ?? '';
-            return { ...job, inspector, status: resolveJobStatus(job.status, inspector) };
-        }).filter((job) => !isDeletedRecord('Job', job.id) && !isCompletedJob(job.id)));
-
-
+    const [tableData, setTableData] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+    const [busy, setBusy] = useState(false);
+    const [attempt, setAttempt] = useState(0);
     useEffect(() => {
-        seedJobDemoSections(tableData);
-        sessionStorage.setItem('availableJobs', JSON.stringify(tableData.map((job) => ({ ...job, pdf: job.pdf?.name ?? job.pdf ?? '' }))));
-        sessionStorage.setItem('createdJobs', JSON.stringify(tableData.filter((job) => job.isCreatedJob).map((job) => ({ ...job, pdf: job.pdf?.name ?? job.pdf ?? '' }))));
-        sessionStorage.setItem('acceptedJobs', JSON.stringify(tableData.filter((row) => row.sourceBidId !== undefined)));
-    }, [tableData]);
+        const controller = new AbortController(); setLoading(true); setError('');
+        listJobs(controller.signal).then((rows) => { if (!controller.signal.aborted) setTableData(rows); })
+            .catch((error) => { if (!controller.signal.aborted) setError(error.message); })
+            .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+        return () => controller.abort();
+    }, [attempt]);
 
     const columns = [
     {
@@ -296,12 +145,6 @@ function JobHomepage() {
             label: column.title.replace('# ', ''),
             options: column.data === 'status' ? JOB_STATUSES : undefined,
         }));
-    const handleDelete = (id) => {
-        const record = tableData.find((row) => row.id === id);
-        if (!record) return;
-        archiveDeletedRecord(record, 'Job');
-        window.location.href = '/History';
-    };
   return (
     <div className='frame_home'>
         <dialog ref={confirmDialog} className="popup confirm_popup" aria-labelledby="confirm-title" onCancel={(event) => {
@@ -311,12 +154,13 @@ function JobHomepage() {
             {deleteTarget && (
                 <div>
                     <div className="confirm_body">
+                        {error && <p role="alert" className="add_bid_error">{error}</p>}
                         <h2 id="confirm-title">Delete this job?</h2>
                         <p>Are you sure you want to delete this job for <strong>{deleteTarget.name}</strong> ({deleteTarget.businessName})?</p>
                     </div>
                     <div className="actions">
                         <button type="button" className="bid_form_cancel" onClick={closeConfirm}>Cancel</button>
-                        <button type="button" className="bid_form_delete" onClick={confirmDelete}>Delete job</button>
+                        <button type="button" className="bid_form_delete" disabled={busy} onClick={confirmDelete}>Delete job</button>
                     </div>
                 </div>
             )}
@@ -329,12 +173,13 @@ function JobHomepage() {
             {completeTarget && (
                 <div>
                     <div className="confirm_body">
+                        {error && <p role="alert" className="add_bid_error">{error}</p>}
                         <h2 id="complete-title">Mark this job complete?</h2>
                         <p>Are you sure you want to mark the job for <strong>{completeTarget.name}</strong> ({completeTarget.businessName}) as complete? It will move to History.</p>
                     </div>
                     <div className="actions">
                         <button type="button" className="bid_form_cancel" onClick={closeComplete}>Cancel</button>
-                        <button type="button" className="bid_form_save" onClick={confirmComplete}>Complete job</button>
+                        <button type="button" className="bid_form_save" disabled={busy} onClick={confirmComplete}>Complete job</button>
                     </div>
                 </div>
             )}
@@ -396,6 +241,8 @@ function JobHomepage() {
                     Jobs
                 </div>
             </div>
+        {loading && <p role="status">Loading jobs…</p>}
+        {error && <p role="alert" className="add_bid_error">{error} <button type="button" onClick={() => setAttempt((value) => value + 1)}>Reload jobs</button></p>}
         <section className="bids_panel" aria-label="Jobs">
             <div className="table_filter_toolbar">
                 <TableFilter tableRef={table} columns={filterColumns} />

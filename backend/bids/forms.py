@@ -8,7 +8,7 @@ from .validation import contact_error
 class BidForm(forms.ModelForm):
     class Meta:
         model = Bid
-        exclude = ["owner", "status", "agreement", "createdAt"]
+        exclude = ["owner", "inspector", "status", "agreement", "createdAt"]
 
     def __init__(self, *args, user, **kwargs):
         if args and args[0] is not None:
@@ -19,11 +19,6 @@ class BidForm(forms.ModelForm):
             args = (data, *args[1:])
         super().__init__(*args, **kwargs)
         self.user = user
-
-        self.fields["inspector"].queryset = Inspector.objects.filter(
-            owner=user,
-            is_active=True,
-        )
 
         for field in [
             "bidAmount",

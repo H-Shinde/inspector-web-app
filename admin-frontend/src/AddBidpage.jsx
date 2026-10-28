@@ -1,9 +1,10 @@
+import { assetPercentageFields, calculationTerms } from './bidCalculation';
+import ClientTypeahead from './ClientTypeahead';
 import useBidSettings from './useBidSettings';
 import ValidatedForm from './ValidatedForm';
 import { CALCULATION_VALUATION, appraisalTypeLabel } from './appraisalTypes';
 import LogoutButton from './LogoutButton';
-import { createServerBid, listClients, clientToBidFields, listBidInspectors, uploadBidAgreement } from './bidsApi';
-import { sortInspectorsByDistance } from './inspectorDistance';
+import { createServerBid, listClients, clientToBidFields, uploadBidAgreement } from './bidsApi';
 import { bidSections as sections, getBidSections } from './bidSections';
 import { useEffect, useRef, useState } from 'react';
 import { calculateTotalBid } from './bidFields';
@@ -19,15 +20,6 @@ function AddBidpage() {
     const [clientsLoading, setClientsLoading] = useState(true);
     const [clientsError, setClientsError] = useState('');
     const [clientAttempt, setClientAttempt] = useState(0);
-    const [clientId, setClientId] = useState('');
-    const [inspectors, setInspectors] = useState([]);
-    const [inspectorsError, setInspectorsError] = useState('');
-    useEffect(() => {
-        const controller = new AbortController();
-        listBidInspectors(controller.signal).then((rows) => { if (!controller.signal.aborted) setInspectors(rows); })
-            .catch((error) => { if (!controller.signal.aborted) setInspectorsError(error.message); });
-        return () => controller.abort();
-    }, []);
     const [createdBid, setCreatedBid] = useState(null);
     const savedBid = useRef(null);
     useEffect(() => {
@@ -48,6 +40,7 @@ function AddBidpage() {
     const [previewUrl, setPreviewUrl] = useState('');
     const [previewFilename, setPreviewFilename] = useState('');
     const [previewing, setPreviewing] = useState(false);
+    const previewRequest = useRef(0);
     useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl); }, [previewUrl]);
     const [emailDraft, setEmailDraft] = useState(null);
     const [agreementError, setAgreementError] = useState('');
@@ -58,17 +51,10 @@ function AddBidpage() {
                 : fields,
     ]);
     const visibleFields = new Set(visibleSections.flatMap(([, fields]) => fields.map(([field]) => field)));
-    const submissionDraft = { inspectorId: draft.inspectorId, calculationRules: calculationSettings.data?.rules, ...(isMachinery ? Object.fromEntries(Object.entries(draft).filter(([field]) => visibleFields.has(field))) : draft) };
+    const submissionDraft = { calculationRules: calculationSettings.data?.rules, ...(isMachinery ? Object.fromEntries(Object.entries(draft).filter(([field]) => visibleFields.has(field))) : draft) };
     const totalBid = calculateTotalBid(submissionDraft);
-    const zipCode = (draft.zipCode || '').trim();
-    const validZip = /^\d{5}(-\d{4})?$/.test(zipCode);
-    const nearestInspectors = validZip
-        ? sortInspectorsByDistance(inspectors, { city: draft.city, state: draft.state, zipCode, businessAddress: draft.businessAddress })
-            .filter(({ distance }) => distance !== null && distance !== undefined).slice(0, 3)
-        : [];
     const referenceNumber = createdBid?.referenceNumber || 'Assigned when bid is created';
     const selectClient = (id) => {
-        setClientId(id);
         setError('');
         const client = clients.find((entry) => String(entry.id) === id);
         if (client) setDraft((previous) => ({ ...previous, ...clientToBidFields(client) }));
@@ -85,6 +71,7 @@ function AddBidpage() {
             setPreviewUrl('');
             setEmailDraft((isMachinery ? machineryEquipmentEmail : businessValuationEmail)({ ...submissionDraft, referenceNumber }));
             confirmDialog.current.showModal();
+            await previewAgreement();
             return;
         }
         setError('Choose an appraisal type before creating the bid.');
@@ -96,11 +83,15 @@ function AddBidpage() {
             window.location.href = `/Bidspage?bidId=${savedBid.current.id}`;
             return;
         }
+        previewRequest.current += 1;
+        setPreviewing(false);
+        setPreviewUrl('');
         confirmDialog.current.close();
     };
 
     const previewAgreement = async () => {
         if (previewing || generating) return;
+        const request = ++previewRequest.current;
         setPreviewing(true);
         setAgreementError('');
         try {
@@ -110,11 +101,12 @@ function AddBidpage() {
                 date: isMachinery && submissionDraft.date ? submissionDraft.date : new Date().toLocaleDateString('en-US'),
             };
             const blob = await generateEngagementAgreement(values);
+            if (request !== previewRequest.current) return;
             setPreviewUrl(URL.createObjectURL(blob));
             setPreviewFilename(values.referenceNumber ? `${values.referenceNumber}-engagement-agreement.pdf` : 'engagement-agreement-preview.pdf');
         } catch {
-            setAgreementError('Unable to preview the agreement. Please try again.');
-        } finally { setPreviewing(false); }
+            if (request === previewRequest.current) setAgreementError('Unable to preview the agreement. Please try again.');
+        } finally { if (request === previewRequest.current) setPreviewing(false); }
     };
 
     const confirmAgreement = async () => {
@@ -132,6 +124,8 @@ function AddBidpage() {
                 !current || current[key] === original[key] ? generated[key] : current[key].replaceAll(referenceNumber, bid.referenceNumber),
             ])));
             const blob = await generateEngagementAgreement(bid);
+            setPreviewUrl(URL.createObjectURL(blob));
+            setPreviewFilename(`${bid.referenceNumber}-engagement-agreement.pdf`);
             const updated = await uploadBidAgreement(bid, blob);
             savedBid.current = updated; setCreatedBid(updated);
             const filename = `${bid.referenceNumber}-engagement-agreement.pdf`;
@@ -185,6 +179,7 @@ function AddBidpage() {
                     <a className="bid_back_button agreement_preview_download" href={previewUrl} download={previewFilename}>Download Preview PDF</a>
                 </div>}
                 {agreementError && <p role="alert" className="add_bid_error">{agreementError}</p>}
+                {previewing && <p role="status">Preparing PDF preview…</p>}
                 {generating && <p role="status">Creating engagement agreement…</p>}
             </div>
             <div className="actions">
@@ -242,32 +237,19 @@ function AddBidpage() {
             {calculationSettings.loading && <p role="status">Loading bid calculation settings…</p>}
             {calculationSettings.error && <p role="alert">{calculationSettings.error} <button type="button" onClick={calculationSettings.retry}>Retry calculation settings</button></p>}
             <ValidatedForm className="fieldsframe" onSubmit={handleAdd} aria-label="Add bid">
-                <div className="bid_detail_field">
-                    <label htmlFor="add-inspectorId">Assigned inspector (required)</label>
-                    <select id="add-inspectorId" name="inspectorId" required value={draft.inspectorId ?? ''} onChange={(event) => setDraft({ ...draft, inspectorId: event.target.value })}>
-                        <option value="">Select an inspector</option>
-                        {inspectors.map((inspector) => <option key={inspector.id} value={inspector.id}>{inspector.name}</option>)}
-                    </select>
-                    {inspectorsError && <p role="alert" className="add_bid_error">{inspectorsError}</p>}
-                    {!inspectorsError && inspectors.length === 0 && <p>Add an inspector before creating a bid.</p>}
-                </div>
                 {visibleSections.map(([title, fields]) => (
                     <fieldset className="add_bid_section" key={title}>
                         <legend>{title}</legend>
                         <div className="add_bid_section_fields">
                             {title === 'Client Information' && (
                                 <div className="bid_detail_field add_bid_client_select">
-                                    <label htmlFor="add-client-select">Select client</label>
-                                    <select id="add-client-select" disabled={clientsLoading || !!clientsError} value={clientId} onChange={(event) => selectClient(event.target.value)}>
-                                        <option value="">{clientsLoading ? 'Loading clients…' : 'Select a client to autofill'}</option>
-                                        {clients.map((client) => <option key={client.id} value={client.id}>{[client.businessName ?? client.company ?? client.companyName, client.name ?? client.contactName].filter(Boolean).join(' – ')}</option>)}
-                                    </select>
+                                    <ClientTypeahead clients={clients} loading={clientsLoading} disabled={!!clientsError} onSelect={(client) => selectClient(String(client.id))} />
                                     {clientsError && <p role="alert" className="add_bid_error">{clientsError} <button type="button" className="bid_back_button" onClick={() => setClientAttempt((value) => value + 1)}>Retry</button></p>}
                                 </div>
                             )}
                             {fields.map(([field, label, type = 'text']) => (
                                 <div className={`bid_detail_field add_bid_${field}${type === 'checkbox' ? ' add_bid_checkbox' : ''}`} key={field}>
-                                    <label htmlFor={`add-${field}`}>{label}</label>
+                                    <label htmlFor={`add-${field}`}>{label}{type === 'checkbox' && assetPercentageFields.includes(field) && (() => { const rule = calculationTerms(submissionDraft).find((term) => term.field === field && term.mode === 'percentage'); return rule ? ` (+${rule.multiplier}%)` : ''; })()}</label>
                                     {type === 'appraisalType' ? (
                                         <select id={`add-${field}`} name={field} required value={draft[field]} onChange={(event) => setDraft({ ...draft, [field]: event.target.value, reportFormat: '' })}>
                                             <option value="">Select appraisal type</option>
@@ -304,14 +286,6 @@ function AddBidpage() {
                                 </div>
                             ))}
                         </div>
-                        {title === 'Business' && validZip && (
-                            <div className="add_bid_nearby" aria-live="polite">
-                                <h3>Closest inspectors to {zipCode}</h3>
-                                {inspectorsError ? <p className="add_bid_error">{inspectorsError}</p>
-                                    : nearestInspectors.length === 0 ? <p className="add_bid_pricing_help">No inspectors with a known location were found near this ZIP code.</p>
-                                        : <ol>{nearestInspectors.map(({ inspector, distance }) => <li key={inspector.id ?? inspector.name}><strong>{inspector.name}</strong> <span className="add_bid_distance">{distance.toFixed(1)} miles away</span></li>)}</ol>}
-                            </div>
-                        )}
                         {title === 'Pricing' && <p id="total-bid-help" className="add_bid_pricing_help">Total uses your saved <a href="/Settings">calculation settings</a>. Checkbox conditions apply automatically.</p>}
                     </fieldset>
                 ))}

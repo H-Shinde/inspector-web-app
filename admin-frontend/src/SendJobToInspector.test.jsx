@@ -1,3 +1,4 @@
+import { setInspectorDirectory } from './inspectorSelection';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import SendJobToInspector from './SendJobToInspector';
 import { generateInspectionRequest } from './inspectionRequest';
@@ -8,6 +9,7 @@ jest.mock('./engagementAgreement', () => ({ downloadAgreement: jest.fn() }));
 const job = { id: 21, referenceNumber: 'BID-000021', name: 'Subject Contact', businessName: 'Example Co', inspector: 'Alex Morgan', inspectorId: 2, clientEmail: 'client@example.com' };
 beforeEach(() => {
     sessionStorage.clear(); jest.clearAllMocks();
+    setInspectorDirectory([{ id: 2, name: 'Alex Morgan', email: 'alex.morgan@example.com', is_active: true }]);
     generateInspectionRequest.mockResolvedValue(new Blob(['pdf'], { type: 'application/pdf' }));
     URL.createObjectURL = jest.fn(() => 'blob:request'); URL.revokeObjectURL = jest.fn();
     HTMLDialogElement.prototype.showModal = function () { this.open = true; };

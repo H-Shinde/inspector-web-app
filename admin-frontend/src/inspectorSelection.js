@@ -30,9 +30,9 @@ export const demoInspectors = [
     numberOfJobs: [24, 18, 32, 11, 27, 0][index % 6],
     lastJobDate: ['2026-10-02', '2026-09-28', '2026-10-05', '2026-08-19', '2026-09-30', '2026-09-15'][index % 6],
 }));
-export function getInspectors() {
-    return [...demoInspectors, ...readBidList('invitedInspectors')];
-}
+let inspectorDirectory = [];
+export function setInspectorDirectory(records) { inspectorDirectory = records; }
+export function getInspectors() { return inspectorDirectory; }
 
 function subscribe(callback) {
     window.addEventListener('inspector-selection-changed', callback);
@@ -58,13 +58,6 @@ export function assignInspectorToJob(job, inspector) {
 }
 
 export function selectGlobalInspector(id) {
-    const inspector = getInspectors().find((entry) => String(entry.id) === String(id));
-    if (inspector) {
-        let job;
-        try { job = JSON.parse(sessionStorage.getItem('selectedJob') || 'null'); } catch {}
-        job = job ?? readBidList('availableJobs')[0];
-        if (job?.id != null) assignInspectorToJob(job, inspector.name);
-    }
     if (id == null || id === '') sessionStorage.removeItem('selectedInspectorId');
     else sessionStorage.setItem('selectedInspectorId', String(id));
     window.dispatchEvent(new Event('inspector-selection-changed'));

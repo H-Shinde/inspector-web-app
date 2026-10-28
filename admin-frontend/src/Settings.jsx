@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import useBidSettings from './useBidSettings';
 import { saveBidSettings } from './bidSettingsApi';
 import { appraisalTypeLabel } from './appraisalTypes';
-import { calculateConfiguredTotal } from './bidCalculation';
+import { calculateConfiguredTotal, assetPercentageFields } from './bidCalculation';
 import ValidatedForm from './ValidatedForm';
 import LogoutButton from './LogoutButton';
 import navLogo from './bison_logo_nav.png';
@@ -25,7 +25,7 @@ export default function Settings() {
         setRules((previous) => {
             const existing = previous[type].find((term) => term.field === field);
             const others = previous[type].filter((term) => term.field !== field);
-            return { ...previous, [type]: changes.operation === 'ignore' ? others : [...others, { field, operation: 'add', multiplier: '1.00', when: 'always', ...existing, ...changes }] };
+            return { ...previous, [type]: changes.operation === 'ignore' ? others : [...others, { field, operation: 'add', multiplier: assetPercentageFields.includes(field) ? '5.00' : '1.00', when: 'always', ...existing, ...changes, ...(assetPercentageFields.includes(field) ? { mode: 'percentage' } : {}) }] };
         });
     };
     const save = async (event) => {
@@ -59,13 +59,14 @@ export default function Settings() {
                     <legend>Bid calculation</legend>
                     <label htmlFor="settings-type">Bid type</label>
                     <select id="settings-type" value={type} onChange={(event) => setType(event.target.value)}>{data.types.map((value) => <option key={value} value={value}>{appraisalTypeLabel(value)}</option>)}</select>
-                    <p>Each contribution is field value × multiplier. Checkboxes contribute 1 when checked and 0 otherwise, so their multiplier is a fixed fee. Each contribution is rounded to cents.</p>
+                    <p>Numeric fields use value × multiplier. Asset Valuation checkboxes add a percentage of the subtotal after fixed fees and discounts. Percentages add together without compounding. Other checkboxes use fixed fees. Each contribution rounds to cents.</p>
                     <div className="settings_rule_grid">
                         {fields.map(({ field, label }) => {
+                            const percentage = assetPercentageFields.includes(field);
                             const term = rules[type].find((entry) => entry.field === field);
                             return <div key={field} className={`settings_rule_card${term ? ' settings_rule_active' : ''}`}><h3>{label}</h3><div className="settings_rule_controls">
-                                <label><span>Operation</span><select aria-label={`${label} operation`} value={term?.operation || 'ignore'} onChange={(event) => update(field, { operation: event.target.value })}><option value="ignore">Ignore</option><option value="add">Add</option><option value="subtract">Subtract</option></select></label>
-                                <label><span>Rate / fee</span><input id={`rule-${field}-multiplier`} aria-label={`${label} multiplier`} type="number" required={!!term} disabled={!term} min="0" max="1000000" step="0.01" value={term?.multiplier ?? ''} onChange={(event) => update(field, { multiplier: event.target.value })} /></label>
+                                <label><span>Operation</span><select aria-label={`${label} operation`} value={term?.operation || 'ignore'} onChange={(event) => update(field, { operation: event.target.value })}><option value="ignore">Ignore</option><option value="add">Add</option>{!percentage && <option value="subtract">Subtract</option>}</select></label>
+                                <label><span>{percentage ? 'Percentage (%)' : 'Rate / fee'}</span><input id={`rule-${field}-multiplier`} aria-label={`${label} ${percentage ? 'percentage' : 'multiplier'}`} type="number" required={!!term} disabled={!term} min="0" max={percentage ? 100 : 1000000} step="0.01" value={term?.multiplier ?? ''} onChange={(event) => update(field, { multiplier: event.target.value })} /></label>
                                 <label><span>Apply when</span><select aria-label={`${label} condition`} disabled={!term} value={term?.when || 'always'} onChange={(event) => update(field, { when: event.target.value })}><option value="always">Always</option><option value="rush">Rush checked</option><option value="notRush">Rush unchecked</option><option value="pdfOnly">PDF Only checked</option><option value="notPdfOnly">PDF Only unchecked</option></select></label>
                             </div></div>;
                         })}

@@ -31,6 +31,14 @@ class Inspector(models.Model):
     )
     name = models.CharField(max_length=200)
     email = models.EmailField()
+    phone = models.CharField(max_length=50, blank=True)
+    address = models.CharField(max_length=300, blank=True)
+    city = models.CharField(max_length=150, blank=True)
+    state = models.CharField(max_length=2, blank=True)
+    zipCode = models.CharField(max_length=10, blank=True)
+    focus = models.CharField(max_length=30, default='Inspection', choices=[('Inspection', 'Inspection'), ('Appraisal', 'Appraisal'), ('Appraisal, Inspection', 'Appraisal, Inspection')])
+    region = models.CharField(max_length=200, blank=True)
+    notes = models.TextField(blank=True)
     is_active = models.BooleanField(default=True)
 
     def __str__(self):
@@ -54,6 +62,7 @@ class Bid(models.Model):
     inspector = models.ForeignKey(
         Inspector,
         on_delete=models.PROTECT,
+        null=True, blank=True, editable=False,
     )
 
     appraisalType = models.CharField(
@@ -148,3 +157,21 @@ class Bid(models.Model):
 class BidSettings(models.Model):
     owner = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     rules = models.JSONField(default=default_rules)
+
+
+class Job(models.Model):
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    source_bid = models.OneToOneField(Bid, on_delete=models.PROTECT, related_name='job')
+    inspector = models.ForeignKey(Inspector, on_delete=models.PROTECT, null=True, blank=True)
+    status = models.CharField(max_length=30, default='Unassigned', choices=[(value, value) for value in ['Unassigned', 'Assigned', 'In-Progress', 'Pending Review', 'Complete', 'Deleted']])
+    previousStatus = models.CharField(max_length=30, blank=True)
+    items = models.JSONField(default=list, blank=True)
+    sectionDetails = models.JSONField(default=dict, blank=True)
+    valuationHistory = models.JSONField(default=list, blank=True)
+    revision = models.PositiveIntegerField(default=0)
+    createdAt = models.DateTimeField(auto_now_add=True)
+    completedAt = models.DateTimeField(null=True, blank=True)
+    deletedAt = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f'JOB-{self.pk:06d} — {self.source_bid.businessName}'

@@ -1,60 +1,51 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import JobHomepage from './Jobspagehomepage';
-
+import { listJobs, finishJob, deleteJob } from './jobsApi';
+jest.mock('./jobsApi', () => ({ listJobs: jest.fn(), finishJob: jest.fn(), deleteJob: jest.fn() }));
 jest.mock('datatables.net-react', () => {
-    const Table = ({ data, slots }) => <div>{data.map((row) => <div key={row.id}>{row.name}{slots[4](null, null, row)}{slots[5](null, null, row)}{slots[7](null, null, row)}</div>)}</div>;
-    Table.use = () => {};
-    return Table;
+    const React = require('react');
+    const Table = React.forwardRef(({ data, slots }, ref) => {
+        React.useImperativeHandle(ref, () => ({ dt: () => ({ row: (tr) => ({ data: () => data.find((row) => String(row.id) === tr.dataset.id) }) }) }));
+        return <table><tbody>{data.map((row) => <tr data-id={row.id} key={row.id}><td>{row.name}</td><td>{slots[4](null, null, row)}</td><td>{slots[5](null, null, row)}</td><td>{slots[7](null, null, row)}</td></tr>)}</tbody></table>;
+    });
+    Table.use = () => {}; return Table;
 });
 jest.mock('datatables.net-dt', () => ({}));
 jest.mock('datatables.net-select-dt', () => ({}));
 jest.mock('datatables.net-responsive-dt', () => ({}));
-
+const job = { id: 42, name: 'Database Job', status: 'Unassigned', inspector: '', revision: 0 };
 beforeEach(() => {
-    sessionStorage.clear();
+    jest.clearAllMocks(); sessionStorage.clear();
+    listJobs.mockResolvedValue([job]); finishJob.mockResolvedValue({ ...job, status: 'Complete' }); deleteJob.mockResolvedValue({ ...job, status: 'Deleted' });
     HTMLDialogElement.prototype.showModal = function () { this.open = true; };
     HTMLDialogElement.prototype.close = function () { this.open = false; };
 });
-
-test('asks for confirmation before completing a job, and Cancel changes nothing', () => {
-    const location = window.location;
-    delete window.location;
-    window.location = { href: '' };
-    try {
-        render(<JobHomepage />);
-        fireEvent.click(screen.getByRole('button', { name: 'Mark job for John Doe complete' }));
-        expect(screen.getByRole('heading', { name: 'Mark this job complete?' })).toBeInTheDocument();
-        expect(sessionStorage.getItem('completedJobs')).toBeNull();
-        expect(window.location.href).toBe('');
-        fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-        expect(screen.queryByRole('heading', { name: 'Mark this job complete?' })).not.toBeInTheDocument();
-        expect(sessionStorage.getItem('completedJobs')).toBeNull();
-        expect(window.location.href).toBe('');
-    } finally { window.location = location; }
-});
-
-test('completes a job from the table and keeps it out of active jobs after reload', () => {
-    const location = window.location;
-    delete window.location;
-    window.location = { href: '' };
-    try {
-        const { unmount } = render(<JobHomepage />);
-        fireEvent.click(screen.getByRole('button', { name: 'Mark job for John Doe complete' }));
-        fireEvent.click(screen.getByRole('button', { name: 'Complete job' }));
-        expect(window.location.href).toBe('/History');
-        expect(JSON.parse(sessionStorage.getItem('completedJobs'))[0]).toMatchObject({ id: 1, status: 'Complete' });
-        unmount();
-        render(<JobHomepage />);
-        expect(screen.queryByRole('button', { name: 'Mark job for John Doe complete' })).not.toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Mark job for Saige Fuentes complete' })).toBeInTheDocument();
-        expect(JSON.parse(sessionStorage.getItem('availableJobs')).some((job) => job.id === 1)).toBe(false);
-    } finally { window.location = location; }
-});
-
-
-test('shows original status badges without a status dropdown', () => {
+test('loads database jobs without inserting sample jobs', async () => {
     render(<JobHomepage />);
-    expect(document.querySelector('.bid_status_assigned')).toHaveTextContent('Assigned');
-    expect(screen.queryByLabelText('Job status for John Doe')).not.toBeInTheDocument();
-    expect(screen.queryByText('Submitted to Client')).not.toBeInTheDocument();
+    await screen.findByText('Database Job'); expect(screen.queryByText('John Doe')).not.toBeInTheDocument();
+    expect(sessionStorage.getItem('availableJobs')).toBeNull();
+});
+test('confirms completion and persists before redirecting', async () => {
+    const original = window.location; delete window.location; window.location = { href: '' };
+    try {
+        render(<JobHomepage />); await screen.findByText('Database Job');
+        fireEvent.click(screen.getByRole('button', { name: 'Mark job for Database Job complete' }));
+        expect(finishJob).not.toHaveBeenCalled();
+        fireEvent.click(screen.getByRole('button', { name: 'Complete job' }));
+        await waitFor(() => expect(window.location.href).toBe('/History'));
+        expect(finishJob).toHaveBeenCalledWith(job);
+    } finally { window.location = original; }
+});
+test('archives a job on the server and refreshes the active list', async () => {
+    render(<JobHomepage />); await screen.findByText('Database Job');
+    fireEvent.click(screen.getByRole('button', { name: 'Delete job for Database Job' }));
+    listJobs.mockResolvedValue([]);
+    fireEvent.click(screen.getByRole('button', { name: 'Delete job' }));
+    await waitFor(() => expect(screen.queryByText('Database Job')).not.toBeInTheDocument());
+    expect(deleteJob).toHaveBeenCalledWith(job);
+});
+test('displays load errors and retries', async () => {
+    listJobs.mockRejectedValueOnce(new Error('Unable to load jobs'));
+    render(<JobHomepage />); expect(await screen.findByRole('alert')).toHaveTextContent('Unable to load jobs');
+    fireEvent.click(screen.getByRole('button', { name: 'Reload jobs' })); await screen.findByText('Database Job');
 });

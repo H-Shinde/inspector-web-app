@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import AddBidpage from './AddBidpage';
 import { getBidSettings } from './bidSettingsApi';
 import { createServerBid, listClients, listBidInspectors, uploadBidAgreement } from './bidsApi';
@@ -21,16 +21,20 @@ beforeEach(() => {
 });
 test('uses settings for the live preview and the saved snapshot for the agreement', async () => {
     render(<AddBidpage />);
-    await screen.findByRole('option', { name: 'Inspector' });
+    await waitFor(() => expect(screen.getByRole('button', { name: '+ Add Bid' })).toBeEnabled());
+    expect(screen.queryByLabelText('Assigned inspector (required)')).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Appraisal Type'), { target: { value: calculationTypes[0] } });
-    fireEvent.change(screen.getByLabelText('Assigned inspector (required)'), { target: { value: '7' } });
     fireEvent.change(screen.getByLabelText('Business Name'), { target: { value: 'Example' } });
     fireEvent.change(screen.getByLabelText('Contact Name'), { target: { value: 'Contact' } });
     fireEvent.change(screen.getByLabelText('Appraisal Fee'), { target: { value: '1000' } });
     expect(screen.getByLabelText('Total Bid')).toHaveValue('2000.00');
     fireEvent.click(screen.getByRole('button', { name: '+ Add Bid' }));
+    expect(await screen.findByTitle('Engagement agreement PDF preview')).toHaveAttribute('src', 'blob:agreement');
+    expect(createServerBid).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Confirm & Create' }));
     await screen.findByRole('heading', { name: 'Bid and agreement created' });
+    expect(screen.getByTitle('Engagement agreement PDF preview')).toHaveAttribute('src', 'blob:agreement');
+    expect(screen.getByRole('link', { name: 'Download Preview PDF' })).toHaveAttribute('download', 'BID-000042-engagement-agreement.pdf');
     expect(generateEngagementAgreement).toHaveBeenCalledWith(expect.objectContaining({ referenceNumber: 'BID-000042', calculationRules: expect.any(Object), totalBid: '2000.00' }));
 });
 test('blocks creation if settings fail to load and allows retry', async () => {
@@ -41,4 +45,18 @@ test('blocks creation if settings fail to load and allows retry', async () => {
     fireEvent.click(screen.getByRole('button', { name: 'Retry calculation settings' }));
     await screen.findByDisplayValue('0.00');
     expect(screen.getByRole('button', { name: '+ Add Bid' })).toBeEnabled();
+});
+
+test('asset valuation checkboxes add editable percentages to the live total', async () => {
+    render(<AddBidpage />);
+    await waitFor(() => expect(screen.getByRole('button', { name: '+ Add Bid' })).toBeEnabled());
+    fireEvent.change(screen.getByLabelText('Appraisal Type'), { target: { value: calculationTypes[0] } });
+    fireEvent.change(screen.getByLabelText('Appraisal Fee'), { target: { value: '1000' } });
+    const checkbox = screen.getByLabelText('FMV in Continued Use (+5.00%)');
+    fireEvent.click(checkbox);
+    expect(screen.getByLabelText('Total Bid')).toHaveValue('2100.00');
+    fireEvent.click(screen.getByLabelText('Fair Market Value Removed (+5.00%)'));
+    expect(screen.getByLabelText('Total Bid')).toHaveValue('2200.00');
+    fireEvent.click(checkbox);
+    expect(screen.getByLabelText('Total Bid')).toHaveValue('2100.00');
 });

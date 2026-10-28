@@ -1,21 +1,19 @@
+import useInspectorDirectory from './useInspectorDirectory';
 import ValidatedForm from './ValidatedForm';
 import LogoutButton from './LogoutButton';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import navLogo from './bison_logo_nav.png';
 import './messaging.css';
-import { getInspectors, useSelectedInspector } from './inspectorSelection';
+import { useSelectedInspector } from './inspectorSelection';
 import { readBidList } from './bidFields';
 
 export default function Messaging() {
     const [menuOpen, setMenuOpen] = useState(false);
-    const [inspectors] = useState(getInspectors);
+    const { inspectors } = useInspectorDirectory();
     const globallySelected = useSelectedInspector();
-    const [recipientId, setRecipientId] = useState(() => {
-        const requestedId = new URLSearchParams(window.location.search).get('inspectorId');
-        return inspectors.find((inspector) => String(inspector.id) === requestedId)?.id
-            ?? globallySelected?.id ?? inspectors[0]?.id ?? null;
-    });
-    const recipient = inspectors.find((inspector) => inspector.id === recipientId);
+    const [recipientId, setRecipientId] = useState(() => new URLSearchParams(window.location.search).get('inspectorId') ?? globallySelected?.id ?? null);
+    useEffect(() => { if (recipientId == null && inspectors.length) setRecipientId(inspectors[0].id); }, [inspectors, recipientId]);
+    const recipient = inspectors.find((inspector) => String(inspector.id) === String(recipientId));
     const [messages, setMessages] = useState(() => readBidList('inspectorMessages'));
     const [drafts, setDrafts] = useState({});
     const draft = drafts[recipientId] || '';
@@ -62,7 +60,7 @@ export default function Messaging() {
                             {inspectors.map((inspector) => (
                                 <button type="button" key={inspector.id}
                                     className={recipientId === inspector.id ? 'active' : ''}
-                                    aria-pressed={recipientId === inspector.id}
+                                    aria-pressed={String(recipientId) === String(inspector.id)}
                                     onClick={() => setRecipientId(inspector.id)}>
                                     <span className="messaging_recipient_name">{inspector.name}</span>
                                     <span className="messaging_recipient_company">{inspector.company || inspector.email}</span>

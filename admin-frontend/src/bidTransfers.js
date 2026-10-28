@@ -10,7 +10,6 @@ export function readAcceptedJobs() {
 }
 
 export function moveBidToJobs(bid) {
-    if (!bid.inspector?.trim()) throw new Error('Assign an inspector before accepting this bid.');
     const jobs = readAcceptedJobs();
     let createdJobs = [];
     try {
@@ -22,6 +21,7 @@ export function moveBidToJobs(bid) {
     const existing = jobs.find(sameSource);
     const job = {
         ...bid,
+        inspector: '', inspectorId: null, inspectorEmail: '', inspectorEmailFor: '',
         pdf: bid.pdf?.name ?? bid.pdf ?? '',
         id: existing?.id ?? Math.max(20, ...[...jobs, ...createdJobs, ...readBidList('completedJobs')].map((item) => Number(item.id))) + 1,
         sourceBidId: bid.id,

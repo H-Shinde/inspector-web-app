@@ -15,6 +15,7 @@ FIELDS = {
     'nonRushTotal': 'Non-rush total', 'additionalLocations': 'Additional locations',
     'rush': 'Rush checkbox', 'pdfOnly': 'PDF Only checkbox',
 }
+ASSET_FIELDS = {'fmvContinuedUse', 'fairMarketValueRemoved', 'orderlyLiquidationValue', 'forcedLiquidationValue'}
 CHECKBOX_FIELDS = {'rush', 'pdfOnly', 'fmvContinuedUse', 'fairMarketValueRemoved', 'orderlyLiquidationValue', 'forcedLiquidationValue'}
 
 
@@ -25,7 +26,8 @@ def default_rules():
         {'field': 'rushDiscount', 'operation': 'subtract', 'multiplier': '1.00', 'when': 'rush'},
         {'field': 'additionalCharges', 'operation': 'add', 'multiplier': '1.00', 'when': 'always'},
     ]
-    return {TYPES[0]: deepcopy(valuation), TYPES[1]: deepcopy(valuation), TYPES[2]: [deepcopy(valuation[0])]}
+    percentages = [{'field': field, 'operation': 'add', 'multiplier': '5.00', 'when': 'always', 'mode': 'percentage'} for field in FIELDS if field in ASSET_FIELDS]
+    return {TYPES[0]: deepcopy(valuation + percentages), TYPES[1]: deepcopy(valuation + percentages), TYPES[2]: [deepcopy(valuation[0])] + deepcopy(percentages)}
 
 
 def validate_rules(rules):
@@ -38,7 +40,7 @@ def validate_rules(rules):
         seen = set()
         result[bid_type] = []
         for term in terms:
-            if not isinstance(term, dict) or set(term) != {'field', 'operation', 'multiplier', 'when'}:
+            if not isinstance(term, dict) or not {'field', 'operation', 'multiplier', 'when'} <= set(term) or set(term) - {'field', 'operation', 'multiplier', 'when', 'mode'}:
                 raise ValueError('Invalid formula entry.')
             field = term['field']
             if not isinstance(field, str) or field not in FIELDS or field in seen:
@@ -47,12 +49,19 @@ def validate_rules(rules):
                 raise ValueError('Additional charges are not available for Machinery and Equipment.')
             if term['operation'] not in ['add', 'subtract'] or term['when'] not in ['always', 'rush', 'pdfOnly', 'notRush', 'notPdfOnly']:
                 raise ValueError('Choose a valid operation and condition.')
+            mode = term.get('mode', 'fixed')
+            if mode not in ['fixed', 'percentage'] or (mode == 'percentage' and (field not in ASSET_FIELDS or term['operation'] != 'add')):
+                raise ValueError('Percentages are additive Asset Valuation options only.')
+            if field in ASSET_FIELDS and mode != 'percentage':
+                raise ValueError('Asset Valuation options must use percentages.')
             try:
                 multiplier = Decimal(str(term['multiplier']))
                 if not multiplier.is_finite() or not 0 <= multiplier <= 1000000 or multiplier != multiplier.quantize(Decimal('.01')):
                     raise ValueError('Multipliers must be between 0 and 1000000 with up to two decimal places.')
             except (InvalidOperation, TypeError):
                 raise ValueError('Enter a valid multiplier.')
+            if mode == 'percentage' and multiplier > 100:
+                raise ValueError('Percentages must be between 0 and 100.')
             seen.add(field)
             result[bid_type].append({**term, 'multiplier': str(multiplier.quantize(Decimal('.01')))})
     return result
@@ -61,6 +70,7 @@ def validate_rules(rules):
 def calculate_total(bid):
     rules = bid.calculationRules or default_rules()
     total = Decimal('0')
+    percentages = []
     for term in rules.get(bid.appraisalType, []):
         condition = term['when']
         if condition == 'rush' and not bid.rush or condition == 'pdfOnly' and not bid.pdfOnly:
@@ -74,6 +84,12 @@ def calculate_total(bid):
             value = Decimal(str(value))
         except InvalidOperation:
             value = Decimal('0')
+        if term.get('mode') == 'percentage':
+            if value:
+                percentages.append(Decimal(term['multiplier']))
+            continue
         contribution = (value * Decimal(term['multiplier'])).quantize(Decimal('.01'), rounding=ROUND_HALF_UP)
         total += contribution if term['operation'] == 'add' else -contribution
+    base = max(total, Decimal('0'))
+    total += sum((base * rate / 100).quantize(Decimal('.01'), rounding=ROUND_HALF_UP) for rate in percentages)
     return total.quantize(Decimal('.01'))

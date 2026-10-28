@@ -2,7 +2,7 @@ import json
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from .models import BidSettings
-from .calculation import FIELDS, CHECKBOX_FIELDS, TYPES, default_rules, validate_rules
+from .calculation import FIELDS, CHECKBOX_FIELDS, ASSET_FIELDS, TYPES, default_rules, validate_rules
 
 
 @require_http_methods(['GET', 'PUT'])
@@ -23,6 +23,6 @@ def bid_settings(request):
     return JsonResponse({
         'rules': settings.rules,
         'defaults': default_rules(),
-        'fields': [{'field': field, 'label': label, 'checkbox': field in CHECKBOX_FIELDS} for field, label in FIELDS.items()],
+        'fields': [{'field': field, 'label': label, 'checkbox': field in CHECKBOX_FIELDS, 'percentage': field in ASSET_FIELDS} for field, label in FIELDS.items()],
         'types': TYPES,
     })

@@ -1,16 +1,14 @@
-import { fieldError, validateInput } from './fieldValidation';
+import { getJob, listJobs, updateJob } from './jobsApi';
+import useInspectorDirectory from './useInspectorDirectory';
+import { validateInput } from './fieldValidation';
 import ValidatedForm from './ValidatedForm';
 import { appraisalTypeLabel } from './appraisalTypes';
 import LogoutButton from './LogoutButton';
 import ItemImage from './ItemImage';
-import { restoreJobStatus } from './jobStatus';
 import SendJobToInspector from './SendJobToInspector';
-import { completeJob, isCompletedJob, isDeletedRecord } from './historyRecords';
 import { useEffect, useRef, useState } from 'react';
-import { bidFields, readBidList } from './bidFields';
+import { bidFields } from './bidFields';
 import './Jobspage.css';
-import { assignInspectorToJob, getInspectors, selectGlobalInspector, useSelectedInspector } from './inspectorSelection';
-import { withJobDemoData, seedJobDemoSections } from './jobDemoData';
 import { sortInspectorsByDistance } from './inspectorDistance';
 import { csvToItems } from './itemCsv';
 import navLogo from './bison_logo_nav.png';
@@ -75,9 +73,6 @@ const sectionFields = {
 };
 
 function Jobspage() {
-    const selectedInspector = useSelectedInspector();
-    const inspectorList = getInspectors();
-    const inspectors = inspectorList.map((inspector) => inspector.name);
     const [menuOpen, setMenuOpen] = useState(false);
     const [viewedItemId, setViewedItemId] = useState(null);
     const [itemSaveError, setItemSaveError] = useState('');
@@ -111,74 +106,68 @@ function Jobspage() {
     useEffect(() => {
         if (itemEditor && !itemDialog.current.open) itemDialog.current.showModal();
     }, [itemEditor]);
-    const closeItem = () => { if (savingItem) return; if (itemEditor?.mode === 'edit') { const inputs = itemDialog.current.querySelectorAll('input'); for (const input of inputs) validateInput(input); if (!itemDialog.current.querySelector('form').reportValidity()) return; } itemDialog.current.close(); setItemEditor(null); setItemSaveError(''); };
+    const closeItem = async () => {
+        if (savingItem) return;
+        if (itemEditor?.mode === 'edit') {
+            for (const input of itemDialog.current.querySelectorAll('input')) validateInput(input);
+            if (!itemDialog.current.querySelector('form').reportValidity()) return;
+            setSavingItem(true);
+            try { await persistItems(items.map((item) => item.itemId === itemEditor.item.itemId ? itemEditor.item : item)); }
+            catch (error) { setItemSaveError(error.message); setSavingItem(false); return; }
+            setSavingItem(false);
+        }
+        itemDialog.current.close(); setItemEditor(null); setItemSaveError('');
+    };
     const [activeSection, setActiveSection] = useState('Job Information');
-    const [details, setDetails] = useState(() => seedJobDemoSections(readBidList('availableJobs').map(withJobDemoData)));
-    const updateField = (sectionName, field, value) => {
-        const updated = { ...details, [selectedId]: {
-            ...details[selectedId], [sectionName]: { ...details[selectedId]?.[sectionName], [field]: value },
-        } };
-        sessionStorage.setItem('jobSectionDetails', JSON.stringify(updated));
-        setDetails(updated);
-    };
-    const [jobs, setJobs] = useState(() => readBidList('availableJobs').filter((job) => !isCompletedJob(job.id) && !isDeletedRecord('Job', job.id)).map(withJobDemoData).map((job) => ({
-        ...job, status: restoreJobStatus({ ...job, inspector: readBidList('jobAssignments').find((assignment) => String(assignment.jobId) === String(job.id))?.inspector ?? job.inspector }),
-        inspector: readBidList('jobAssignments').find((assignment) => assignment.jobId === job.id)?.inspector ?? job.inspector ?? '',
-    })));
-    const [selectedId] = useState(() => {
-        const requested = new URLSearchParams(window.location.search).get('jobId');
-        return requested ?? String(jobs[0]?.id ?? '');
-    });
+    const [details, setDetails] = useState({});
+    const [jobs, setJobs] = useState([]);
+    const [selectedId, setSelectedId] = useState(() => new URLSearchParams(window.location.search).get('jobId') || '');
+    const [loading, setLoading] = useState(true);
+    const [jobError, setJobError] = useState('');
+    const [attempt, setAttempt] = useState(0);
+    const [saveCount, setSaveCount] = useState(0);
+    const currentJob = useRef(null);
+    const saveQueue = useRef(Promise.resolve());
+    useEffect(() => {
+        const controller = new AbortController(); setLoading(true); setJobError('');
+        const request = selectedId ? getJob(selectedId, controller.signal) : listJobs(controller.signal).then((rows) => rows[0] || null);
+        request.then((record) => {
+            if (controller.signal.aborted) return;
+            currentJob.current = record;
+            setJobs(record ? [record] : []);
+            if (record) { setDetails({ [record.id]: record.sectionDetails || {} }); if (!selectedId) setSelectedId(String(record.id)); }
+        }).catch((error) => { if (!controller.signal.aborted) setJobError(error.message); })
+            .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+        return () => controller.abort();
+    }, [selectedId, attempt]);
     const job = jobs.find((item) => String(item.id) === selectedId);
-    const [pendingInspector, setPendingInspector] = useState(() => selectedInspector?.name ?? job?.inspector ?? '');
-    useEffect(() => { setPendingInspector(job?.inspector ?? ''); }, [job?.inspector]);
+    const archived = ['Complete', 'Deleted'].includes(job?.status);
+    const saveJob = (changes) => {
+        setSaveCount((value) => value + 1); setJobError('');
+        const result = saveQueue.current.catch(() => {}).then(async () => {
+            const latest = currentJob.current;
+            if (!latest) throw new Error('Load a job before saving.');
+            const updated = await updateJob(latest.id, { ...changes, revision: latest.revision });
+            currentJob.current = updated; setJobs([updated]); return updated;
+        });
+        saveQueue.current = result;
+        return result.catch((error) => { setJobError(error.message); throw error; }).finally(() => setSaveCount((value) => value - 1));
+    };
+    const updateField = (sectionName, field, value) => {
+        setDetails((previous) => ({ ...previous, [selectedId]: { ...previous[selectedId], [sectionName]: { ...previous[selectedId]?.[sectionName], [field]: value } } }));
+        void saveJob({ sectionDetails: { [sectionName]: { [field]: value } } }).catch(() => {});
+    };
+    const locationZip = job?.clientZipCode || job?.zipCode || '';
+    const referenceZip = /^\d{5}(?:-\d{4})?$/.test(locationZip) ? locationZip : '';
+    const { inspectors: inspectorList } = useInspectorDirectory(false, referenceZip);
+    const [pendingInspector, setPendingInspector] = useState('');
+    useEffect(() => { setPendingInspector(job?.inspectorId ? String(job.inspectorId) : ''); }, [job?.inspectorId]);
     const [sendRequest, setSendRequest] = useState(0);
-    const sortedInspectors = job ? sortInspectorsByDistance(inspectorList, job) : [];
+    const sortedInspectors = job ? referenceZip ? inspectorList.map((inspector) => ({ inspector, distance: inspector.distanceMiles ?? null })) : sortInspectorsByDistance(inspectorList, job) : [];
     const jobLocation = job ? [job.city, job.state].filter(Boolean).join(', ') : '';
-    useEffect(() => {
-        if (!job) return;
-        if (selectedInspector && job.inspector !== selectedInspector.name) {
-            const updated = assignInspectorToJob(job, selectedInspector.name);
-            setJobs((current) => current.map((entry) => entry.id === job.id ? updated : entry));
-        } else {
-            sessionStorage.setItem('selectedJob', JSON.stringify(job));
-        }
-    }, [job, selectedInspector?.id, selectedInspector?.name]);
-    const [acceptedJobId, setAcceptedJobId] = useState(() => sessionStorage.getItem('acceptedBidMessage'));
-    useEffect(() => {
-        if (acceptedJobId === selectedId) sessionStorage.removeItem('acceptedBidMessage');
-    }, [acceptedJobId, selectedId]);
-    useEffect(() => {
-        if (!acceptedJobId) return;
-        const dismissMessage = () => {
-            sessionStorage.removeItem('acceptedBidMessage');
-            setAcceptedJobId(null);
-        };
-        document.addEventListener('click', dismissMessage);
-        document.addEventListener('keydown', dismissMessage);
-        return () => {
-            document.removeEventListener('click', dismissMessage);
-            document.removeEventListener('keydown', dismissMessage);
-        };
-    }, [acceptedJobId]);
     const items = (Array.isArray(job?.items) ? job.items : []).map((item, index) => ({ ...item, itemId: item.itemId ?? `${job.id}-${index}` }));
-    const persistItems = (updatedItems) => {
-        const updated = { ...job, items: updatedItems };
-        const updatedJobs = jobs.map((entry) => entry.id === job.id ? updated : entry);
-        let stored = {};
-        try { stored = JSON.parse(sessionStorage.getItem('jobItems') || '{}') || {}; } catch {}
-        sessionStorage.setItem('jobItems', JSON.stringify({ ...stored, [job.id]: updatedItems }));
-        sessionStorage.setItem('availableJobs', JSON.stringify(updatedJobs));
-        sessionStorage.setItem('selectedJob', JSON.stringify(updated));
-        setJobs(updatedJobs);
-    };
-    const editItemField = (field, value) => {
-        const updated = { ...itemEditor.item, [field]: value };
-        if (itemEditor.mode === 'edit' && !fieldError('year', updated.year) && updated.name?.trim()) {
-            persistItems(items.map((item) => item.itemId === updated.itemId ? updated : item));
-        }
-        setItemEditor({ ...itemEditor, item: updated });
-    };
+    const persistItems = (updatedItems) => saveJob({ items: updatedItems });
+    const editItemField = (field, value) => setItemEditor((previous) => ({ ...previous, item: { ...previous.item, [field]: value } }));
     const addItem = async (event) => {
         event.preventDefault();
         if (itemEditor.mode !== 'add' || savingItem) return;
@@ -188,7 +177,7 @@ function Jobspage() {
         const itemId = crypto.randomUUID();
         setSavingItem(true);
         try {
-            persistItems([...items, { ...itemEditor.item, name, itemId }]);
+            await persistItems([...items, { ...itemEditor.item, name, itemId }]);
             setViewedItemId(null);
             itemDialog.current.close(); setItemEditor(null); setItemSaveError('');
             setItemAdded(true);
@@ -201,11 +190,11 @@ function Jobspage() {
         const file = input.files?.[0];
         if (!file) return;
         const reader = new FileReader();
-        reader.onload = () => {
+        reader.onload = async () => {
             try {
                 const { items: imported, skipped, ignoredColumns } = csvToItems(String(reader.result));
                 if (!imported.length) throw new Error('No items were found in the CSV. Each row needs a name.');
-                persistItems([...items, ...imported.map((item) => ({ ...item, itemId: crypto.randomUUID() }))]);
+                await persistItems([...items, ...imported.map((item) => ({ ...item, itemId: crypto.randomUUID() }))]);
                 setViewedItemId(null);
                 setItemAdded(false);
                 const parts = [`Imported ${imported.length} ${imported.length === 1 ? 'item' : 'items'} from ${file.name}.`];
@@ -221,20 +210,17 @@ function Jobspage() {
         input.value = '';
     };
     const viewedItem = items.find((item) => item.itemId === viewedItemId);
-    const assignInspector = () => {
-        if (!job) return;
-        const inspector = pendingInspector;
-        selectGlobalInspector(getInspectors().find((entry) => entry.name === inspector)?.id ?? null);
-        const updated = { ...job, inspector };
-        const updatedJobs = jobs.map((item) => item.id === job.id ? updated : item);
-        sessionStorage.setItem('jobAssignments', JSON.stringify([
-            ...readBidList('jobAssignments').filter((item) => item.jobId !== job.id),
-            { jobId: job.id, inspector },
-        ]));
-        sessionStorage.setItem('availableJobs', JSON.stringify(updatedJobs));
-        sessionStorage.setItem('selectedJob', JSON.stringify(updated));
-        setJobs(updatedJobs);
-        if (inspector) setSendRequest((count) => count + 1);
+    const assignInspector = async () => {
+        if (!job || saveCount) return;
+        try {
+            const updated = await saveJob({ inspectorId: pendingInspector ? Number(pendingInspector) : null });
+            if (updated.inspector) setSendRequest((count) => count + 1);
+        } catch { /* Error is shown by saveJob. */ }
+    };
+    const completeCurrentJob = async () => {
+        if (saveCount) return;
+        try { await saveJob({ status: 'Complete' }); window.location.href = '/History'; }
+        catch { /* Error is shown by saveJob. */ }
     };
     const displayValue = (field) => {
         const value = job?.[field];
@@ -284,13 +270,16 @@ function Jobspage() {
                 </div>
             )}
         </div>
+        {loading && <p role="status">Loading job…</p>}
+        {saveCount > 0 && <p role="status">Saving job…</p>}
+        {jobError && <p role="alert" className="add_bid_error">{jobError} <button type="button" disabled={saveCount > 0} onClick={() => setAttempt((value) => value + 1)}>Reload job</button></p>}
         <header className="bid_page_header">
             <div className="bid_details_toolbar">
                 <button type="button" className="bid_back_button" onClick={() => { window.location.href = '/JobHomepage'; }}>
                     <span className="bid_back_icon" aria-hidden="true">←</span> Back
                 </button>
                 <h1 className="bidspage_header">{activeSection}</h1>
-                {job && <button type="button" className="bid_add_button" onClick={() => setCompleteConfirmOpen(true)}>Mark Complete</button>}
+                {job && <button type="button" className="bid_add_button" disabled={archived || saveCount > 0} onClick={() => setCompleteConfirmOpen(true)}>Mark Complete</button>}
 
             </div>
         </header>
@@ -304,7 +293,6 @@ function Jobspage() {
             </aside>
             <section className="job_details_content" aria-label={activeSection}>
                 {job?.inspector && <SendJobToInspector job={job} sections={details[selectedId]} hideButton openRequest={sendRequest} />}
-                {acceptedJobId === selectedId && <p className="job_acceptance_message" role="status">Bid has been accepted.</p>}
                 {!job ? (
                     <p className="job_empty">Open View from the Jobs table to load job information.</p>
                 ) : activeSection === 'Job Information' ? (
@@ -326,8 +314,8 @@ function Jobspage() {
                                     {sectionFields[sectionName].map(([field, label]) => (
                                         <div className="bid_detail_field" key={field}>
                                             <label htmlFor={`section-${sectionName}-${field}`}>{label}</label>
-                                            <input id={`section-${sectionName}-${field}`} type={['other', 'rush', 'meNote'].includes(field) ? 'text' : 'number'}
-                                                min="0" step={['count', 'additionalLocations', 'totalInspectedItems', 'totalNonInspectedItems'].includes(field) ? '1' : '0.01'}
+                                            <input id={`section-${sectionName}-${field}`} type={['other', 'meNote'].includes(field) ? 'text' : 'number'}
+                                                readOnly={archived} min="0" step={['count', 'additionalLocations', 'totalInspectedItems', 'totalNonInspectedItems'].includes(field) ? '1' : '0.01'}
                                                 value={details[selectedId]?.[sectionName]?.[field] ?? ''}
                                                 onChange={(event) => { if (validateInput(event.target)) { event.target.reportValidity(); return; } updateField(sectionName, field, event.target.value); }} />
                                         </div>
@@ -342,11 +330,11 @@ function Jobspage() {
                         <p className="job_empty">Choose the inspector responsible for {job.name}'s job.</p>
                         <div className="job_assign_field">
                             <label htmlFor="inspector-selector">Assign inspector</label>
-                            <select id="inspector-selector" value={pendingInspector} onChange={(event) => setPendingInspector(event.target.value)}>
+                            <select id="inspector-selector" disabled={archived} value={pendingInspector} onChange={(event) => setPendingInspector(event.target.value)}>
                                 <option value="">Unassigned</option>
-                                {job.inspector && !inspectors.includes(job.inspector) && <option>{job.inspector}</option>}
+                                {job.inspectorId && !inspectorList.some((entry) => entry.id === job.inspectorId) && <option value={job.inspectorId}>{job.inspector}</option>}
                                 {sortedInspectors.map(({ inspector, distance }) => (
-                                    <option key={inspector.id ?? inspector.name} value={inspector.name}>
+                                    <option key={inspector.id ?? inspector.name} value={inspector.id}>
                                         {distance === null ? inspector.name : `${inspector.name} (${distance.toFixed(1)} mi)`}
                                     </option>
                                 ))}
@@ -356,16 +344,16 @@ function Jobspage() {
                             </p>
                         </div>
                         <button type="button" className="add_bid_button job_assign_button"
-                            disabled={pendingInspector === (job.inspector ?? '')} onClick={assignInspector}>Assign inspector</button>
+                            disabled={archived || saveCount > 0 || pendingInspector === String(job.inspectorId || '')} onClick={assignInspector}>Assign inspector</button>
                     </div>
                 ) : activeSection === 'Items' ? (
                     <div className="job_items_section">
                         <div className="job_items_header">
                             <h2>Items</h2>
                             <div className="job_items_actions">
-                                <button type="button" className="add_bid_button" onClick={() => csvInput.current?.click()}>Upload CSV</button>
+                                <button type="button" className="add_bid_button" disabled={archived || saveCount > 0} onClick={() => csvInput.current?.click()}>Upload CSV</button>
                                 <input ref={csvInput} type="file" accept=".csv,text/csv" hidden aria-label="Upload items CSV" onChange={importCsv} />
-                                <button type="button" className="add_bid_button" onClick={() => setItemEditor({ mode: 'add', item: {} })}>+ Add item</button>
+                                <button type="button" className="add_bid_button" disabled={archived || saveCount > 0} onClick={() => setItemEditor({ mode: 'add', item: {} })}>+ Add item</button>
                             </div>
                         </div>
                         <p className="job_csv_hint">CSV columns: Name (required), Type, Make, Model, Serial number, Year, Hours/Miles, Photo#, Ref#, Comments. Rows are added to the existing items.</p>
@@ -395,8 +383,8 @@ function Jobspage() {
                                 slots={{ 6: (data, type, row) => (
                                     <div className="action_buttons">
                                         <button type="button" className="view" title="View item" aria-label={`View ${row.name}`} onClick={() => setViewedItemId(row.itemId)}><FaEye /></button>
-                                        <button type="button" className="edit" title="Edit item" aria-label={`Edit ${row.name}`} onClick={() => setItemEditor({ mode: 'edit', item: { ...row } })}><FaEdit /></button>
-                                        <button type="button" className="delete_icon" title="Delete item" aria-label={`Delete ${row.name}`} onClick={() => persistItems(items.filter((item) => item.itemId !== row.itemId))}><FaTrash /></button>
+                                        <button type="button" className="edit" disabled={archived || saveCount > 0} title="Edit item" aria-label={`Edit ${row.name}`} onClick={() => setItemEditor({ mode: 'edit', item: { ...row } })}><FaEdit /></button>
+                                        <button type="button" className="delete_icon" disabled={archived || saveCount > 0} title="Delete item" aria-label={`Delete ${row.name}`} onClick={() => { void persistItems(items.filter((item) => item.itemId !== row.itemId)).catch(() => {}); }}><FaTrash /></button>
                                     </div>
                                 ) }}
                                 options={{ paging: true, searching: true, ordering: true, info: true, pageLength: 10,
@@ -426,7 +414,7 @@ function Jobspage() {
                             <div className="bid_form_field" key={field}>
                                 <label htmlFor={`item-${field}`}>{title}</label>
                                 <input id={`item-${field}`} type="text" value={itemEditor.item[field] ?? ''}
-                                    required={itemEditor.mode === 'add' && field === 'name'}
+                                    required={field === 'name'}
                                     disabled={savingItem} readOnly={itemEditor.mode === 'view'} onChange={(event) => editItemField(field, event.target.value)} />
                             </div>
                         ))}
@@ -442,12 +430,13 @@ function Jobspage() {
             {completeConfirmOpen && job && (
                 <div>
                     <div className="confirm_body">
+                        {jobError && <p role="alert" className="add_bid_error">{jobError}</p>}
                         <h2 id="complete-job-title">Mark this job complete?</h2>
                         <p>Are you sure you want to mark the job for <strong>{job.name}</strong> as complete? It will move to History.</p>
                     </div>
                     <div className="actions">
                         <button type="button" className="bid_form_cancel" onClick={closeCompleteConfirm}>Cancel</button>
-                        <button type="button" className="bid_form_save" onClick={() => { completeJob(job); window.location.href = '/History'; }}>Complete job</button>
+                        <button type="button" className="bid_form_save" disabled={saveCount > 0} onClick={completeCurrentJob}>Complete job</button>
                     </div>
                 </div>
             )}

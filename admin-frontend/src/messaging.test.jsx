@@ -1,8 +1,11 @@
+import { demoInspectors, setInspectorDirectory } from './inspectorSelection';
+jest.mock('./useInspectorDirectory', () => () => ({ inspectors: require('./inspectorSelection').demoInspectors, loading: false, error: '' }));
 import { fireEvent, render, screen } from '@testing-library/react';
 import Messaging from './messaging';
 
 beforeEach(() => {
     sessionStorage.clear();
+    setInspectorDirectory(demoInspectors);
     window.history.replaceState(null, '', '/Messaging');
     Object.defineProperty(global, 'crypto', { configurable: true, value: { randomUUID: () => 'message-1' } });
 });

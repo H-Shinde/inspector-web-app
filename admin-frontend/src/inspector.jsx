@@ -1,4 +1,3 @@
-import ValidatedForm from './ValidatedForm';
 import LogoutButton from './LogoutButton';
 import { useEffect, useRef, useState } from 'react';
 import DataTable from 'datatables.net-react';
@@ -8,7 +7,9 @@ import { FaEnvelope } from 'react-icons/fa';
 import navLogo from './bison_logo_nav.png';
 import './inspector.css';
 import { inspectorFields } from './inspectorFields';
-import { buildInspectorInviteLink, createInspectorInvite, getInspectors, selectGlobalInspector } from './inspectorSelection';
+import { selectGlobalInspector } from './inspectorSelection';
+import useInspectorDirectory from './useInspectorDirectory';
+import InspectorDialog from './InspectorDialog';
 
 DataTable.use(DT);
 
@@ -44,33 +45,10 @@ export default function Inspector() {
             openRow(event);
         }
     };
-    const [rows, setRows] = useState(getInspectors);
+    const { inspectors: rows, loading, error, reload } = useInspectorDirectory(true);
     const [menuOpen, setMenuOpen] = useState(false);
-    const [inviting, setInviting] = useState(false);
-    const [email, setEmail] = useState('');
-    const [inviteLink, setInviteLink] = useState('');
-    const [copyMessage, setCopyMessage] = useState('');
-    const dialog = useRef(null);
-    useEffect(() => { if (inviting && !dialog.current.open) dialog.current.showModal(); }, [inviting]);
-
-    const openInvite = () => { setEmail(''); setInviteLink(''); setCopyMessage(''); setInviting(true); };
-    const closeInvite = () => { dialog.current.close(); setInviting(false); };
-    const changeEmail = (value) => { setEmail(value); setInviteLink(''); setCopyMessage(''); };
-
-    const copyInviteLink = async (event) => {
-        event.preventDefault();
-        if (!email.trim()) return;
-        const link = buildInspectorInviteLink(createInspectorInvite(email));
-        setRows(getInspectors());
-        setInviteLink(link);
-        try {
-            await navigator.clipboard.writeText(link);
-            setCopyMessage(`Invite link copied. Send it to ${email.trim()} to open the inspector sign-up page.`);
-        } catch {
-            setCopyMessage('Could not copy automatically. Select the link above and copy it manually.');
-        }
-    };
-
+    const [adding, setAdding] = useState(false);
+    const [editing, setEditing] = useState(null);
     return (
         <div className="frame_home bid_details_page inspector_page">
             <nav className="nav_bar" aria-label="Main navigation">
@@ -88,10 +66,12 @@ export default function Inspector() {
                 {menuOpen && <div className="hamburger_dropdown"><LogoutButton /></div>}
             </nav>
             <main className="main_content">
-                <div className="table_header"><div><h1>Inspectors</h1><p>Find inspectors and manage invitations.</p></div></div>
+                <div className="table_header"><div><h1>Inspectors</h1><p>Manage inspectors and their service locations.</p></div></div>
+                {loading && <p role="status">Loading inspectors…</p>}
+                {error && <p role="alert">{error} <button type="button" onClick={reload}>Retry</button></p>}
                 <section className="bids_panel" aria-label="Inspectors">
                     <div className="table_top_header">
-                        <button type="button" className="add_bid_button" onClick={openInvite}>+ Invite Inspector</button>
+                        <button type="button" className="add_bid_button" onClick={() => setAdding(true)}>+ Add Inspector</button>
                     </div>
                     <div className="bids_table_container" onClick={openRow} onKeyDown={handleRowKeyDown}>
                         <DataTable ref={table} data={rows} columns={columns} className="bids_table"
@@ -117,29 +97,10 @@ export default function Inspector() {
                             <dt>{label}</dt><dd>{viewedInspector[field] === '' || viewedInspector[field] == null ? 'Not provided' : field === 'distance' ? `${viewedInspector[field]} miles` : String(viewedInspector[field])}</dd>
                         </div>)}
                     </dl>
-                    <div className="actions"><button type="button" className="bid_form_cancel" onClick={closeDetails}>Close</button></div>
+                    <div className="actions"><button type="button" className="bid_form_cancel" onClick={closeDetails}>Close</button><button type="button" className="bid_form_save" onClick={() => { setEditing(viewedInspector); closeDetails(); }}>Edit Inspector</button></div>
                 </>}
             </dialog>
-            <dialog ref={dialog} className="popup" aria-labelledby="inspector-dialog-title" onCancel={(event) => { event.preventDefault(); closeInvite(); }}>
-                {inviting && <ValidatedForm onSubmit={copyInviteLink}>
-                    <div className="bid_form_header"><h2 id="inspector-dialog-title">Invite Inspector</h2><button type="button" className="bid_form_close" aria-label="Close dialog" onClick={closeInvite}>×</button></div>
-                    <div className="bid_form_body">
-                        <div className="bid_form_field">
-                            <label htmlFor="invite-email">E-mail</label>
-                            <input id="invite-email" type="email" required value={email} onChange={(event) => changeEmail(event.target.value)} />
-                        </div>
-                        {inviteLink && <div className="bid_form_field">
-                            <label htmlFor="invite-link">Invite link</label>
-                            <input id="invite-link" readOnly value={inviteLink} onFocus={(event) => event.target.select()} />
-                        </div>}
-                        {copyMessage && <p className="bid_form_hint" role="status">{copyMessage}</p>}
-                    </div>
-                    <div className="actions">
-                        <button type="button" className="bid_form_cancel" onClick={closeInvite}>Close</button>
-                        <button type="submit" className="bid_form_save" disabled={!email.trim()}>Copy invite link</button>
-                    </div>
-                </ValidatedForm>}
-            </dialog>
+            {(adding || editing) && <InspectorDialog inspector={editing} onClose={() => { setAdding(false); setEditing(null); }} onSaved={() => { setAdding(false); setEditing(null); reload(); }} />}
             <footer className="bid_page_footer" />
         </div>
     );

@@ -109,3 +109,42 @@ Open **Settings** in the app navigation to configure a separate formula for Busi
 `GET /api/bid-settings/` returns saved rules, defaults, and available fields. `PUT /api/bid-settings/` saves `{ "rules": ... }` with session authentication and CSRF. New bids snapshot the account's rules on the server; editing an existing bid uses its saved rules, and changing settings does not reprice existing bids. Bids created before this feature keep the original default formula. Agreements and email amounts use the same calculation as the total preview.
 
 Apply the database migration with `python manage.py migrate`. Run `python manage.py test bids.test_settings --noinput` to check formula validation, ownership, CSRF, rounding, and existing-bid preservation.
+
+## Inspector directory and nearby ZIP codes
+
+Inspectors now store phone, address, city, state, ZIP, focus, region, notes and active status in Django. Use **Inspector → Add Inspector** or **Edit Inspector** to supply ZIP codes for existing records. No company or manually entered distance is required. Existing inspectors without ZIP codes remain available with unknown distances.
+
+Authenticated endpoints:
+
+- `GET/POST /api/inspectors/`: list active inspectors or create one.
+- `GET/PATCH/DELETE /api/inspectors/<id>/`: read, update or delete an owned inspector. Inspectors referenced by bids cannot be deleted; mark them inactive instead.
+- `GET /api/inspectors/?clientId=<id>`: rank inspectors against an owned client's ZIP.
+- `GET /api/inspectors/?zipCode=10001&radiusMiles=50`: rank/filter by ZIP and optional radius.
+- `includeInactive=1` includes inactive inspectors for directory management.
+- `/api/bids/inspectors/` remains a compatible list/create alias.
+
+Writes require session authentication and CSRF. All records and client lookups are scoped to the signed-in user. ZIP+4 matches its first five digits. Unknown locations have `distanceMiles: null` and sort last. Add Bid uses the client ZIP when present, falling back to the business ZIP, and displays the nearest three known locations. Database inspectors also populate the job inspector picker and messaging contacts.
+
+Distances are approximate straight-line miles calculated from ZIP coordinates, not driving distances. Bundled coordinates are derived from [GeoNames](https://www.geonames.org/) US postal data under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/); attribution and transformation details are in `bids/data/README.md`. No external geocoding service is called when users enter client addresses.
+
+## Jobs backend
+
+Jobs are now stored in Django. Accepting a bid atomically creates one unassigned Job and returns `jobId`; repeated acceptance does not create duplicates. Migration `0008_job` creates jobs for existing accepted database bids. Browser demo jobs and browser-only item/fee edits are not imported automatically; their old browser storage is left untouched.
+
+- `GET /api/jobs/`: active owned jobs.
+- `GET /api/jobs/?history=1`: completed/deleted jobs for History.
+- `POST /api/jobs/` with `{ "bidId": 52 }`: idempotently obtain/create an owned accepted bid's job.
+- `GET/PATCH /api/jobs/<id>/`: view or save job assignment (`inspectorId`, or null), items, section details, or status.
+- `DELETE /api/jobs/<id>/`: archive a job instead of destroying its contents.
+
+All writes require session authentication and CSRF. Items and fees are validated on the server, inspector assignment is restricted to active inspectors owned by the signed-in user, and completed/deleted jobs are read-only. A job's `revision` increments on each save; sending a stale revision returns HTTP 409. Item replacements require the revision to prevent overwriting edits made from another browser. The detail page queues its saves using the latest returned revision. Valuation/fee changes retain up to 200 server-timestamped history entries.
+
+Job Information inherits the accepted source bid. Items, fees, assignment, completion, and archive status persist in Django; local browser records are no longer the source for active Jobs or History. Database inspectors can be selected by ZIP distance on the job assignment page. Assignment stays on jobs, not bids.
+
+Run `python manage.py migrate` and `python manage.py test bids.test_jobs --noinput` after updating.
+
+### Asset Valuation percentage surcharges
+
+The four Asset Valuation checkboxes (FMV in Continued Use, Fair Market Value Removed, Orderly Liquidation Value and Forced Liquidation Value) add editable percentage surcharges. Each defaults to 5% for new bids. Change **Percentage (%)** in Settings for each bid type. The base is the subtotal after fixed contributions and discounts, before any percentage surcharges. All selected percentages use that same base, with each surcharge rounded to cents; they do not compound. A nonpositive subtotal contributes no percentage surcharge. Rates are validated between 0% and 100% with up to two decimal places.
+
+Percentage terms use `"mode": "percentage"`; legacy terms without a mode retain fixed-value semantics. Migration `0009_asset_valuation_percentages` adds percentage terms to account settings and freezes legacy bids without snapshots to their original formulas. Saved bid snapshots are not repriced.

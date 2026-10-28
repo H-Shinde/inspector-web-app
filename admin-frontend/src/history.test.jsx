@@ -1,3 +1,5 @@
+import { listJobs } from './jobsApi';
+jest.mock('./jobsApi', () => ({ listJobs: jest.fn() }));
 import { fireEvent, render, screen, within, act } from '@testing-library/react';
 import History from './history';
 import { listBids } from './bidsApi';
@@ -22,11 +24,11 @@ beforeEach(() => {
     sessionStorage.clear();
     HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', ''); };
     HTMLDialogElement.prototype.close = function () { this.removeAttribute('open'); };
-    sessionStorage.setItem('deletedRecords', JSON.stringify([{ id: 3, recordType: 'Job', name: 'Avery', businessName: 'Example Co', status: 'Deleted', sourceBidId: 42, items: [{ name: 'Visible equipment', make: 'Toyota' }], subjectContactEmail: 'avery@example.com' }]));
+    listJobs.mockResolvedValue([{ id: 3, recordType: 'Job', name: 'Avery', businessName: 'Example Co', status: 'Deleted', sourceBidId: 42, items: [{ name: 'Visible equipment', make: 'Toyota' }], subjectContactEmail: 'avery@example.com' }]);
 });
 
 test('lists records with Declined or Completed status only', async () => {
-    sessionStorage.setItem('completedJobs', JSON.stringify([{ id: 4, recordType: 'Job', name: 'Jordan', businessName: 'Done Co', status: 'Complete' }]));
+    listJobs.mockResolvedValue([{ id: 3, recordType: 'Job', name: 'Avery', businessName: 'Example Co', status: 'Deleted' }, { id: 4, recordType: 'Job', name: 'Jordan', businessName: 'Done Co', status: 'Complete' }]);
     sessionStorage.setItem('availableJobs', JSON.stringify([{ id: 5, name: 'Active', businessName: 'Active Co', status: 'Assigned' }]));
     await act(async () => { render(<History />); });
     expect(screen.getAllByRole('columnheader')).toHaveLength(7);

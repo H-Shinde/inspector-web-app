@@ -4,8 +4,8 @@ import LogoutButton from './LogoutButton';
 import { getBidSections } from './bidSections';
 import { useEffect, useRef, useState } from 'react';
 import { calculateTotalBid } from './bidFields';
-import { getBid, listBidInspectors, updateBid, decideBid, readBidAgreement } from './bidsApi';
-import { moveBidToJobs } from './bidTransfers';
+import { getBid, updateBid, decideBid, readBidAgreement } from './bidsApi';
+import { createJob } from './jobsApi';
 import { downloadAgreement, generateEngagementAgreement } from './engagementAgreement';
 import './Jobspage.css';
 import './AddBidpage.css';
@@ -46,7 +46,6 @@ function Bidspage({ onChange }) {
         } finally { setDownloadingAgreement(false); }
     };
     const [bid, setBid] = useState(null);
-    const [inspectors, setInspectors] = useState([]);
     const [loading, setLoading] = useState(true);
     const [loadError, setLoadError] = useState('');
     const [busy, setBusy] = useState(false);
@@ -56,8 +55,8 @@ function Bidspage({ onChange }) {
         const id = new URLSearchParams(window.location.search).get('bidId');
         if (!id) { setLoading(false); return () => controller.abort(); }
         setLoading(true); setLoadError('');
-        Promise.all([getBid(id, controller.signal), listBidInspectors(controller.signal)]).then(([record, rows]) => {
-            if (!controller.signal.aborted) { setBid(record); setInspectors(rows); }
+        getBid(id, controller.signal).then((record) => {
+            if (!controller.signal.aborted) { setBid(record); }
         }).catch((error) => { if (!controller.signal.aborted) setLoadError(error.message); })
             .finally(() => { if (!controller.signal.aborted) setLoading(false); });
         return () => controller.abort();
@@ -96,17 +95,6 @@ function Bidspage({ onChange }) {
         setEmailDraft((bid.appraisalType === MACHINERY_EQUIPMENT ? machineryEquipmentEmail : businessValuationEmail)(values));
         generateEmailPdf(values);
     };
-    const assignedInspector = inspectors.find((entry) => String(entry.id) === String(bid?.inspectorId))
-        || (bid?.inspectorId ? { id: bid.inspectorId, name: bid.inspector } : null);
-    const assignInspector = async (id) => {
-        if (!bid || editDraft || busy) return;
-        setBusy(true); setNotice('');
-        try {
-            const updated = await updateBid(bid.id, { ...bid, inspectorId: id });
-            setBid(updated); onChange?.(updated);
-        } catch (error) { setNotice(error.message); }
-        finally { setBusy(false); }
-    };
     const updateStatus = async (status) => {
         if (!bid || busy) return;
         setBusy(true); setNotice('');
@@ -114,7 +102,7 @@ function Bidspage({ onChange }) {
             const updated = await decideBid(bid.id, status);
             setBid(updated); onChange?.(updated);
             if (status === 'Accepted') {
-                const acceptedJob = moveBidToJobs({ ...updated, inspectorEmail: assignedInspector?.email || '', inspectorEmailFor: updated.inspector });
+                const acceptedJob = updated.jobId ? { id: updated.jobId } : await createJob(updated.id);
                 window.location.href = `/Jobspage?jobId=${encodeURIComponent(acceptedJob.id)}`;
             } else { window.location.href = '/History'; }
         } catch (error) { setNotice(error.message); }
@@ -197,19 +185,10 @@ function Bidspage({ onChange }) {
                 </div>
             ))}
             </ValidatedForm>
-            {bid && <div className="bid_detail_field">
-                <label htmlFor="bid-inspector">Assigned inspector</label>
-                <select id="bid-inspector" value={assignedInspector?.id ?? ''} disabled={!!editDraft || busy || bid.status !== 'Pending'} onChange={(event) => assignInspector(event.target.value)} aria-describedby="bid-inspector-help">
-                    <option value="" disabled>Select an inspector</option>
-                    {assignedInspector && !inspectors.some((entry) => entry.id === assignedInspector.id) && <option value={assignedInspector.id}>{assignedInspector.name}</option>}
-                    {inspectors.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}</option>)}
-                </select>
-                {!assignedInspector && <p id="bid-inspector-help">Assign an inspector before accepting this bid.</p>}
-            </div>}
             <div className="bid_decision_actions">
                 <span role="status">{bid ? `Status: ${bid.status}` : 'Select a bid to accept or decline.'}</span>
                 <button type="button" className="bid_decline_button" disabled={!!editDraft || busy || !bid || bid.status !== 'Pending'} onClick={() => updateStatus('Declined')}>Decline</button>
-                <button type="button" className="bid_accept_button" disabled={!!editDraft || busy || !bid || !assignedInspector || bid.status !== 'Pending'} onClick={() => updateStatus('Accepted')}>Accept</button>
+                <button type="button" className="bid_accept_button" disabled={!!editDraft || busy || !bid || bid.status !== 'Pending'} onClick={() => updateStatus('Accepted')}>Accept</button>
             </div>
         </main>
                 </>}
