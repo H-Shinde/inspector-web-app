@@ -142,6 +142,26 @@
     cursor: pointer;
 }
 
+.frame_home .dropdown_link {
+    display: block;
+    width: 100%;
+    padding: 10px 14px;
+    border-radius: 5px;
+    color: #334155;
+    font-size: 14px;
+    text-decoration: none;
+}
+
+.frame_home .dropdown_link:hover,
+.frame_home .dropdown_link_selected {
+    background: #EBF0F5;
+}
+
+.frame_home .dropdown_link_selected {
+    color: #005581;
+    font-weight: 600;
+}
+
 .frame_home .logout_button:hover {
     background: #EBF0F5;
 }
@@ -774,4 +794,17 @@
 
 .bid_form_delete:hover {
     background: #862626;
+}
+
+/* Keep every column's cells left-aligned under their headers (DataTables right-aligns numeric columns by default) */
+.frame_home table.bids_table thead th,
+.frame_home table.bids_table thead th .dt-column-header,
+.frame_home table.bids_table tbody td {
+    text-align: left !important;
+}
+
+.frame_home table.bids_table thead th.dt-type-numeric .dt-column-header,
+.frame_home table.bids_table thead th.dt-right .dt-column-header {
+    flex-direction: row;
+    justify-content: flex-start;
 }

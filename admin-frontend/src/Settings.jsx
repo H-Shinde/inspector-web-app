@@ -39,13 +39,13 @@ export default function Settings() {
     return <div className="frame_home bid_details_page settings_page">
         <nav className="nav_bar" aria-label="Main navigation">
             <a href="/Homepage"><img className="bison_logo_nav" src={navLogo} alt="Bison home" /></a>
-            <div className="nav_links">{['Bids', 'History', 'Inspector', 'Clients', 'Reports', 'Messaging', 'Settings'].map((label) => <div key={label} className={label === 'Settings' ? 'bids_box_selected' : ''}>
-                <a className="nav_bar_text" href={label === 'Bids' ? '/Homepage' : `/${label}`} aria-current={label === 'Settings' ? 'page' : undefined}>{label}</a>
+            <div className="nav_links">{['Bids', 'History', 'Inspector', 'Clients', 'Reports', 'Messaging'].map((label) => <div key={label}>
+                <a className="nav_bar_text" href={label === 'Bids' ? '/Homepage' : `/${label}`}>{label}</a>
             </div>)}</div>
             <button type="button" className="burger_icon_position" aria-label="Account menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>
                 <div className="burger_icon_frame"><div className="top_bun" /><div className="patty" /><div className="bottom_bun" /></div>
             </button>
-            {menuOpen && <div className="hamburger_dropdown"><LogoutButton /></div>}
+            {menuOpen && <div className="hamburger_dropdown"><a className="dropdown_link dropdown_link_selected" href="/Settings" aria-current="page">Settings</a><LogoutButton /></div>}
         </nav>
         <main className="main_content">
             <header className="table_header"><div><h1>Settings</h1><p>Configure how fields contribute to your bid totals.</p></div></header>

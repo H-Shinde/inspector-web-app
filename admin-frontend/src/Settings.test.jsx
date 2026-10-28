@@ -11,6 +11,7 @@ beforeEach(() => { jest.clearAllMocks(); getBidSettings.mockResolvedValue(respon
 test('changes a formula, previews checkbox fees and saves all bid types', async () => {
     render(<Settings />);
     await screen.findByLabelText('Bid type');
+    fireEvent.click(screen.getByRole('button', { name: 'Account menu' }));
     expect(screen.getByRole('link', { name: 'Settings' })).toHaveAttribute('aria-current', 'page');
     fireEvent.change(screen.getByLabelText('Appraisal fee multiplier'), { target: { value: '2' } });
     fireEvent.change(screen.getByLabelText('Rush checkbox operation'), { target: { value: 'add' } });
@@ -58,12 +59,14 @@ test('keeps navigation tabs and contains logout in the account dropdown', async 
     render(<Settings />);
     await screen.findByLabelText('Bid type');
     const nav = screen.getByRole('navigation', { name: 'Main navigation' });
-    for (const label of ['Bids', 'History', 'Inspector', 'Clients', 'Reports', 'Messaging', 'Settings']) {
+    for (const label of ['Bids', 'History', 'Inspector', 'Clients', 'Reports', 'Messaging']) {
         expect(within(nav).getByRole('link', { name: label })).toBeVisible();
     }
+    expect(within(nav).queryByRole('link', { name: 'Settings' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Logout' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Account menu' }));
     expect(screen.getByRole('button', { name: 'Logout' }).closest('.hamburger_dropdown')).not.toBeNull();
+    expect(screen.getByRole('link', { name: 'Settings' }).closest('.hamburger_dropdown')).not.toBeNull();
     expect(screen.getByRole('button', { name: 'Account menu' })).toHaveAttribute('aria-expanded', 'true');
 });
 
