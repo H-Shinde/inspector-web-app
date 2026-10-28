@@ -1,4 +1,6 @@
 import LogoutButton from './LogoutButton';
+import { apiWrite } from './authApi';
+import { csvToBids } from './bidCsv';
 import { listBids, deleteBid } from './bidsApi';
 import './BidsJobsHomepage.css';
 import navLogo from './bison_logo_nav.png';
@@ -8,12 +10,29 @@ import 'datatables.net-select-dt';
 import 'datatables.net-responsive-dt';
 import { useEffect, useRef, useState } from 'react';
 import 'datatables.net-dt/css/dataTables.dataTables.css';
-import { FaTrash } from "react-icons/fa";
+import { FaTrash, FaFilePdf } from "react-icons/fa";
 import TableFilter from './Tablefilter';
 import './TableFilter.css';
 
 DataTable.use(DT);
 function Homepage() {
+    const csvInput = useRef(null);
+    const [importing, setImporting] = useState(false);
+    const [importMessage, setImportMessage] = useState('');
+    const [importError, setImportError] = useState('');
+    const importCsv = async (event) => {
+        const file = event.target.files?.[0];
+        event.target.value = '';
+        if (!file || importing) return;
+        setImporting(true); setImportMessage(''); setImportError('');
+        try {
+            const bids = csvToBids(await file.text());
+            const result = await apiWrite('/api/bids/import/', { bids });
+            setImportMessage(`Imported ${result.bids.length} bids.`);
+            setAttempt((value) => value + 1);
+        } catch (error) { setImportError(error.message); }
+        finally { setImporting(false); }
+    };
     const [menuOpen, setMenuOpen] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState(null);
     const confirmDialog = useRef(null);
@@ -205,8 +224,12 @@ function Homepage() {
         {loading && <p role="status">Loading bids…</p>}
         {error && <p role="alert" className="add_bid_error">{error} <button type="button" className="bid_back_button" onClick={() => setAttempt((value) => value + 1)}>Retry</button></p>}
         <section className="bids_panel" aria-label="Bids">
+        {importMessage && <p role="status">{importMessage}</p>}
+        {importError && <p role="alert" className="add_bid_error">{importError}</p>}
         <div className="table_top_header">
             <TableFilter tableRef={table} columns={filterColumns} />
+            <input ref={csvInput} type="file" accept=".csv,text/csv" hidden aria-label="Upload bids CSV" onChange={importCsv} />
+            <button type="button" className="add_bid_button" disabled={importing} onClick={() => csvInput.current?.click()}>{importing ? 'Importing…' : 'Upload CSV'}</button>
             <button className="add_bid_button" onClick={() => { window.location.href = '/AddBid?from=Homepage'; }}>
                 + Add Bid
             </button>
@@ -223,6 +246,12 @@ function Homepage() {
                 ),
                 6: (data, type, row) => (
                     <div className="action_buttons">
+                        <button
+                            className="delete_icon" title="Generate email and PDF" aria-label={`Generate email and PDF for ${row.name}`}
+                            onClick={(event) => { event.stopPropagation(); window.location.href = `/Bidspage?bidId=${encodeURIComponent(row.id)}&action=generate-email`; }}
+                        >
+                            <FaFilePdf />
+                        </button>
                         <button
                             className="delete_icon" title="Delete bid" aria-label={`Delete bid for ${row.name}`}
                             onClick={(event) => { event.stopPropagation(); setDeleteTarget(row); }}

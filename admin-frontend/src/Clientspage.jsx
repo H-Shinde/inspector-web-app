@@ -29,7 +29,7 @@ export default function Clientspage() {
             <nav className="nav_bar" aria-label="Main navigation">
                 <a href="/Homepage"><img className="bison_logo_nav" src={navLogo} alt="Bison home" /></a>
                 <div className="nav_links">
-                    {['Bids', 'History', 'Inspector', 'Clients', 'Reports', 'Messaging', 'Settings'].map((label) => (
+                    {['Bids', 'History', 'Inspector', 'Clients', 'Reports', 'Messaging'].map((label) => (
                         <div key={label} className={label === 'Clients' ? 'bids_box_selected' : ''}>
                             <a className="nav_bar_text" href={label === 'Bids' ? '/Homepage' : `/${label}`} aria-current={label === 'Clients' ? 'page' : undefined}>{label}</a>
                         </div>
@@ -38,7 +38,7 @@ export default function Clientspage() {
                 <button type="button" className="burger_icon_position" aria-label="Account menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>
                     <div className="burger_icon_frame"><div className="top_bun" /><div className="patty" /><div className="bottom_bun" /></div>
                 </button>
-                {menuOpen && <div className="hamburger_dropdown"><LogoutButton /></div>}
+                {menuOpen && <div className="hamburger_dropdown"><a className="dropdown_link" href="/Settings">Settings</a><LogoutButton /></div>}
             </nav>
         <header className="bid_page_header"><div className="bid_details_toolbar">
             <a href="/Clients" className="bid_back_button">← Back</a>

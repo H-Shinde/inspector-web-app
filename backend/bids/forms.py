@@ -6,6 +6,17 @@ from .validation import contact_error
 
 
 class BidForm(forms.ModelForm):
+    def _post_clean(self):
+        super()._post_clean()
+        if self.errors:
+            return
+        if self.instance._state.adding:
+            from .calculation import default_rules
+            saved_settings = BidSettings.objects.filter(owner=self.user).first()
+            self.instance.calculationRules = saved_settings.rules if saved_settings else default_rules()
+        if self.instance.totalBid <= 0:
+            self.add_error(None, 'Calculated bid total must be greater than zero.')
+
     class Meta:
         model = Bid
         exclude = ["owner", "inspector", "status", "agreement", "createdAt"]

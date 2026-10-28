@@ -9,7 +9,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_GET, require_http_methods
 
 from .forms import BidForm
-from .models import Bid, Inspector, Job
+from .models import Bid, Inspector, Job, initial_job_section_details
 
 
 def serialize_bid(bid, include_job=True):
@@ -32,6 +32,39 @@ def serialize_bid(bid, include_job=True):
 
 
 from .inspector_views import inspectors
+
+
+@require_http_methods(['POST'])
+@transaction.atomic
+def import_bids(request):
+    if not request.user.is_authenticated:
+        return JsonResponse({'error': 'Sign in required.'}, status=401)
+    try:
+        data = json.loads(request.body)
+        rows = data.get('bids') if isinstance(data, dict) else None
+        if not isinstance(rows, list) or not 1 <= len(rows) <= 200:
+            raise ValueError('Upload between 1 and 200 bids at a time.')
+    except (ValueError, UnicodeDecodeError) as error:
+        return JsonResponse({'error': str(error)}, status=400)
+    forms_to_save, errors = [], []
+    for index, row in enumerate(rows, start=2):
+        if not isinstance(row, dict):
+            errors.append(f'Row {index}: Invalid bid data.')
+            continue
+        values = {**row, 'date': row.get('date') or timezone.localdate().isoformat()}
+        form = BidForm(values, user=request.user)
+        if not form.is_valid():
+            errors.extend(f'Row {index}, {field}: {message}' for field, messages in form.errors.items() for message in messages)
+        forms_to_save.append(form)
+    if errors:
+        return JsonResponse({'error': 'No bids were imported. ' + ' '.join(errors), 'errors': errors}, status=400)
+    created = []
+    for form in forms_to_save:
+        bid = form.save(commit=False)
+        bid.owner = request.user
+        bid.save()
+        created.append(serialize_bid(bid))
+    return JsonResponse({'bids': created}, status=201)
 
 
 @require_http_methods(["GET", "POST"])
@@ -101,7 +134,10 @@ def bid_detail(request, pk):
         return JsonResponse({"error": "Invalid request."}, status=400)
     if bid.status != "Pending":
         if bid.status == 'Accepted' and data == {'status': 'Accepted'}:
-            job, _ = Job.objects.get_or_create(source_bid=bid, defaults={'owner': request.user})
+            job, _ = Job.objects.get_or_create(source_bid=bid, defaults={
+                'owner': request.user,
+                'sectionDetails': initial_job_section_details(bid),
+            })
             bid.job = job
             return JsonResponse(serialize_bid(bid))
         return JsonResponse({'error': 'Only pending bids can be changed.'}, status=409)
@@ -112,7 +148,10 @@ def bid_detail(request, pk):
         bid.status = status
         bid.save(update_fields=["status"])
         if status == "Accepted":
-            job, _ = Job.objects.get_or_create(source_bid=bid, defaults={"owner": request.user})
+            job, _ = Job.objects.get_or_create(source_bid=bid, defaults={
+                "owner": request.user,
+                "sectionDetails": initial_job_section_details(bid),
+            })
             bid.job = job
         return JsonResponse(serialize_bid(bid))
     current = serialize_bid(bid)

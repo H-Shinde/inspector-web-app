@@ -1,10 +1,24 @@
 import json
+from unittest.mock import patch
+from django.core import mail
 from django.contrib.auth import get_user_model
 from django.test import TestCase, Client as HttpClient
 from .models import Inspector, Client, Bid
 
 
 class InspectorDirectoryTests(TestCase):
+    def test_invitation_is_emailed_to_created_inspector(self):
+        response = self.client.post('/api/inspectors/', data=json.dumps({'email': 'invited@example.com'}), content_type='application/json')
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(mail.outbox[-1].to, ['invited@example.com'])
+        self.assertIn('invited', mail.outbox[-1].body)
+
+    @patch('bids.inspector_views.send_mail', side_effect=RuntimeError('SMTP unavailable'))
+    def test_failed_invitation_does_not_create_inspector(self, send):
+        response = self.client.post('/api/inspectors/', data=json.dumps({'email': 'failed@example.com'}), content_type='application/json')
+        self.assertEqual(response.status_code, 503)
+        self.assertFalse(Inspector.objects.filter(email='failed@example.com').exists())
+
     def setUp(self):
         self.user = get_user_model().objects.create_user(username='inspect-owner', email='inspect-owner@example.com')
         self.other = get_user_model().objects.create_user(username='inspect-other', email='inspect-other@example.com')

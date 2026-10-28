@@ -6,7 +6,7 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
-from .models import Job, Bid, Inspector
+from .models import Job, Bid, Inspector, initial_job_section_details
 
 RATES = ['count', 'inspectionRate', 'customInspectionRate', 'additionalInspectionCharge', 'appraisalRate', 'customAppraisalRate', 'additionalAppraisalCharge']
 SECTIONS = {
@@ -108,7 +108,10 @@ def jobs(request):
         bid = get_object_or_404(Bid.objects.select_for_update(), pk=data['bidId'], owner=request.user)
         if bid.status != 'Accepted':
             return JsonResponse({'error': 'Only accepted bids can become jobs.'}, status=409)
-        job, created = Job.objects.get_or_create(source_bid=bid, defaults={'owner': request.user})
+        job, created = Job.objects.get_or_create(source_bid=bid, defaults={
+            'owner': request.user,
+            'sectionDetails': initial_job_section_details(bid),
+        })
         return JsonResponse(serialize_job(job), status=201 if created else 200)
     records = Job.objects.filter(owner=request.user).select_related('source_bid', 'inspector').order_by('-createdAt', '-id')
     records = records.filter(status__in=['Complete', 'Deleted']) if request.GET.get('history') == '1' else records.exclude(status__in=['Complete', 'Deleted'])

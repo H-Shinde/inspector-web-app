@@ -7,7 +7,6 @@ import LogoutButton from './LogoutButton';
 import ItemImage from './ItemImage';
 import SendJobToInspector from './SendJobToInspector';
 import { useEffect, useRef, useState } from 'react';
-import { bidFields } from './bidFields';
 import './Jobspage.css';
 import { sortInspectorsByDistance } from './inspectorDistance';
 import { csvToItems } from './itemCsv';
@@ -35,11 +34,50 @@ const itemDetailFields = [
     ['photoNumber', 'Photo#'], ['referenceNumber', 'Ref#'], ['comments', 'Comments'],
 ];
 
+const jobInformationFields = [
+    ['sourceBidReference', 'Source bid'],
+    ['status', 'Job status'],
+    ['clientCompany', 'Client company'],
+    ['clientName', 'Client name'],
+    ['clientStreetAddress', 'Client street address'],
+    ['clientCity', 'Client city'],
+    ['clientState', 'Client state'],
+    ['clientZipCode', 'Client ZIP code'],
+    ['clientPhone', 'Client phone'],
+    ['clientEmail', 'Client email'],
+    ['appraisalType', 'Appraisal type'],
+    ['reportFormat', 'Report format'],
+    ['businessName', 'Business name'],
+    ['propertyType', 'Type of property'],
+    ['businessAddress', 'Business address'],
+    ['city', 'Business city'],
+    ['state', 'Business state'],
+    ['zipCode', 'Business ZIP code'],
+    ['name', 'Subject contact name'],
+    ['subjectContactEmail', 'Subject contact email'],
+    ['subjectContactPhone', 'Subject contact phone'],
+    ['valueType', 'Value type'],
+    ['valueDate', 'Value date'],
+    ['intendedUse', 'Intended use'],
+    ['intendedUser', 'Intended user'],
+    ['completionDays', 'Completion days'],
+    ['date', 'Inspection request date'],
+    ['rush', 'Rush'],
+    ['pdfOnly', 'PDF only / No hard copy'],
+    ['bidAmount', 'Appraisal fee'],
+    ['discount', 'Discount'],
+    ['rushDiscount', 'Rush discount'],
+    ['additionalCharges', 'Additional charges'],
+    ['totalBid', 'Total bid'],
+];
+
 const sectionGroups = {
     'Item Appraisal': ['Appraised Items', 'Non Appraised Items'],
     'Valuation & Fees': ['Asset Valuation', 'Inspection Fees'],
 };
 const sections = ['Job Information', ...Object.keys(sectionGroups), 'Items', 'Assign Inspector'];
+const yesNoFields = new Set(['rush', 'pdfOnly', 'fmvContinuedUse', 'fairMarketValueRemoved', 'orderlyLiquidationValue', 'forcedLiquidationValue']);
+const isSelected = (value) => value === true || value === 'true' || (Number.isFinite(Number(value)) && Number(value) > 0);
 
 const rateFields = [
     ['inspectionRate', 'Inspection rate'],
@@ -119,6 +157,7 @@ function Jobspage() {
         itemDialog.current.close(); setItemEditor(null); setItemSaveError('');
     };
     const [activeSection, setActiveSection] = useState('Job Information');
+    const [editingSection, setEditingSection] = useState(null);
     const [details, setDetails] = useState({});
     const [jobs, setJobs] = useState([]);
     const [selectedId, setSelectedId] = useState(() => new URLSearchParams(window.location.search).get('jobId') || '');
@@ -224,6 +263,7 @@ function Jobspage() {
     };
     const displayValue = (field) => {
         const value = job?.[field];
+        if (yesNoFields.has(field)) return isSelected(value) ? 'Yes' : 'No';
         if (value === undefined || value === null || value === '') return 'Not provided';
         if (field === 'appraisalType') return appraisalTypeLabel(value);
         return typeof value === 'boolean' ? (value ? 'Yes' : 'No') : String(value);
@@ -255,7 +295,6 @@ function Jobspage() {
                 <div className='messaging'>
                   <a className='nav_bar_text' href='/Messaging' style={{ textDecoration: 'none' }}>Messaging</a>
                 </div>
-                <div className="settings_box"><a className="nav_bar_text" href="/Settings">Settings</a></div>
             </div>
             <button type="button" className='burger_icon_position' aria-label="Account menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>
                 <div className = 'burger_icon_frame'>
@@ -266,6 +305,7 @@ function Jobspage() {
             </button>
             {menuOpen && (
                 <div className="hamburger_dropdown">
+                    <a className="dropdown_link" href="/Settings">Settings</a>
                     <LogoutButton />
                 </div>
             )}
@@ -279,7 +319,16 @@ function Jobspage() {
                     <span className="bid_back_icon" aria-hidden="true">←</span> Back
                 </button>
                 <h1 className="bidspage_header">{activeSection}</h1>
-                {job && <button type="button" className="bid_add_button" disabled={archived || saveCount > 0} onClick={() => setCompleteConfirmOpen(true)}>Mark Complete</button>}
+                {job && sectionGroups[activeSection] && !archived && (
+                    <button
+                        type="button"
+                        className="bid_add_button"
+                        disabled={saveCount > 0}
+                        onClick={() => setEditingSection((current) => current === activeSection ? null : activeSection)}
+                    >
+                        {editingSection === activeSection ? 'Done Editing' : 'Edit'}
+                    </button>
+                )}
 
             </div>
         </header>
@@ -288,7 +337,7 @@ function Jobspage() {
                 {sections.map((section) => (
                     <button type="button" key={section} className={activeSection === section ? 'active' : ''}
                         aria-current={activeSection === section ? 'page' : undefined}
-                        onClick={() => { setActiveSection(section); setViewedItemId(null); }}>{section}</button>
+                        onClick={() => { setActiveSection(section); setEditingSection(null); setViewedItemId(null); }}>{section}</button>
                 ))}
             </aside>
             <section className="job_details_content" aria-label={activeSection}>
@@ -297,7 +346,7 @@ function Jobspage() {
                     <p className="job_empty">Open View from the Jobs table to load job information.</p>
                 ) : activeSection === 'Job Information' ? (
                     <div className="fieldsframe">
-                        {bidFields.map(([field, label]) => (
+                        {jobInformationFields.map(([field, label]) => (
                             <div className="bid_detail_field" key={field}>
                                 <label htmlFor={`job-${field}`}>{label}</label>
                                 <input id={`job-${field}`} type="text" readOnly value={displayValue(field)} />
@@ -314,10 +363,16 @@ function Jobspage() {
                                     {sectionFields[sectionName].map(([field, label]) => (
                                         <div className="bid_detail_field" key={field}>
                                             <label htmlFor={`section-${sectionName}-${field}`}>{label}</label>
-                                            <input id={`section-${sectionName}-${field}`} type={['other', 'meNote'].includes(field) ? 'text' : 'number'}
-                                                readOnly={archived} min="0" step={['count', 'additionalLocations', 'totalInspectedItems', 'totalNonInspectedItems'].includes(field) ? '1' : '0.01'}
+                                            {yesNoFields.has(field) ? (
+                                                <select id={`section-${sectionName}-${field}`} disabled={archived || editingSection !== activeSection}
+                                                    value={isSelected(details[selectedId]?.[sectionName]?.[field]) ? '1' : '0'}
+                                                    onChange={(event) => updateField(sectionName, field, event.target.value)}>
+                                                    <option value="1">Yes</option><option value="0">No</option>
+                                                </select>
+                                            ) : <input id={`section-${sectionName}-${field}`} type={['other', 'meNote'].includes(field) ? 'text' : 'number'}
+                                                readOnly={archived || editingSection !== activeSection} min="0" step={['count', 'additionalLocations', 'totalInspectedItems', 'totalNonInspectedItems'].includes(field) ? '1' : '0.01'}
                                                 value={details[selectedId]?.[sectionName]?.[field] ?? ''}
-                                                onChange={(event) => { if (validateInput(event.target)) { event.target.reportValidity(); return; } updateField(sectionName, field, event.target.value); }} />
+                                                onChange={(event) => { if (validateInput(event.target)) { event.target.reportValidity(); return; } updateField(sectionName, field, event.target.value); }} />}
                                         </div>
                                     ))}
                                 </div>
@@ -400,6 +455,9 @@ function Jobspage() {
                 )}
             </section>
         </main>
+        {job && <div className="job_complete_actions">
+            <button type="button" className="bid_add_button" disabled={archived || saveCount > 0} onClick={() => setCompleteConfirmOpen(true)}>Mark Complete</button>
+        </div>}
         <dialog ref={itemDialog} className="popup" aria-labelledby="item-dialog-title" onCancel={(event) => { event.preventDefault(); closeItem(); }}>
             {itemEditor && (
                 <ValidatedForm onSubmit={addItem}>

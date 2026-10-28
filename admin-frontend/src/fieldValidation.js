@@ -21,12 +21,28 @@ export function fieldError(field, value, { required = false, type = 'text' } = {
 }
 
 export function validateInput(input) {
-    if (input.disabled || input.readOnly || ['hidden', 'checkbox', 'radio', 'file', 'submit', 'button', 'password'].includes(input.type)) return '';
+    if (input.disabled || input.readOnly || ['hidden', 'submit', 'button', 'fieldset'].includes(input.type)) return '';
     const field = input.name || input.id?.split('-').pop() || '';
     input.setCustomValidity('');
-    const message = fieldError(field, input.value, { required: input.required, type: input.type });
+    let message = '';
+    if (['checkbox', 'radio'].includes(input.type)) {
+        const checked = input.type === 'radio' && input.name
+            ? Array.from(input.form?.elements || []).some((entry) => entry.name === input.name && entry.checked)
+            : input.checked;
+        if (input.required && !checked) message = 'This field is required.';
+    } else if (input.type === 'file') {
+        if (input.required && !input.files?.length) message = 'Choose a file.';
+    } else {
+        message = fieldError(field, input.value, { required: input.required, type: input.type });
+        if (!message && input.value) {
+            if (input.minLength > 0 && input.value.length < input.minLength) message = `Enter at least ${input.minLength} characters.`;
+            else if (input.maxLength >= 0 && input.value.length > input.maxLength) message = `Enter no more than ${input.maxLength} characters.`;
+            else if (input.type === 'number' && input.min !== '' && Number(input.value) < Number(input.min)) message = `Enter a number greater than or equal to ${input.min}.`;
+            else if (input.type === 'number' && input.max !== '' && Number(input.value) > Number(input.max)) message = `Enter a number less than or equal to ${input.max}.`;
+        }
+    }
     input.setCustomValidity(message);
-    const error = message || (input.validity.valid ? '' : input.validationMessage);
+    const error = message;
     input.setAttribute('aria-invalid', String(Boolean(error)));
     return error;
 }

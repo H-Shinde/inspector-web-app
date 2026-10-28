@@ -62,6 +62,10 @@ function AddBidpage() {
     const handleAdd = async (event) => {
         event.preventDefault();
         if (calculationSettings.loading || calculationSettings.error) { setError('Load bid calculation settings before creating a bid.'); return; }
+        if (!Number.isFinite(Number(totalBid)) || Number(totalBid) <= 0) {
+            setError('Calculated bid total must be greater than zero.');
+            return;
+        }
         if (!draft.name.trim() || !draft.businessName.trim()) {
             setError('Enter a business name and contact name.');
             return;
@@ -210,7 +214,6 @@ function AddBidpage() {
                 <div className='messaging'>
                   <a className='nav_bar_text' href='/Messaging' style={{ textDecoration: 'none' }}>Messaging</a>
                 </div>
-                <div className="settings_box"><a className="nav_bar_text" href="/Settings">Settings</a></div>
             </div>
             <button type="button" className='burger_icon_position' aria-label="Account menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>
                 <div className = 'burger_icon_frame'>
@@ -221,6 +224,7 @@ function AddBidpage() {
             </button>
             {menuOpen && (
                 <div className="hamburger_dropdown">
+                    <a className="dropdown_link" href="/Settings">Settings</a>
                     <LogoutButton />
                 </div>
             )}
@@ -266,7 +270,8 @@ function AddBidpage() {
                                     ) : type === 'status' || field === 'referenceNumber' ? (
                                         <input id={`add-${field}`} name={field} value={field === 'status' ? 'Pending' : referenceNumber} readOnly />
                                     ) : type === 'total' ? (
-                                        <input id={`add-${field}`} name={field} value={calculationSettings.loading ? 'Loading…' : calculationSettings.error ? 'Unavailable' : totalBid} readOnly aria-describedby="total-bid-help" />
+                                        <><input id={`add-${field}`} name={field} value={calculationSettings.loading ? 'Loading…' : calculationSettings.error ? 'Unavailable' : totalBid} readOnly aria-describedby="total-bid-help" />
+                                        {!calculationSettings.loading && !calculationSettings.error && Number(totalBid) <= 0 && <p className="add_bid_error">Calculated bid total must be greater than zero.</p>}</>
                                     ) : type === 'textarea' ? (
                                         <textarea id={`add-${field}`} name={field} rows={3} value={draft[field]} onChange={(event) => setDraft({ ...draft, [field]: event.target.value })} />
                                     ) : (

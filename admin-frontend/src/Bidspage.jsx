@@ -24,6 +24,7 @@ function Bidspage({ onChange }) {
     const [generatingEmailPdf, setGeneratingEmailPdf] = useState(false);
     const [emailPdfError, setEmailPdfError] = useState('');
     const emailGeneration = useRef(0);
+    const autoEmailOpened = useRef(false);
     const emailDialog = useRef(null);
     useEffect(() => () => { emailGeneration.current += 1; }, []);
     useEffect(() => () => { if (emailAgreement?.url) URL.revokeObjectURL(emailAgreement.url); }, [emailAgreement]);
@@ -95,6 +96,12 @@ function Bidspage({ onChange }) {
         setEmailDraft((bid.appraisalType === MACHINERY_EQUIPMENT ? machineryEquipmentEmail : businessValuationEmail)(values));
         generateEmailPdf(values);
     };
+    useEffect(() => {
+        if (canGenerateEmail && !autoEmailOpened.current && new URLSearchParams(window.location.search).get('action') === 'generate-email') {
+            autoEmailOpened.current = true;
+            generateEmail();
+        }
+    }, [bid]);
     const updateStatus = async (status) => {
         if (!bid || busy) return;
         setBusy(true); setNotice('');
@@ -117,6 +124,9 @@ function Bidspage({ onChange }) {
     };
     const displayValue = (field) => {
         const value = field === 'totalBid' ? bid?.totalBid : bid?.[field];
+        if (['rush', 'pdfOnly', 'fmvContinuedUse', 'fairMarketValueRemoved', 'orderlyLiquidationValue', 'forcedLiquidationValue'].includes(field)) {
+            return value === true || value === 'true' || (Number.isFinite(Number(value)) && Number(value) > 0) ? 'Yes' : 'No';
+        }
         if (value === undefined || value === null || value === '') return 'Not provided';
         if (field === 'appraisalType') return appraisalTypeLabel(value);
         return typeof value === 'boolean' ? (value ? 'Yes' : 'No') : String(value);
@@ -128,12 +138,12 @@ function Bidspage({ onChange }) {
             <img className="bison_logo_nav" src={navLogo} alt="Bison" />
             <div className="nav_links">
                 <div className="bids_box_selected"><a className="nav_bar_text" href="/Homepage" style={{ textDecoration: 'none' }}>Bids</a></div>
-                {['History', 'Inspector', 'Clients', 'Reports', 'Messaging', 'Settings'].map((page) => <div key={page}><a className="nav_bar_text" href={`/${page}`} style={{ textDecoration: 'none' }}>{page}</a></div>)}
+                {['History', 'Inspector', 'Clients', 'Reports', 'Messaging'].map((page) => <div key={page}><a className="nav_bar_text" href={`/${page}`} style={{ textDecoration: 'none' }}>{page}</a></div>)}
             </div>
             <button type="button" className="burger_icon_position" aria-label="Account menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>
                 <div className="burger_icon_frame"><div className="top_bun" /><div className="patty" /><div className="bottom_bun" /></div>
             </button>
-            {menuOpen && <div className="hamburger_dropdown"><LogoutButton /></div>}
+            {menuOpen && <div className="hamburger_dropdown"><a className="dropdown_link" href="/Settings">Settings</a><LogoutButton /></div>}
         </div>
         <header className="bid_page_header">
             <div className="bid_details_toolbar">

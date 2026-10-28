@@ -39,7 +39,7 @@ export default function Messaging() {
             <nav className="nav_bar" aria-label="Main navigation">
                 <a href="/Homepage"><img className="bison_logo_nav" src={navLogo} alt="Bison home" /></a>
                 <div className="nav_links">
-                    {['Bids', 'History', 'Inspector', 'Clients', 'Reports', 'Messaging', 'Settings'].map((label) => (
+                    {['Bids', 'History', 'Inspector', 'Clients', 'Reports', 'Messaging'].map((label) => (
                         <div key={label} className={label === 'Messaging' ? 'bids_box_selected' : ''}>
                             <a className="nav_bar_text" href={label === 'Bids' ? '/Homepage' : `/${label}`}
                                 aria-current={label === 'Messaging' ? 'page' : undefined}>{label}</a>
@@ -49,7 +49,7 @@ export default function Messaging() {
                 <button type="button" className="burger_icon_position" aria-label="Account menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>
                     <div className="burger_icon_frame"><div className="top_bun" /><div className="patty" /><div className="bottom_bun" /></div>
                 </button>
-                {menuOpen && <div className="hamburger_dropdown"><LogoutButton /></div>}
+                {menuOpen && <div className="hamburger_dropdown"><a className="dropdown_link" href="/Settings">Settings</a><LogoutButton /></div>}
             </nav>
             <main className="main_content">
                 <header className="table_header"><h1>Messaging</h1></header>

@@ -1,6 +1,10 @@
 import json
 import math
 import re
+import logging
+from django.conf import settings
+from django.core.mail import send_mail
+from django.db import transaction
 from django import forms
 from django.db.models.deletion import ProtectedError
 from django.http import JsonResponse
@@ -62,7 +66,24 @@ def save_inspector(request, instance=None):
         return JsonResponse({'error': ' '.join(f'{field}: {message}' for field, messages in form.errors.items() for message in messages)}, status=400)
     inspector = form.save(commit=False)
     inspector.owner = request.user
-    inspector.save()
+    try:
+        with transaction.atomic():
+            inspector.save()
+            if instance is None:
+                sent = send_mail(
+                    'Invitation to Bison Valuation',
+                    'You have been invited to work as an inspector with Bison Valuation.\n\n'
+                    'Please contact the person who invited you to arrange access and complete your inspector profile.\n\n'
+                    'Bison Valuation',
+                    settings.DEFAULT_FROM_EMAIL,
+                    [inspector.email],
+                    fail_silently=False,
+                )
+                if sent != 1:
+                    raise RuntimeError('Email backend did not accept the invitation.')
+    except Exception:
+        logging.getLogger(__name__).exception('Unable to save inspector or send invitation')
+        return JsonResponse({'error': 'Unable to send the inspector invitation. Check the email configuration and try again.'}, status=503)
     return JsonResponse(serialize_inspector(inspector), status=200 if instance else 201)
 
 

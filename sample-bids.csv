@@ -1,0 +1,4 @@
+Appraisal Type,Business Name,Contact Name,Client Name,Client Email,Appraisal Fee,Discount,Rush,PDF Only/ No hard copy,Report Format
+Business Valuation,Demo Bakery,Avery Demo,Jordan Example,jordan@example.com,1500,100,no,yes,
+Calculation Valuation,Demo Consulting,Sam Demo,Casey Example,casey@example.com,2200,0,no,no,
+Machinery and Equipment,Demo Manufacturing,Taylor Demo,Morgan Example,morgan@example.com,3500,0,yes,no,Onsite

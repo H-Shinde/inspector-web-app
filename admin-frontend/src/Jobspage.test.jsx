@@ -14,7 +14,7 @@ let saved;
 beforeEach(() => {
     jest.clearAllMocks(); sessionStorage.clear();
     window.history.replaceState(null, '', '/Jobspage?jobId=42');
-    saved = { id: 42, sourceBidId: 52, referenceNumber: 'JOB-000042', name: 'Contact', businessName: 'Database Job', status: 'Unassigned', inspector: '', inspectorId: null, items: [], sectionDetails: {}, revision: 0 };
+    saved = { id: 42, sourceBidId: 52, sourceBidReference: 'BID-000052', referenceNumber: 'JOB-000042', name: 'Contact', businessName: 'Database Job', clientEmail: 'client@example.com', intendedUse: 'Financing', totalBid: '1250.00', status: 'Unassigned', inspector: '', inspectorId: null, items: [], sectionDetails: {}, revision: 0 };
     getJob.mockImplementation(async () => saved);
     updateJob.mockImplementation(async (id, changes) => {
         const sectionDetails = { ...saved.sectionDetails };
@@ -33,9 +33,13 @@ test('loads the server job instead of browser demo data', async () => {
     await open();
     expect(getJob).toHaveBeenCalledWith('42', expect.anything());
     expect(screen.queryByDisplayValue('Stale browser job')).not.toBeInTheDocument();
+    expect(screen.getByDisplayValue('client@example.com')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('Financing')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('1250.00')).toBeInTheDocument();
 });
 test('saves numeric section edits sequentially with current revisions', async () => {
     await open(); fireEvent.click(screen.getByRole('button', { name: 'Valuation & Fees' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
     fireEvent.change(screen.getByLabelText('Total Appraisal'), { target: { value: '100' } });
     fireEvent.change(screen.getByLabelText('Total'), { target: { value: '150' } });
     await waitFor(() => expect(updateJob).toHaveBeenCalledTimes(2));
@@ -70,8 +74,17 @@ test('retains item draft when saving fails', async () => {
 });
 test('does not save negative fees', async () => {
     await open(); fireEvent.click(screen.getByRole('button', { name: 'Valuation & Fees' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
     fireEvent.change(screen.getByLabelText('Total Appraisal'), { target: { value: '-1' } });
     expect(updateJob).not.toHaveBeenCalled();
+});
+test('keeps job section fields read-only until Edit is selected', async () => {
+    await open(); fireEvent.click(screen.getByRole('button', { name: 'Valuation & Fees' }));
+    expect(screen.getByLabelText('Total Appraisal')).toHaveAttribute('readonly');
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    expect(screen.getByLabelText('Total Appraisal')).not.toHaveAttribute('readonly');
+    fireEvent.click(screen.getByRole('button', { name: 'Done Editing' }));
+    expect(screen.getByLabelText('Total Appraisal')).toHaveAttribute('readonly');
 });
 test('shows load errors and retries', async () => {
     getJob.mockRejectedValueOnce(new Error('Job not found'));

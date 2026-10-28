@@ -11,12 +11,25 @@ https://docs.djangoproject.com/en/6.1/ref/settings/
 """
 
 import os
+import json
 
 from django import VERSION as DJANGO_VERSION
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Optional private SMTP settings; explicitly supplied environment values win.
+_email_config_path = BASE_DIR / 'email_config.json'
+if _email_config_path.exists():
+    with _email_config_path.open() as _email_config_file:
+        for _key, _value in json.load(_email_config_file).items():
+            if _key in {
+                'EMAIL_BACKEND', 'EMAIL_HOST', 'EMAIL_PORT', 'EMAIL_USE_TLS',
+                'EMAIL_HOST_USER', 'EMAIL_HOST_PASSWORD', 'DEFAULT_FROM_EMAIL',
+                'FRONTEND_URL',
+            } and _value:
+                os.environ.setdefault(_key, str(_value))
 
 
 # Quick-start development settings - unsuitable for production
@@ -126,7 +139,10 @@ STATIC_URL = "static/"
 # Console email prints links in the Django terminal during development.
 # SMTP settings can be supplied through environment variables for real delivery.
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000")
-DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "Bison Valuation <noreply@localhost>")
+DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL") or (
+    f"Bison Valuation <{os.environ['EMAIL_HOST_USER']}>"
+    if os.environ.get('EMAIL_HOST_USER') else "Bison Valuation <noreply@localhost>"
+)
 PASSWORD_RESET_TIMEOUT = 3600
 _email_backend = os.environ.get("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
 _smtp_options = {

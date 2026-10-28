@@ -72,14 +72,14 @@ export default function History() {
                     <div className="nav_links">
                         <div><a className="nav_bar_text" href="/Homepage">Bids</a></div>
                         <div className="bids_box_selected"><a className="nav_bar_text" href="/History" aria-current="page">History</a></div>
-                        {['Inspector', 'Clients', 'Reports', 'Messaging', 'Settings'].map((label) => (
+                        {['Inspector', 'Clients', 'Reports', 'Messaging'].map((label) => (
                             <div key={label}><a className="nav_bar_text" href={`/${label}`}>{label}</a></div>
                         ))}
                     </div>
                     <button type="button" className="burger_icon_position" aria-label="Account menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>
                         <div className="burger_icon_frame"><div className="top_bun" /><div className="patty" /><div className="bottom_bun" /></div>
                     </button>
-                    {menuOpen && <div className="hamburger_dropdown"><LogoutButton /></div>}
+                    {menuOpen && <div className="hamburger_dropdown"><a className="dropdown_link" href="/Settings">Settings</a><LogoutButton /></div>}
                 </nav>
             <main className="history_content" aria-label="Bid history" hidden={!!selectedRecord}>
                 <div className="history_page_heading">

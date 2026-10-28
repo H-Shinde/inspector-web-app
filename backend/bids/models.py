@@ -175,3 +175,35 @@ class Job(models.Model):
 
     def __str__(self):
         return f'JOB-{self.pk:06d} — {self.source_bid.businessName}'
+
+
+def initial_job_section_details(bid):
+    """Copy bid valuation and fee values into a newly accepted job."""
+    def value(field):
+        current = getattr(bid, field, None)
+        if current is None:
+            return ''
+        if isinstance(current, bool):
+            return '1' if current else '0'
+        return str(current)
+
+    return {
+        'Asset Valuation': {
+            field: value(field)
+            for field in [
+                'fmvContinuedUse', 'fairMarketValueRemoved',
+                'orderlyLiquidationValue', 'forcedLiquidationValue',
+                'other', 'additionalLocations',
+            ]
+        },
+        'Inspection Fees': {
+            'totalInspectedItems': value('totalInspectedItems'),
+            'totalNonInspectedItems': value('totalNonInspectedItems'),
+            'totalAppraisal': value('totalAppraisal'),
+            'rush': value('rush'),
+            'pdfDiscount': value('discount'),
+            'total': value('total'),
+            'nonRushTotal': value('nonRushTotal'),
+            'meNote': value('meNote'),
+        },
+    }
