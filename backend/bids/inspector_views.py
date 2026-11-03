@@ -18,7 +18,7 @@ from .validation import contact_error
 class InspectorForm(forms.ModelForm):
     class Meta:
         model = Inspector
-        fields = ['name', 'email', 'phone', 'address', 'city', 'state', 'zipCode', 'focus', 'region', 'notes', 'is_active']
+        fields = ['name', 'email', 'phone', 'address', 'city', 'state', 'zipCode', 'focus', 'region', 'notes', 'is_active', 'rating']
 
     def clean(self):
         data = super().clean()
@@ -57,7 +57,7 @@ def save_inspector(request, instance=None):
             raise ValueError()
     except (ValueError, UnicodeDecodeError):
         return JsonResponse({'error': 'Provide a valid JSON object.'}, status=400)
-    current = {field: getattr(instance, field) for field in InspectorForm.Meta.fields} if instance else {'is_active': True, 'focus': 'Inspection'}
+    current = {field: getattr(instance, field) for field in InspectorForm.Meta.fields} if instance else {'is_active': True, 'focus': 'Inspection', 'rating': 0}
     if instance is None and 'name' not in data and isinstance(data.get('email'), str):
         current['name'] = data['email'].strip()[:200]
     current.update(data)

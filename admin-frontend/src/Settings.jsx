@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import useBidSettings from './useBidSettings';
 import { saveBidSettings } from './bidSettingsApi';
 import { appraisalTypeLabel } from './appraisalTypes';
-import { calculateConfiguredTotal, assetPercentageFields } from './bidCalculation';
+import { assetPercentageFields } from './bidCalculation';
 import ValidatedForm from './ValidatedForm';
 import LogoutButton from './LogoutButton';
 import navLogo from './bison_logo_nav.png';
@@ -14,6 +14,7 @@ const isHidden = ({ field, label }) => hiddenFields.includes(field) || /addition
 
 // Fields whose operation and condition are fixed and applied automatically (no selectors shown).
 const fixedRules = {
+    ...Object.fromEntries(assetPercentageFields.map((field) => [field, { operation: 'add', when: 'always', mode: 'percentage' }])),
     discount: { operation: 'subtract', when: 'always' },
     rushDiscount: { operation: 'add', when: 'always' },
 };
@@ -29,10 +30,15 @@ export default function Settings() {
     const [type, setType] = useState('Business Valuation (BV)');
     const [busy, setBusy] = useState(false);
     const [menuOpen, setMenuOpen] = useState(false);
+    const [restoreType, setRestoreType] = useState(null);
+    const restoreDialog = useRef(null);
+    useEffect(() => {
+        if (restoreType && restoreDialog.current && !restoreDialog.current.open) restoreDialog.current.showModal();
+    }, [restoreType]);
+    const closeRestore = () => { restoreDialog.current?.close(); setRestoreType(null); };
     const saving = useRef(false);
     const [saveError, setSaveError] = useState('');
     const [notice, setNotice] = useState('');
-    const [sample, setSample] = useState({ bidAmount: '1000', discount: true, rushDiscount: true, additionalCharges: '100' });
     useEffect(() => { if (data) setRules(normalizeRules(data.rules)); }, [data]);
     const fields = (data?.fields || [])
         .filter((entry) => !isHidden(entry))
@@ -44,7 +50,8 @@ export default function Settings() {
             const existing = previous[type].find((term) => term.field === field);
             const others = previous[type].filter((term) => term.field !== field);
             const fixed = fixedRules[field] || {};
-            return { ...previous, [type]: changes.operation === 'ignore' ? others : [...others, { field, operation: 'add', multiplier: assetPercentageFields.includes(field) ? '5.00' : '1.00', when: 'always', ...existing, ...changes, ...fixed, ...(assetPercentageFields.includes(field) ? { mode: 'percentage' } : {}) }] };
+            const defaultTerm = data.defaults[type]?.find((term) => term.field === field);
+            return { ...previous, [type]: changes.operation === 'ignore' ? others : [...others, { field, operation: 'add', multiplier: assetPercentageFields.includes(field) ? '5.00' : '1.00', when: 'always', ...defaultTerm, ...existing, ...changes, ...fixed, ...(assetPercentageFields.includes(field) ? { mode: 'percentage' } : {}) }] };
         });
     };
     const save = async (event) => {
@@ -56,6 +63,19 @@ export default function Settings() {
         finally { saving.current = false; setBusy(false); }
     };
     return <div className="frame_home bid_details_page settings_page">
+        <dialog ref={restoreDialog} className="popup confirm_popup" aria-labelledby="restore-defaults-title" onCancel={(event) => { event.preventDefault(); closeRestore(); }}>
+            <div className="confirm_body">
+                <h2 id="restore-defaults-title">Restore default settings?</h2>
+                <p>This will replace your current edits for {appraisalTypeLabel(restoreType)}. Click Save Settings afterward to save the restored defaults.</p>
+            </div>
+            <div className="actions">
+                <button type="button" className="bid_form_cancel" onClick={closeRestore}>Cancel</button>
+                <button type="button" className="bid_form_save" onClick={() => {
+                    setRules((previous) => ({ ...previous, [restoreType]: normalizeRules({ [restoreType]: data.defaults[restoreType] })[restoreType] }));
+                    setNotice(''); closeRestore();
+                }}>Restore Defaults</button>
+            </div>
+        </dialog>
         <nav className="nav_bar" aria-label="Main navigation">
             <a href="/Homepage"><img className="bison_logo_nav" src={navLogo} alt="Bison home" /></a>
             <div className="nav_links">{['Bids', 'History', 'Inspector', 'Clients', 'Reports', 'Messaging'].map((label) => <div key={label}>
@@ -75,10 +95,8 @@ export default function Settings() {
                 {saveError && <p role="alert" className="add_bid_error">{saveError}</p>}
                 {notice && <p role="status">{notice}</p>}
                 <fieldset disabled={busy} className="settings_fields">
-                    <legend>Bid calculation</legend>
                     <label htmlFor="settings-type">Bid type</label>
                     <select id="settings-type" value={type} onChange={(event) => setType(event.target.value)}>{data.types.map((value) => <option key={value} value={value}>{appraisalTypeLabel(value)}</option>)}</select>
-                    <p>Numeric fields use value × multiplier. Asset Valuation checkboxes add a percentage of the subtotal after fixed fees and discounts. Percentages add together without compounding. Other checkboxes use fixed fees. Each contribution rounds to cents.</p>
                     <div className="settings_rule_grid">
                         {fields.map(({ field, label }) => {
                             const percentage = assetPercentageFields.includes(field);
@@ -92,16 +110,11 @@ export default function Settings() {
                             </div></div>;
                         })}
                     </div>
-                    <div className="actions"><button type="button" className="bid_form_cancel" onClick={() => { setRules((previous) => ({ ...previous, [type]: normalizeRules({ [type]: data.defaults[type] })[type] })); setNotice(''); }}>Restore defaults for this type</button><button type="submit" className="bid_form_save">{busy ? 'Saving…' : 'Save Settings'}</button></div>
+                    <div className="actions"><button type="button" className="bid_form_cancel" onClick={() => {
+                        setRestoreType(type);
+                    }}>Restore defaults for this type</button><button type="submit" className="bid_form_save">{busy ? 'Saving…' : 'Save Settings'}</button></div>
                 </fieldset>
             </ValidatedForm>
-                <section className="settings_preview" aria-label="Calculation preview">
-                    <h2>Try the calculation</h2><p>This preview uses your unsaved settings. Preview values are not saved.</p>
-                    <div className="bid_form_grid">{fields.filter(({ field }) => rules[type].some((term) => term.field === field)).map(({ field, label, checkbox }) => <div className="bid_form_field" key={field}>
-                        <label htmlFor={`sample-${field}`}>{label}</label><input id={`sample-${field}`} type={checkbox ? 'checkbox' : 'number'} min="0" step="0.01" value={checkbox ? undefined : sample[field] ?? ''} checked={checkbox ? !!sample[field] : undefined} onChange={(event) => setSample({ ...sample, [field]: checkbox ? event.target.checked : event.target.value })} />
-                    </div>)}</div>
-                    <p aria-live="polite">Preview total: <strong>${calculateConfiguredTotal({ ...sample, appraisalType: type, calculationRules: rules })}</strong></p>
-                </section>
             </>}
         </main>
     </div>;

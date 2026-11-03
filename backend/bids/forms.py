@@ -30,7 +30,7 @@ class BidForm(forms.ModelForm):
     def __init__(self, *args, user, **kwargs):
         if args and args[0] is not None:
             data = args[0].copy()
-            for field in ['fmvContinuedUse', 'fairMarketValueRemoved', 'orderlyLiquidationValue', 'forcedLiquidationValue']:
+            for field in ['fmvContinuedUse', 'fairMarketValueRemoved', 'orderlyLiquidationValue', 'forcedLiquidationValue', 'other']:
                 if isinstance(data.get(field), bool):
                     data[field] = '1' if data[field] else '0'
             args = (data, *args[1:])

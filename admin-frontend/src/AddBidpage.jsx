@@ -1,5 +1,6 @@
 import { assetPercentageFields, calculationTerms, settingAmount } from './bidCalculation';
 import ClientTypeahead from './ClientTypeahead';
+import { reportChoices, reportSelection, reportFields } from './appraisalTypes';
 import useBidSettings from './useBidSettings';
 import ValidatedForm from './ValidatedForm';
 import { CALCULATION_VALUATION, appraisalTypeLabel } from './appraisalTypes';
@@ -59,7 +60,7 @@ function AddBidpage() {
     // Rush surcharge and PDF discount default to the amounts in the saved settings while their box is checked.
     const rules = calculationSettings.data?.rules;
     const feeDefault = (values, field) => rules ? settingAmount({ calculationRules: rules, appraisalType: values.appraisalType }, field) : '';
-    const withFeeDefaults = (values) => ({ ...values, discount: values.pdfOnly ? feeDefault(values, 'discount') : '', rushDiscount: values.rush ? feeDefault(values, 'rushDiscount') : '' });
+    const withFeeDefaults = (values) => ({ ...values, discount: values.pdfOnly ? feeDefault(values, 'discount') : '', rushFee: values.rush ? feeDefault(values, 'rushDiscount') : '' });
     const standardPdfDiscount = Number(feeDefault(draft, 'discount') || 100);
     const referenceNumber = createdBid?.referenceNumber || 'Assigned when bid is created';
     const selectClient = (id) => {
@@ -260,14 +261,13 @@ function AddBidpage() {
                                 </div>
                             )}
                             {fields.map(([field, label, type = 'text']) => (
+                                field === 'reportFormat' ? null :
                                 <div className={`bid_detail_field add_bid_${field}${type === 'checkbox' ? ' add_bid_checkbox' : ''}`} key={field}>
                                     <label htmlFor={`add-${field}`}>{label}{type === 'checkbox' && assetPercentageFields.includes(field) && (() => { const rule = calculationTerms(submissionDraft).find((term) => term.field === field && term.mode === 'percentage'); return rule ? ` (+${rule.multiplier}%)` : ''; })()}</label>
                                     {type === 'appraisalType' ? (
-                                        <select id={`add-${field}`} name={field} required value={draft[field]} onChange={(event) => setDraft(withFeeDefaults({ ...draft, [field]: event.target.value, reportFormat: '' }))}>
+                                        <select id={`add-${field}`} name={field} required value={reportSelection(draft)} onChange={(event) => setDraft(withFeeDefaults({ ...draft, ...reportFields(event.target.value) }))}>
                                             <option value="">Select appraisal type</option>
-                                            <option value="Business Valuation (BV)">Business Valuation</option>
-                                            <option value={CALCULATION_VALUATION}>Calculation Valuation</option>
-                                            <option value="Machinery & Equipment (M&E)">Machinery and Equipment</option>
+                                            {reportChoices.map((choice) => <option key={choice}>{choice}</option>)}
                                         </select>
                                     ) : field === 'reportFormat' && draft.appraisalType === 'Machinery & Equipment (M&E)' ? (
                                         <select id={`add-${field}`} name={field} value={draft[field]} onChange={(event) => setDraft({ ...draft, [field]: event.target.value })}>
@@ -301,7 +301,7 @@ function AddBidpage() {
                                                 setDraft((previous) => {
                                                     const next = { ...previous, [field]: value };
                                                     if (field === 'pdfOnly') next.discount = value ? feeDefault(next, 'discount') : '';
-                                                    if (field === 'rush') next.rushDiscount = value ? feeDefault(next, 'rushDiscount') : '';
+                                                    if (field === 'rush') next.rushFee = value ? feeDefault(next, 'rushDiscount') : '';
                                                     return next;
                                                 });
                                                 setError('');

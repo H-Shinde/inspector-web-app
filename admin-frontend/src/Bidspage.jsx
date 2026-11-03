@@ -3,6 +3,7 @@ import { CALCULATION_VALUATION, appraisalTypeLabel } from './appraisalTypes';
 import LogoutButton from './LogoutButton';
 import { getBidSections } from './bidSections';
 import { useEffect, useRef, useState } from 'react';
+import { reportChoices, reportSelection, reportFields } from './appraisalTypes';
 import { calculateTotalBid } from './bidFields';
 import { getBid, updateBid, decideBid, readBidAgreement } from './bidsApi';
 import { createJob } from './jobsApi';
@@ -175,13 +176,13 @@ function Bidspage({ onChange }) {
             {notice && <p className="bid_creation_message" role="status">{notice}</p>}
             {!bid && <p className="bid_details_empty">Select a bid from the bids homepage to view its information.</p>}
             <ValidatedForm id="bid-inline-edit" className="bid_inline_form" onSubmit={saveEdits}>
-            {fields.map(([field, label, inputType = 'text']) => (
+            {fields.filter(([field]) => field !== 'reportFormat').map(([field, label, inputType = 'text']) => (
                 <div className="bid_detail_field" key={field}>
                     <label htmlFor={`view-${field}`}>{label}</label>
-                    {inputType === 'appraisalType' ? <select id={`view-${field}`} disabled={!bid || busy || bid.status !== 'Pending'} value={(editDraft || bid)?.[field] ?? ''} onChange={(event) => changeField(field, event.target.value)}>
+                    {inputType === 'appraisalType' ? <select id={`view-${field}`} disabled={!editDraft || busy} value={reportSelection(editDraft || bid)} onChange={(event) => setEditDraft({ ...editDraft, ...reportFields(event.target.value) })}>
                         <option value="">Select appraisal type</option>
                         {(editDraft || bid)?.appraisalType && ![BUSINESS_VALUATION, CALCULATION_VALUATION, MACHINERY_EQUIPMENT].includes((editDraft || bid).appraisalType) && <option>{(editDraft || bid).appraisalType}</option>}
-                        <option value={BUSINESS_VALUATION}>Business Valuation</option><option value={CALCULATION_VALUATION}>Calculation Valuation</option><option value={MACHINERY_EQUIPMENT}>Machinery and Equipment</option>
+                        {reportChoices.map((choice) => <option key={choice}>{choice}</option>)}
                     </select> : editDraft && field === 'reportFormat' && editDraft.appraisalType === 'Machinery & Equipment (M&E)' ? <select id={`view-${field}`} value={editDraft[field] ?? ''} onChange={(event) => changeField(field, event.target.value)}>
                         <option value="">Select report format</option><option>Onsite</option><option>Desktop</option>
                     </select> : editDraft && inputType === 'checkbox' ? <input id={`view-${field}`} type="checkbox" checked={['fmvContinuedUse', 'fairMarketValueRemoved', 'orderlyLiquidationValue', 'forcedLiquidationValue'].includes(field) ? Number(editDraft[field]) !== 0 : !!editDraft[field]} onChange={(event) => changeField(field, event.target.checked)} />

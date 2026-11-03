@@ -22,7 +22,7 @@ export const bidSections = [
         ['fairMarketValueRemoved', 'Fair Market Value Removed', 'checkbox'],
         ['orderlyLiquidationValue', 'Orderly Liquidation Value', 'checkbox'],
         ['forcedLiquidationValue', 'Forced Liquidation Value', 'checkbox'],
-        ['other', 'Other'], ['additionalLocations', 'Additional Locations', 'number'],
+        ['other', 'Other', 'checkbox'], ['additionalLocations', 'Additional Locations', 'number'],
     ]],
     ['Appraisal Rates', [
         ['totalInspectedItems', '# of Inspected Items', 'number'],
@@ -35,14 +35,9 @@ export const bidSections = [
         ['meNote', 'M&E Note', 'textarea'],
     ]],
     ['Pricing', [
-<<<<<<< HEAD
-        ['bidAmount', 'Appraisal Fee', 'number'], ['pdfOnly', 'PDF Only/ No hard copy', 'checkbox'],
-        ['discount', 'Discount', 'number'], ['rushDiscount', 'Rush Surcharge', 'number'], ['additionalCharges', 'Additional Charges', 'number'],
-=======
         ['total', 'Inspection Total', 'subtotal'], ['totalAppraisal', 'Appraisal Total', 'subtotal'],
         ['rush', 'Rush', 'checkbox'], ['rushFee', 'Rush Fee', 'number'],
         ['pdfOnly', 'PDF Only/ No hard copy', 'checkbox'], ['discount', 'PDF Discount', 'number'],
->>>>>>> 24b998e0cfdf18ce88e0738a96ef2319b40b8627
         ['totalBid', 'Total Bid', 'total'],
     ]],
 ];

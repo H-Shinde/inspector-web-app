@@ -13,21 +13,22 @@ FIELDS = {
     'totalNonInspectedItems': 'Total non-inspected items',
     'totalAppraisal': 'Total appraisal', 'total': 'Inspection total',
     'nonRushTotal': 'Non-rush total', 'additionalLocations': 'Additional locations',
-    'rush': 'Rush checkbox', 'pdfOnly': 'PDF Only checkbox',
+    'rush': 'Rush checkbox', 'pdfOnly': 'PDF Only checkbox', 'other': 'Other',
 }
-ASSET_FIELDS = {'fmvContinuedUse', 'fairMarketValueRemoved', 'orderlyLiquidationValue', 'forcedLiquidationValue'}
+ASSET_FIELDS = {'fmvContinuedUse', 'fairMarketValueRemoved', 'orderlyLiquidationValue', 'forcedLiquidationValue', 'other'}
 CHECKBOX_FIELDS = {'rush', 'pdfOnly', 'fmvContinuedUse', 'fairMarketValueRemoved', 'orderlyLiquidationValue', 'forcedLiquidationValue'}
 
 
 def default_rules():
     valuation = [
         {'field': 'bidAmount', 'operation': 'add', 'multiplier': '1.00', 'when': 'always'},
-        {'field': 'discount', 'operation': 'subtract', 'multiplier': '1.00', 'when': 'always'},
-        {'field': 'rushDiscount', 'operation': 'subtract', 'multiplier': '1.00', 'when': 'rush'},
+        {'field': 'discount', 'operation': 'subtract', 'multiplier': '100.00', 'when': 'always'},
+        {'field': 'rushDiscount', 'operation': 'add', 'multiplier': '400.00', 'when': 'always'},
         {'field': 'additionalCharges', 'operation': 'add', 'multiplier': '1.00', 'when': 'always'},
     ]
-    percentages = [{'field': field, 'operation': 'add', 'multiplier': '5.00', 'when': 'always', 'mode': 'percentage'} for field in FIELDS if field in ASSET_FIELDS]
-    return {TYPES[0]: deepcopy(valuation + percentages), TYPES[1]: deepcopy(valuation + percentages), TYPES[2]: [deepcopy(valuation[0])] + deepcopy(percentages)}
+    rates = {'orderlyLiquidationValue': '2.00', 'forcedLiquidationValue': '1.00', 'other': '10.00'}
+    percentages = [{'field': field, 'operation': 'add', 'multiplier': rates.get(field, '5.00'), 'when': 'always', 'mode': 'percentage'} for field in FIELDS if field in ASSET_FIELDS]
+    return {bid_type: deepcopy([term for term in valuation if bid_type != TYPES[2] or term['field'] != 'additionalCharges'] + percentages) for bid_type in TYPES}
 
 
 def validate_rules(rules):

@@ -1,16 +1,16 @@
-export const assetPercentageFields = ['fmvContinuedUse', 'fairMarketValueRemoved', 'orderlyLiquidationValue', 'forcedLiquidationValue'];
+export const assetPercentageFields = ['fmvContinuedUse', 'fairMarketValueRemoved', 'orderlyLiquidationValue', 'forcedLiquidationValue', 'other'];
 export const calculationTypes = ['Business Valuation (BV)', 'Calculation Valuation', 'Machinery & Equipment (M&E)'];
 const valuation = [
     { field: 'bidAmount', operation: 'add', multiplier: '1.00', when: 'always' },
-    { field: 'discount', operation: 'subtract', multiplier: '1.00', when: 'always' },
-    { field: 'rushDiscount', operation: 'add', multiplier: '1.00', when: 'always' },
+    { field: 'discount', operation: 'subtract', multiplier: '100.00', when: 'always' },
+    { field: 'rushDiscount', operation: 'add', multiplier: '400.00', when: 'always' },
     { field: 'additionalCharges', operation: 'add', multiplier: '1.00', when: 'always' },
 ];
-const percentages = assetPercentageFields.map((field) => ({ field, operation: 'add', multiplier: '5.00', when: 'always', mode: 'percentage' }));
+const percentages = assetPercentageFields.map((field) => ({ field, operation: 'add', multiplier: ({ orderlyLiquidationValue: '2.00', forcedLiquidationValue: '1.00', other: '10.00' })[field] || '5.00', when: 'always', mode: 'percentage' }));
 export const defaultCalculationRules = {
     [calculationTypes[0]]: [...valuation, ...percentages],
     [calculationTypes[1]]: [...valuation, ...percentages],
-    [calculationTypes[2]]: [valuation[0], ...percentages],
+    [calculationTypes[2]]: [...valuation.filter((term) => term.field !== 'additionalCharges'), ...percentages],
 };
 // Flat-amount fees: the field holds the dollar amount; the settings rule supplies its default.
 const flatAmountFields = ['discount', 'rushDiscount'];

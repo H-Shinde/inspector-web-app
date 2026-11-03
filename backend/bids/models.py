@@ -1,7 +1,7 @@
 from decimal import Decimal
 
 from django.conf import settings
-from django.core.validators import MinValueValidator
+from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 from django.utils import timezone
 from .calculation import default_rules, calculate_total
@@ -25,6 +25,7 @@ class Client(models.Model):
         return self.name
         
 class Inspector(models.Model):
+    rating = models.PositiveSmallIntegerField(default=0, validators=[MaxValueValidator(5)])
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
