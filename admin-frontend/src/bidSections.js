@@ -24,16 +24,25 @@ export const bidSections = [
         ['forcedLiquidationValue', 'Forced Liquidation Value', 'checkbox'],
         ['other', 'Other'], ['additionalLocations', 'Additional Locations', 'number'],
     ]],
+    ['Appraisal Rates', [
+        ['totalInspectedItems', '# of Inspected Items', 'number'],
+        ['totalNonInspectedItems', '# of Non-Appraised Items', 'number'],
+        ['appraisalRate', 'Appraisal Rate', 'number'],
+        ['nonAppraisalRate', 'Non-Appraisal Rate', 'number'],
+    ]],
     ['Inspection Fees', [
-        ['totalInspectedItems', 'Total Inspected Items', 'number'],
-        ['totalNonInspectedItems', 'Total Non-Inspected Items', 'number'],
-        ['totalAppraisal', 'Total Appraisal', 'number'],
-        ['total', 'Total', 'number'], ['nonRushTotal', 'Non-Rush Total', 'number'],
+        ['inspectionRate', 'Inspection Rate', 'number'],
         ['meNote', 'M&E Note', 'textarea'],
     ]],
     ['Pricing', [
+<<<<<<< HEAD
         ['bidAmount', 'Appraisal Fee', 'number'], ['pdfOnly', 'PDF Only/ No hard copy', 'checkbox'],
         ['discount', 'Discount', 'number'], ['rushDiscount', 'Rush Surcharge', 'number'], ['additionalCharges', 'Additional Charges', 'number'],
+=======
+        ['total', 'Inspection Total', 'subtotal'], ['totalAppraisal', 'Appraisal Total', 'subtotal'],
+        ['rush', 'Rush', 'checkbox'], ['rushFee', 'Rush Fee', 'number'],
+        ['pdfOnly', 'PDF Only/ No hard copy', 'checkbox'], ['discount', 'PDF Discount', 'number'],
+>>>>>>> 24b998e0cfdf18ce88e0738a96ef2319b40b8627
         ['totalBid', 'Total Bid', 'total'],
     ]],
 ];
@@ -42,7 +51,7 @@ const machineryFields = new Set([
     'appraisalType', 'reportFormat', 'referenceNumber', 'status',
     'propertyType', 'businessName', 'businessAddress', 'city',
     'name', 'subjectContactEmail', 'subjectContactPhone',
-    ...bidSections.filter(([title]) => ['Asset Valuation', 'Inspection Fees'].includes(title)).flatMap(([, fields]) => fields.map(([field]) => field)),
+    ...bidSections.filter(([title]) => ['Asset Valuation', 'Inspection Fees', 'Appraisal Rates', 'Pricing'].includes(title)).flatMap(([, fields]) => fields.map(([field]) => field)),
     'rush', 'pdfOnly', 'discount', 'rushDiscount',
     'valueDate', 'clientCompany', 'clientName', 'clientEmail', 'valueType', 'bidAmount', 'completionDays', 'date',
 ]);

@@ -104,6 +104,11 @@ class Bid(models.Model):
     date = models.DateField(default=timezone.localdate)
 
     rush = models.BooleanField(default=False)
+    calculationVersion = models.CharField(max_length=20, default='legacy', editable=False)
+    inspectionRate = models.DecimalField(max_digits=12, decimal_places=2, default=0, validators=[MinValueValidator(Decimal('0'))])
+    appraisalRate = models.DecimalField(max_digits=12, decimal_places=2, default=0, validators=[MinValueValidator(Decimal('0'))])
+    nonAppraisalRate = models.DecimalField(max_digits=12, decimal_places=2, default=0, validators=[MinValueValidator(Decimal('0'))])
+    rushFee = models.DecimalField(max_digits=12, decimal_places=2, default=0, validators=[MinValueValidator(Decimal('0'))])
     pdfOnly = models.BooleanField(default=False)
 
     bidAmount = models.DecimalField(
