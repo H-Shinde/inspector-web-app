@@ -1,4 +1,4 @@
-import { assetPercentageFields, calculationTerms } from './bidCalculation';
+import { assetPercentageFields, calculationTerms, settingAmount } from './bidCalculation';
 import ClientTypeahead from './ClientTypeahead';
 import useBidSettings from './useBidSettings';
 import ValidatedForm from './ValidatedForm';
@@ -47,12 +47,18 @@ function AddBidpage() {
     const isMachinery = draft.appraisalType === MACHINERY_EQUIPMENT;
     const visibleSections = getBidSections(draft.appraisalType).map(([title, fields]) => [title,
         title === 'Appraisal Details' ? fields.filter(([field]) => field !== 'rush')
+            : title === 'Inspection Fees' && isMachinery && draft.reportFormat === 'Desktop' ? fields.filter(([field]) => field !== 'totalInspectedItems')
             : title === 'Pricing' ? fields.flatMap((entry) => entry[0] === 'rushDiscount' ? [['rush', 'Rush', 'checkbox'], entry] : [entry])
                 : fields,
     ]);
     const visibleFields = new Set(visibleSections.flatMap(([, fields]) => fields.map(([field]) => field)));
     const submissionDraft = { calculationRules: calculationSettings.data?.rules, ...(isMachinery ? Object.fromEntries(Object.entries(draft).filter(([field]) => visibleFields.has(field))) : draft) };
     const totalBid = calculateTotalBid(submissionDraft);
+    // Rush surcharge and PDF discount default to the amounts in the saved settings while their box is checked.
+    const rules = calculationSettings.data?.rules;
+    const feeDefault = (values, field) => rules ? settingAmount({ calculationRules: rules, appraisalType: values.appraisalType }, field) : '';
+    const withFeeDefaults = (values) => ({ ...values, discount: values.pdfOnly ? feeDefault(values, 'discount') : '', rushDiscount: values.rush ? feeDefault(values, 'rushDiscount') : '' });
+    const standardPdfDiscount = Number(feeDefault(draft, 'discount') || 100);
     const referenceNumber = createdBid?.referenceNumber || 'Assigned when bid is created';
     const selectClient = (id) => {
         setError('');
@@ -167,7 +173,7 @@ function AddBidpage() {
                 </div>
                 {completedAgreement ? <p>Your bid is Pending. Download the filled engagement agreement below.</p> : <p>Create this bid and fill the Bison Valuation engagement agreement with its business, contact, report, pricing, and reference details?</p>}
                 <p>Signatures and details not provided in the form will remain blank for completion.</p>
-                {!isMachinery && draft.pdfOnly && Number(draft.discount) !== 100 && <p>The supplied agreement specifies a $100 PDF-only discount. Your entered discount is {`$${Number(draft.discount || 0).toFixed(2)}`}; review this before confirming.</p>}
+                {!isMachinery && draft.pdfOnly && Number(draft.discount) !== standardPdfDiscount && <p>The standard PDF-only discount is {`$${standardPdfDiscount.toFixed(2)}`}. Your entered discount is {`$${Number(draft.discount || 0).toFixed(2)}`}; review this before confirming.</p>}
                 {emailDraft && <ValidatedForm id="bv-client-email" className="bid_email_preview" onSubmit={openClientEmail}>
                     <h3>Email to client</h3>
                     <label htmlFor="bid-email-to">To</label>
@@ -255,7 +261,7 @@ function AddBidpage() {
                                 <div className={`bid_detail_field add_bid_${field}${type === 'checkbox' ? ' add_bid_checkbox' : ''}`} key={field}>
                                     <label htmlFor={`add-${field}`}>{label}{type === 'checkbox' && assetPercentageFields.includes(field) && (() => { const rule = calculationTerms(submissionDraft).find((term) => term.field === field && term.mode === 'percentage'); return rule ? ` (+${rule.multiplier}%)` : ''; })()}</label>
                                     {type === 'appraisalType' ? (
-                                        <select id={`add-${field}`} name={field} required value={draft[field]} onChange={(event) => setDraft({ ...draft, [field]: event.target.value, reportFormat: '' })}>
+                                        <select id={`add-${field}`} name={field} required value={draft[field]} onChange={(event) => setDraft(withFeeDefaults({ ...draft, [field]: event.target.value, reportFormat: '' }))}>
                                             <option value="">Select appraisal type</option>
                                             <option value="Business Valuation (BV)">Business Valuation</option>
                                             <option value={CALCULATION_VALUATION}>Calculation Valuation</option>
@@ -282,9 +288,16 @@ function AddBidpage() {
                                             checked={type === 'checkbox' ? draft[field] : undefined}
                                             placeholder={type !== 'checkbox' ? `Enter ${label.toLowerCase()}` : undefined}
                                             required={['name', 'businessName'].includes(field)}
+                                            disabled={(field === 'discount' && !draft.pdfOnly) || (field === 'rushDiscount' && !draft.rush)}
 
                                             onChange={(event) => {
-                                                setDraft((previous) => ({ ...previous, [field]: type === 'checkbox' ? event.target.checked : event.target.value }));
+                                                const value = type === 'checkbox' ? event.target.checked : event.target.value;
+                                                setDraft((previous) => {
+                                                    const next = { ...previous, [field]: value };
+                                                    if (field === 'pdfOnly') next.discount = value ? feeDefault(next, 'discount') : '';
+                                                    if (field === 'rush') next.rushDiscount = value ? feeDefault(next, 'rushDiscount') : '';
+                                                    return next;
+                                                });
                                                 setError('');
                                             }} />
                                     )}

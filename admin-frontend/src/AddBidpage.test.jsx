@@ -75,9 +75,9 @@ test('discount controls and Rush stay grouped in Pricing', async () => {
   expect(pricing.getByLabelText('Discount')).toBeDisabled();
   fireEvent.click(pricing.getByLabelText('PDF Only/ No hard copy'));
   expect(pricing.getByLabelText('Discount')).toBeEnabled();
-  expect(pricing.getByLabelText('Rush Discount')).toBeDisabled();
+  expect(pricing.getByLabelText('Rush Surcharge')).toBeDisabled();
   fireEvent.click(pricing.getByLabelText('Rush'));
-  expect(pricing.getByLabelText('Rush Discount')).toBeEnabled();
+  expect(pricing.getByLabelText('Rush Surcharge')).toBeEnabled();
 });
 test('reports inspector-loading errors and supports retry', async () => {
   listBidInspectors.mockRejectedValueOnce(new Error('Unable to connect.'));

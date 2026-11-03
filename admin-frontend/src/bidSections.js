@@ -33,7 +33,7 @@ export const bidSections = [
     ]],
     ['Pricing', [
         ['bidAmount', 'Appraisal Fee', 'number'], ['pdfOnly', 'PDF Only/ No hard copy', 'checkbox'],
-        ['discount', 'Discount', 'number'], ['rushDiscount', 'Rush Discount', 'number'], ['additionalCharges', 'Additional Charges', 'number'],
+        ['discount', 'Discount', 'number'], ['rushDiscount', 'Rush Surcharge', 'number'], ['additionalCharges', 'Additional Charges', 'number'],
         ['totalBid', 'Total Bid', 'total'],
     ]],
 ];

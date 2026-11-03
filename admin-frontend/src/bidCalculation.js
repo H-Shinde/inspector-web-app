@@ -3,7 +3,7 @@ export const calculationTypes = ['Business Valuation (BV)', 'Calculation Valuati
 const valuation = [
     { field: 'bidAmount', operation: 'add', multiplier: '1.00', when: 'always' },
     { field: 'discount', operation: 'subtract', multiplier: '1.00', when: 'always' },
-    { field: 'rushDiscount', operation: 'subtract', multiplier: '1.00', when: 'rush' },
+    { field: 'rushDiscount', operation: 'add', multiplier: '1.00', when: 'always' },
     { field: 'additionalCharges', operation: 'add', multiplier: '1.00', when: 'always' },
 ];
 const percentages = assetPercentageFields.map((field) => ({ field, operation: 'add', multiplier: '5.00', when: 'always', mode: 'percentage' }));
@@ -12,6 +12,9 @@ export const defaultCalculationRules = {
     [calculationTypes[1]]: [...valuation, ...percentages],
     [calculationTypes[2]]: [valuation[0], ...percentages],
 };
+// Flat-amount fees: the field holds the dollar amount; the settings rule supplies its default.
+const flatAmountFields = ['discount', 'rushDiscount'];
+const conditionalFields = { discount: 'pdfOnly', rushDiscount: 'rush' };
 const checkboxes = new Set(['rush', 'pdfOnly', 'fmvContinuedUse', 'fairMarketValueRemoved', 'orderlyLiquidationValue', 'forcedLiquidationValue']);
 function cents(value) {
     if (value === true) return 100n;
@@ -38,11 +41,19 @@ export function calculateConfiguredTotal(draft) {
         if (term.when === 'notRush' && draft.rush || term.when === 'notPdfOnly' && draft.pdfOnly) continue;
         const value = checkboxes.has(term.field) ? (Number(draft[term.field]) ? 100n : 0n) : cents(draft[term.field]);
         if (term.mode === 'percentage') { if (value) rates.push(cents(term.multiplier)); continue; }
-        const contribution = (value * cents(term.multiplier) + 50n) / 100n;
+        const multiplier = flatAmountFields.includes(term.field) ? 100n : cents(term.multiplier);
+        const contribution = (value * multiplier + 50n) / 100n;
         total += term.operation === 'subtract' ? -contribution : contribution;
     }
     const base = total > 0n ? total : 0n;
     for (const rate of rates) total += (base * rate + 5000n) / 10000n;
     const absolute = total < 0n ? -total : total;
     return `${total < 0n ? '-' : ''}${absolute / 100n}.${String(absolute % 100n).padStart(2, '0')}`;
+}
+// Default dollar amount for a flat fee (PDF discount or rush surcharge) from the saved settings.
+export function settingAmount(draft, field) {
+    const term = calculationTerms(draft).find((entry) => entry.field === field && entry.mode !== 'percentage' && ['always', conditionalFields[field]].includes(entry.when));
+    if (!term) return '';
+    const amount = cents(term.multiplier);
+    return `${amount / 100n}.${String(amount % 100n).padStart(2, '0')}`;
 }

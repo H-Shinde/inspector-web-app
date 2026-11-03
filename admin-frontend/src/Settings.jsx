@@ -8,6 +8,21 @@ import LogoutButton from './LogoutButton';
 import navLogo from './bison_logo_nav.png';
 import './Settings.css';
 
+// Fields that no longer appear anywhere on the Settings page.
+const hiddenFields = ['rush', 'pdfOnly', 'additionalLocations'];
+const isHidden = ({ field, label }) => hiddenFields.includes(field) || /additional locations?/i.test(label || '');
+
+// Fields whose operation and condition are fixed and applied automatically (no selectors shown).
+const fixedRules = {
+    discount: { operation: 'subtract', when: 'always' },
+    rushDiscount: { operation: 'add', when: 'always' },
+};
+// These are checkboxes on the bid form: Settings stores a flat dollar amount that applies when the box is checked.
+const checkboxFields = ['discount', 'rushDiscount'];
+const normalizeRules = (all) => Object.fromEntries(Object.entries(all).map(([name, terms]) => [name, terms.map((term) => ({ ...term, ...(fixedRules[term.field] || {}) }))]));
+const labelOverrides = { rushDiscount: 'Rush surcharge' };
+const displayLabel = (field, label) => labelOverrides[field] || label;
+
 export default function Settings() {
     const { data, setData, loading, error, retry } = useBidSettings();
     const [rules, setRules] = useState(null);
@@ -17,15 +32,19 @@ export default function Settings() {
     const saving = useRef(false);
     const [saveError, setSaveError] = useState('');
     const [notice, setNotice] = useState('');
-    const [sample, setSample] = useState({ bidAmount: '1000', discount: '50', rushDiscount: '25', additionalCharges: '100' });
-    useEffect(() => { if (data) setRules(data.rules); }, [data]);
-    const fields = (data?.fields || []).filter(({ field }) => type !== 'Machinery & Equipment (M&E)' || field !== 'additionalCharges');
+    const [sample, setSample] = useState({ bidAmount: '1000', discount: true, rushDiscount: true, additionalCharges: '100' });
+    useEffect(() => { if (data) setRules(normalizeRules(data.rules)); }, [data]);
+    const fields = (data?.fields || [])
+        .filter((entry) => !isHidden(entry))
+        .filter(({ field }) => type !== 'Machinery & Equipment (M&E)' || field !== 'additionalCharges')
+        .map((entry) => ({ ...entry, label: displayLabel(entry.field, entry.label), checkbox: entry.checkbox || checkboxFields.includes(entry.field) }));
     const update = (field, changes) => {
         setNotice('');
         setRules((previous) => {
             const existing = previous[type].find((term) => term.field === field);
             const others = previous[type].filter((term) => term.field !== field);
-            return { ...previous, [type]: changes.operation === 'ignore' ? others : [...others, { field, operation: 'add', multiplier: assetPercentageFields.includes(field) ? '5.00' : '1.00', when: 'always', ...existing, ...changes, ...(assetPercentageFields.includes(field) ? { mode: 'percentage' } : {}) }] };
+            const fixed = fixedRules[field] || {};
+            return { ...previous, [type]: changes.operation === 'ignore' ? others : [...others, { field, operation: 'add', multiplier: assetPercentageFields.includes(field) ? '5.00' : '1.00', when: 'always', ...existing, ...changes, ...fixed, ...(assetPercentageFields.includes(field) ? { mode: 'percentage' } : {}) }] };
         });
     };
     const save = async (event) => {
@@ -63,20 +82,22 @@ export default function Settings() {
                     <div className="settings_rule_grid">
                         {fields.map(({ field, label }) => {
                             const percentage = assetPercentageFields.includes(field);
+                            const fixed = !!fixedRules[field];
                             const term = rules[type].find((entry) => entry.field === field);
                             return <div key={field} className={`settings_rule_card${term ? ' settings_rule_active' : ''}`}><h3>{label}</h3><div className="settings_rule_controls">
-                                <label><span>Operation</span><select aria-label={`${label} operation`} value={term?.operation || 'ignore'} onChange={(event) => update(field, { operation: event.target.value })}><option value="ignore">Ignore</option><option value="add">Add</option>{!percentage && <option value="subtract">Subtract</option>}</select></label>
-                                <label><span>{percentage ? 'Percentage (%)' : 'Rate / fee'}</span><input id={`rule-${field}-multiplier`} aria-label={`${label} ${percentage ? 'percentage' : 'multiplier'}`} type="number" required={!!term} disabled={!term} min="0" max={percentage ? 100 : 1000000} step="0.01" value={term?.multiplier ?? ''} onChange={(event) => update(field, { multiplier: event.target.value })} /></label>
-                                <label><span>Apply when</span><select aria-label={`${label} condition`} disabled={!term} value={term?.when || 'always'} onChange={(event) => update(field, { when: event.target.value })}><option value="always">Always</option><option value="rush">Rush checked</option><option value="notRush">Rush unchecked</option><option value="pdfOnly">PDF Only checked</option><option value="notPdfOnly">PDF Only unchecked</option></select></label>
+                                {fixed && <label className="settings_rule_check"><input type="checkbox" aria-label={`Include ${label}`} checked={!!term} onChange={(event) => update(field, event.target.checked ? {} : { operation: 'ignore' })} /><span>Include in bid calculation</span></label>}
+                                {!fixed && <label><span>Operation</span><select aria-label={`${label} operation`} value={term?.operation || 'ignore'} onChange={(event) => update(field, { operation: event.target.value })}><option value="ignore">Ignore</option><option value="add">Add</option>{!percentage && <option value="subtract">Subtract</option>}</select></label>}
+                                <label><span>{percentage ? 'Percentage (%)' : checkboxFields.includes(field) ? 'Flat rate ($)' : 'Rate / fee'}</span><input id={`rule-${field}-multiplier`} aria-label={`${label} ${percentage ? 'percentage' : 'multiplier'}`} type="number" required={!!term} disabled={!term} min="0" max={percentage ? 100 : 1000000} step="0.01" value={term?.multiplier ?? ''} onChange={(event) => update(field, { multiplier: event.target.value })} /></label>
+                                {!fixed && <label><span>Apply when</span><select aria-label={`${label} condition`} disabled={!term} value={term?.when || 'always'} onChange={(event) => update(field, { when: event.target.value })}><option value="always">Always</option><option value="rush">Rush checked</option><option value="notRush">Rush unchecked</option><option value="pdfOnly">PDF Only checked</option><option value="notPdfOnly">PDF Only unchecked</option></select></label>}
                             </div></div>;
                         })}
                     </div>
-                    <div className="actions"><button type="button" className="bid_form_cancel" onClick={() => { setRules((previous) => ({ ...previous, [type]: data.defaults[type].map((term) => ({ ...term })) })); setNotice(''); }}>Restore defaults for this type</button><button type="submit" className="bid_form_save">{busy ? 'Saving…' : 'Save Settings'}</button></div>
+                    <div className="actions"><button type="button" className="bid_form_cancel" onClick={() => { setRules((previous) => ({ ...previous, [type]: normalizeRules({ [type]: data.defaults[type] })[type] })); setNotice(''); }}>Restore defaults for this type</button><button type="submit" className="bid_form_save">{busy ? 'Saving…' : 'Save Settings'}</button></div>
                 </fieldset>
             </ValidatedForm>
                 <section className="settings_preview" aria-label="Calculation preview">
                     <h2>Try the calculation</h2><p>This preview uses your unsaved settings. Preview values are not saved.</p>
-                    <div className="bid_form_grid">{fields.filter(({ field }) => rules[type].some((term) => term.field === field) || ['rush', 'pdfOnly'].includes(field)).map(({ field, label, checkbox }) => <div className="bid_form_field" key={field}>
+                    <div className="bid_form_grid">{fields.filter(({ field }) => rules[type].some((term) => term.field === field)).map(({ field, label, checkbox }) => <div className="bid_form_field" key={field}>
                         <label htmlFor={`sample-${field}`}>{label}</label><input id={`sample-${field}`} type={checkbox ? 'checkbox' : 'number'} min="0" step="0.01" value={checkbox ? undefined : sample[field] ?? ''} checked={checkbox ? !!sample[field] : undefined} onChange={(event) => setSample({ ...sample, [field]: checkbox ? event.target.checked : event.target.value })} />
                     </div>)}</div>
                     <p aria-live="polite">Preview total: <strong>${calculateConfiguredTotal({ ...sample, appraisalType: type, calculationRules: rules })}</strong></p>

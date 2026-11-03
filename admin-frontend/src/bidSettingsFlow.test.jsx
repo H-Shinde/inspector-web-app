@@ -60,3 +60,34 @@ test('asset valuation checkboxes add editable percentages to the live total', as
     fireEvent.click(checkbox);
     expect(screen.getByLabelText('Total Bid')).toHaveValue('2100.00');
 });
+
+test('rush surcharge and PDF discount default from settings when checked', async () => {
+    const rules = JSON.parse(JSON.stringify(defaultCalculationRules));
+    rules[calculationTypes[0]].find((term) => term.field === 'discount').multiplier = '100';
+    rules[calculationTypes[0]].find((term) => term.field === 'rushDiscount').multiplier = '75';
+    getBidSettings.mockResolvedValue({ rules });
+    render(<AddBidpage />);
+    await waitFor(() => expect(screen.getByRole('button', { name: '+ Add Bid' })).toBeEnabled());
+    fireEvent.change(screen.getByLabelText('Appraisal Type'), { target: { value: calculationTypes[0] } });
+    fireEvent.change(screen.getByLabelText('Appraisal Fee'), { target: { value: '1000' } });
+    expect(screen.getByLabelText('Rush Surcharge')).toBeDisabled();
+    fireEvent.click(screen.getByLabelText('Rush'));
+    expect(screen.getByLabelText('Rush Surcharge')).toHaveValue(75);
+    expect(screen.getByLabelText('Total Bid')).toHaveValue('1075.00');
+    fireEvent.click(screen.getByLabelText('PDF Only/ No hard copy'));
+    expect(screen.getByLabelText('Discount')).toHaveValue(100);
+    expect(screen.getByLabelText('Total Bid')).toHaveValue('975.00');
+    fireEvent.click(screen.getByLabelText('Rush'));
+    expect(screen.getByLabelText('Total Bid')).toHaveValue('900.00');
+});
+
+test('M&E desktop appraisals do not show Total Inspected Items', async () => {
+    render(<AddBidpage />);
+    await waitFor(() => expect(screen.getByRole('button', { name: '+ Add Bid' })).toBeEnabled());
+    fireEvent.change(screen.getByLabelText('Appraisal Type'), { target: { value: 'Machinery & Equipment (M&E)' } });
+    expect(screen.getByLabelText('Total Inspected Items')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Report Format'), { target: { value: 'Desktop' } });
+    expect(screen.queryByLabelText('Total Inspected Items')).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Report Format'), { target: { value: 'Onsite' } });
+    expect(screen.getByLabelText('Total Inspected Items')).toBeInTheDocument();
+});
