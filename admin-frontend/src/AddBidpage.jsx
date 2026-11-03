@@ -45,13 +45,15 @@ function AddBidpage() {
     const [emailDraft, setEmailDraft] = useState(null);
     const [agreementError, setAgreementError] = useState('');
     const isMachinery = draft.appraisalType === MACHINERY_EQUIPMENT;
-    const visibleSections = getBidSections(draft.appraisalType).map(([title, fields]) => [title,
+    const visibleSections = getBidSections(draft.appraisalType)
+        .filter(([title]) => !(isMachinery && draft.reportFormat === 'Desktop' && title === 'Inspection Fees'))
+        .map(([title, fields]) => [title,
         title === 'Appraisal Details' ? fields.filter(([field]) => field !== 'rush')
             : title === 'Pricing' ? fields.flatMap((entry) => entry[0] === 'rushDiscount' ? [['rush', 'Rush', 'checkbox'], entry] : [entry])
                 : fields,
     ]);
     const visibleFields = new Set(visibleSections.flatMap(([, fields]) => fields.map(([field]) => field)));
-    const submissionDraft = { calculationRules: calculationSettings.data?.rules, ...(isMachinery ? Object.fromEntries(Object.entries(draft).filter(([field]) => visibleFields.has(field))) : draft) };
+    const submissionDraft = { calculationVersion: 'rates-v1', calculationRules: calculationSettings.data?.rules, ...(isMachinery ? Object.fromEntries(Object.entries(draft).filter(([field]) => visibleFields.has(field))) : draft) };
     const totalBid = calculateTotalBid(submissionDraft);
     const referenceNumber = createdBid?.referenceNumber || 'Assigned when bid is created';
     const selectClient = (id) => {
@@ -269,6 +271,10 @@ function AddBidpage() {
                                         </select>
                                     ) : type === 'status' || field === 'referenceNumber' ? (
                                         <input id={`add-${field}`} name={field} value={field === 'status' ? 'Pending' : referenceNumber} readOnly />
+                                    ) : type === 'subtotal' ? (
+                                        <input id={`add-${field}`} name={field} readOnly value={(field === 'total'
+                                            ? draft.reportFormat === 'Desktop' ? 0 : Number(draft.inspectionRate || 0) * Number(draft.totalInspectedItems || 0)
+                                            : Number(draft.appraisalRate || 0) * Number(draft.totalInspectedItems || 0) + Number(draft.nonAppraisalRate || 0) * Number(draft.totalNonInspectedItems || 0)).toFixed(2)} />
                                     ) : type === 'total' ? (
                                         <><input id={`add-${field}`} name={field} value={calculationSettings.loading ? 'Loading…' : calculationSettings.error ? 'Unavailable' : totalBid} readOnly aria-describedby="total-bid-help" />
                                         {!calculationSettings.loading && !calculationSettings.error && Number(totalBid) <= 0 && <p className="add_bid_error">Calculated bid total must be greater than zero.</p>}</>
@@ -291,7 +297,7 @@ function AddBidpage() {
                                 </div>
                             ))}
                         </div>
-                        {title === 'Pricing' && <p id="total-bid-help" className="add_bid_pricing_help">Total uses your saved <a href="/Settings">calculation settings</a>. Checkbox conditions apply automatically.</p>}
+                        {title === 'Pricing' && <p id="total-bid-help" className="add_bid_pricing_help">Total Bid = Inspection Total + Appraisal Total + Rush Fee − PDF Discount. Rush Fee applies when Rush is selected; PDF Discount applies when PDF Only is selected.</p>}
                     </fieldset>
                 ))}
                 {error && <p className="add_bid_error" role="alert">{error}</p>}

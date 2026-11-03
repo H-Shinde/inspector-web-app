@@ -31,6 +31,15 @@ export function calculationTerms(draft) {
     return rules[draft.appraisalType || calculationTypes[0]] || [];
 }
 export function calculateConfiguredTotal(draft) {
+    if (draft.calculationVersion === 'rates-v1') {
+        const count = BigInt(Math.max(0, Math.trunc(Number(draft.totalInspectedItems) || 0)));
+        const other = BigInt(Math.max(0, Math.trunc(Number(draft.totalNonInspectedItems) || 0)));
+        const inspection = draft.reportFormat === 'Desktop' ? 0n : cents(draft.inspectionRate) * count;
+        const appraisal = cents(draft.appraisalRate) * count + cents(draft.nonAppraisalRate) * other;
+        const amount = inspection + appraisal + (draft.rush ? cents(draft.rushFee) : 0n) - (draft.pdfOnly ? cents(draft.discount) : 0n);
+        const absolute = amount < 0n ? -amount : amount;
+        return `${amount < 0n ? '-' : ''}${absolute / 100n}.${String(absolute % 100n).padStart(2, '0')}`;
+    }
     let total = 0n;
     const rates = [];
     for (const term of calculationTerms(draft)) {

@@ -68,6 +68,12 @@ def validate_rules(rules):
 
 
 def calculate_total(bid):
+    if getattr(bid, 'calculationVersion', 'legacy') == 'rates-v1':
+        inspected = Decimal(bid.totalInspectedItems or 0)
+        non_appraised = Decimal(bid.totalNonInspectedItems or 0)
+        inspection = Decimal('0') if bid.reportFormat == 'Desktop' else (bid.inspectionRate or 0) * inspected
+        appraisal = (bid.appraisalRate or 0) * inspected + (bid.nonAppraisalRate or 0) * non_appraised
+        return (inspection + appraisal + (bid.rushFee or 0 if bid.rush else 0) - (bid.discount or 0 if bid.pdfOnly else 0)).quantize(Decimal('.01'), rounding=ROUND_HALF_UP)
     rules = bid.calculationRules or default_rules()
     total = Decimal('0')
     percentages = []

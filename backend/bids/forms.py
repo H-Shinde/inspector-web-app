@@ -11,6 +11,12 @@ class BidForm(forms.ModelForm):
         if self.errors:
             return
         if self.instance._state.adding:
+            self.instance.calculationVersion = 'rates-v1'
+        if self.instance.calculationVersion == 'rates-v1':
+            bid = self.instance
+            bid.total = Decimal('0') if bid.reportFormat == 'Desktop' else bid.inspectionRate * (bid.totalInspectedItems or 0)
+            bid.totalAppraisal = bid.appraisalRate * (bid.totalInspectedItems or 0) + bid.nonAppraisalRate * (bid.totalNonInspectedItems or 0)
+        if self.instance._state.adding:
             from .calculation import default_rules
             saved_settings = BidSettings.objects.filter(owner=self.user).first()
             self.instance.calculationRules = saved_settings.rules if saved_settings else default_rules()
@@ -36,6 +42,7 @@ class BidForm(forms.ModelForm):
             "discount",
             "rushDiscount",
             "additionalCharges",
+            "inspectionRate", "appraisalRate", "nonAppraisalRate", "rushFee",
         ]:
             self.fields[field].required = False
 
@@ -62,6 +69,7 @@ class BidForm(forms.ModelForm):
             "discount",
             "rushDiscount",
             "additionalCharges",
+            "inspectionRate", "appraisalRate", "nonAppraisalRate", "rushFee",
         ]:
             if data.get(field) is None:
                 data[field] = Decimal("0")
@@ -74,6 +82,11 @@ class BidForm(forms.ModelForm):
                 )
 
             data["additionalCharges"] = Decimal("0")
+            if data.get('reportFormat') == 'Desktop':
+                for field in ['total', 'nonRushTotal']:
+                    data[field] = None
+                data['inspectionRate'] = Decimal('0')
+                data['meNote'] = ''
 
         return data
 
