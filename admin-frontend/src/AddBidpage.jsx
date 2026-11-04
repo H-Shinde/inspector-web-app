@@ -1,5 +1,6 @@
 import { assetPercentageFields, calculationTerms, settingAmount } from './bidCalculation';
 import ClientTypeahead from './ClientTypeahead';
+import { tierSubtotals } from './tierRates';
 import { reportChoices, reportSelection, reportFields } from './appraisalTypes';
 import useBidSettings from './useBidSettings';
 import ValidatedForm from './ValidatedForm';
@@ -55,7 +56,7 @@ function AddBidpage() {
                 : fields,
     ]);
     const visibleFields = new Set(visibleSections.flatMap(([, fields]) => fields.map(([field]) => field)));
-    const submissionDraft = { calculationVersion: 'rates-v1', calculationRules: calculationSettings.data?.rules, ...(isMachinery ? Object.fromEntries(Object.entries(draft).filter(([field]) => visibleFields.has(field))) : draft) };
+    const submissionDraft = { calculationVersion: 'tiers-v1', calculationRules: calculationSettings.data?.rules, ...(isMachinery ? Object.fromEntries(Object.entries(draft).filter(([field]) => visibleFields.has(field))) : draft), tier: draft.tier || '1' };
     const totalBid = calculateTotalBid(submissionDraft);
     // Rush surcharge and PDF discount default to the amounts in the saved settings while their box is checked.
     const rules = calculationSettings.data?.rules;
@@ -264,7 +265,11 @@ function AddBidpage() {
                                 field === 'reportFormat' ? null :
                                 <div className={`bid_detail_field add_bid_${field}${type === 'checkbox' ? ' add_bid_checkbox' : ''}`} key={field}>
                                     <label htmlFor={`add-${field}`}>{label}{type === 'checkbox' && assetPercentageFields.includes(field) && (() => { const rule = calculationTerms(submissionDraft).find((term) => term.field === field && term.mode === 'percentage'); return rule ? ` (+${rule.multiplier}%)` : ''; })()}</label>
-                                    {type === 'appraisalType' ? (
+                                    {type === 'tier' ? (
+                                        <select id={`add-${field}`} name={field} value={draft.tier || '1'} onChange={(event) => setDraft({ ...draft, tier: event.target.value })}>{[1,2,3,4,5].map((tier) => <option key={tier} value={tier}>Tier {tier}</option>)}</select>
+                                    ) : ['inspectionRate', 'appraisalRate', 'nonAppraisedInspectionRate'].includes(field) ? (
+                                        <input id={`add-${field}`} readOnly value={tierSubtotals(submissionDraft)[field].toFixed(2)} />
+                                    ) : type === 'appraisalType' ? (
                                         <select id={`add-${field}`} name={field} required value={reportSelection(draft)} onChange={(event) => setDraft(withFeeDefaults({ ...draft, ...reportFields(event.target.value) }))}>
                                             <option value="">Select appraisal type</option>
                                             {reportChoices.map((choice) => <option key={choice}>{choice}</option>)}
@@ -278,9 +283,7 @@ function AddBidpage() {
                                     ) : type === 'status' || field === 'referenceNumber' ? (
                                         <input id={`add-${field}`} name={field} value={field === 'status' ? 'Pending' : referenceNumber} readOnly />
                                     ) : type === 'subtotal' ? (
-                                        <input id={`add-${field}`} name={field} readOnly value={(field === 'total'
-                                            ? draft.reportFormat === 'Desktop' ? 0 : Number(draft.inspectionRate || 0) * Number(draft.totalInspectedItems || 0)
-                                            : Number(draft.appraisalRate || 0) * Number(draft.totalInspectedItems || 0) + Number(draft.nonAppraisalRate || 0) * Number(draft.totalNonInspectedItems || 0)).toFixed(2)} />
+                                        <input id={`add-${field}`} name={field} readOnly value={tierSubtotals(submissionDraft)[field].toFixed(2)} />
                                     ) : type === 'total' ? (
                                         <><input id={`add-${field}`} name={field} value={calculationSettings.loading ? 'Loading…' : calculationSettings.error ? 'Unavailable' : totalBid} readOnly aria-describedby="total-bid-help" />
                                         {!calculationSettings.loading && !calculationSettings.error && Number(totalBid) <= 0 && <p className="add_bid_error">Calculated bid total must be greater than zero.</p>}</>

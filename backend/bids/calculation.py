@@ -28,7 +28,7 @@ def default_rules():
         {'field': 'rushDiscount', 'operation': 'add', 'multiplier': '400.00', 'when': 'always'},
         {'field': 'additionalCharges', 'operation': 'add', 'multiplier': '1.00', 'when': 'always'},
     ]
-    rates = {'orderlyLiquidationValue': '2.00', 'forcedLiquidationValue': '1.00', 'other': '10.00'}
+    rates = {'fmvContinuedUse': '0.00', 'orderlyLiquidationValue': '5.00', 'forcedLiquidationValue': '2.00', 'other': '10.00'}
     percentages = [{'field': field, 'operation': 'add', 'multiplier': rates.get(field, '5.00'), 'when': 'always', 'mode': 'percentage'} for field in FIELDS if field in ASSET_FIELDS]
     return {bid_type: deepcopy([term for term in valuation if bid_type != TYPES[2] or term['field'] != 'additionalCharges'] + percentages) for bid_type in TYPES}
 
@@ -71,11 +71,14 @@ def validate_rules(rules):
 
 
 def calculate_total(bid):
-    if getattr(bid, 'calculationVersion', 'legacy') == 'rates-v1':
+    if getattr(bid, 'calculationVersion', 'legacy') in ['rates-v1', 'tiers-v1']:
         inspected = Decimal(bid.totalInspectedItems or 0)
         non_appraised = Decimal(bid.totalNonInspectedItems or 0)
         inspection = Decimal('0') if bid.reportFormat == 'Desktop' else (bid.inspectionRate or 0) * inspected
         appraisal = (bid.appraisalRate or 0) * inspected + (bid.nonAppraisalRate or 0) * non_appraised
+        if bid.calculationVersion == 'tiers-v1':
+            from .tier_rates import subtotals
+            inspection, appraisal = subtotals(bid)
         terms = (bid.calculationRules or default_rules()).get(bid.appraisalType, [])
         consolidation = next((Decimal(term['multiplier']) for term in terms if term['field'] == 'consolidationFee'), Decimal('0'))
         return (inspection + appraisal + (bid.rushFee or 0 if bid.rush else 0) - (bid.discount or 0 if bid.pdfOnly else 0) + (consolidation if bid.consolidationFee else Decimal('0'))).quantize(Decimal('.01'), rounding=ROUND_HALF_UP)

@@ -11,8 +11,14 @@ class BidForm(forms.ModelForm):
         if self.errors:
             return
         if self.instance._state.adding:
-            self.instance.calculationVersion = 'rates-v1'
-        if self.instance.calculationVersion == 'rates-v1':
+            self.instance.calculationVersion = 'tiers-v1'
+        if self.instance.calculationVersion == 'tiers-v1':
+            from .tier_rates import subtotals, rate, APPRAISED_INSPECTION, APPRAISAL
+            bid = self.instance
+            bid.inspectionRate = rate(APPRAISED_INSPECTION, bid.tier, bid.totalInspectedItems or 0)
+            bid.appraisalRate = rate(APPRAISAL, bid.tier, bid.totalInspectedItems or 0)
+            bid.total, bid.totalAppraisal = subtotals(bid)
+        elif self.instance.calculationVersion == 'rates-v1':
             bid = self.instance
             bid.total = Decimal('0') if bid.reportFormat == 'Desktop' else bid.inspectionRate * (bid.totalInspectedItems or 0)
             bid.totalAppraisal = bid.appraisalRate * (bid.totalInspectedItems or 0) + bid.nonAppraisalRate * (bid.totalNonInspectedItems or 0)
@@ -42,7 +48,7 @@ class BidForm(forms.ModelForm):
             "discount",
             "rushDiscount",
             "additionalCharges",
-            "inspectionRate", "appraisalRate", "nonAppraisalRate", "rushFee",
+            "inspectionRate", "appraisalRate", "nonAppraisalRate", "rushFee", "tier",
         ]:
             self.fields[field].required = False
 
@@ -58,6 +64,8 @@ class BidForm(forms.ModelForm):
 
     def clean(self):
         data = super().clean()
+        if data.get('tier') is None:
+            data['tier'] = 1
         for field in ['clientPhone', 'subjectContactPhone', 'state', 'clientState', 'zipCode', 'clientZipCode', 'city', 'clientCity']:
             error = contact_error(field, data.get(field))
             if error:

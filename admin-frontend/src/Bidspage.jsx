@@ -4,6 +4,7 @@ import LogoutButton from './LogoutButton';
 import { getBidSections } from './bidSections';
 import { useEffect, useRef, useState } from 'react';
 import { reportChoices, reportSelection, reportFields } from './appraisalTypes';
+import { tierSubtotals } from './tierRates';
 import { calculateTotalBid } from './bidFields';
 import { getBid, updateBid, decideBid, readBidAgreement } from './bidsApi';
 import { createJob } from './jobsApi';
@@ -179,7 +180,8 @@ function Bidspage({ onChange }) {
             {fields.filter(([field]) => field !== 'reportFormat').map(([field, label, inputType = 'text']) => (
                 <div className="bid_detail_field" key={field}>
                     <label htmlFor={`view-${field}`}>{label}</label>
-                    {inputType === 'appraisalType' ? <select id={`view-${field}`} disabled={!editDraft || busy} value={reportSelection(editDraft || bid)} onChange={(event) => setEditDraft({ ...editDraft, ...reportFields(event.target.value) })}>
+                    {inputType === 'tier' ? <select id={`view-${field}`} disabled={!editDraft || busy} value={(editDraft || bid)?.tier || 1} onChange={(event) => changeField(field, event.target.value)}>{[1,2,3,4,5].map((tier) => <option key={tier} value={tier}>Tier {tier}</option>)}</select>
+                    : inputType === 'appraisalType' ? <select id={`view-${field}`} disabled={!editDraft || busy} value={reportSelection(editDraft || bid)} onChange={(event) => setEditDraft({ ...editDraft, ...reportFields(event.target.value) })}>
                         <option value="">Select appraisal type</option>
                         {(editDraft || bid)?.appraisalType && ![BUSINESS_VALUATION, CALCULATION_VALUATION, MACHINERY_EQUIPMENT].includes((editDraft || bid).appraisalType) && <option>{(editDraft || bid).appraisalType}</option>}
                         {reportChoices.map((choice) => <option key={choice}>{choice}</option>)}
@@ -190,7 +192,7 @@ function Bidspage({ onChange }) {
                             min={inputType === 'number' ? 0 : undefined}
                             step={inputType === 'number' ? (['completionDays', 'additionalLocations'].includes(field) ? 1 : 0.01) : undefined}
 
-                            value={editDraft ? field === 'totalBid' ? totalForBid(editDraft) : editDraft[field] ?? '' : displayValue(field)}
+                            value={editDraft ? field === 'totalBid' ? totalForBid(editDraft) : editDraft.calculationVersion === 'tiers-v1' && ['total', 'totalAppraisal', 'inspectionRate', 'appraisalRate'].includes(field) ? tierSubtotals(editDraft)[field].toFixed(2) : editDraft[field] ?? '' : displayValue(field)}
                             onChange={(event) => changeField(field, event.target.value)} />}
 
                 </div>

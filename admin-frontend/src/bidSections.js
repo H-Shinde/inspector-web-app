@@ -25,13 +25,15 @@ export const bidSections = [
         ['other', 'Other', 'checkbox'], ['additionalLocations', 'Additional Locations', 'number'],
     ]],
     ['Appraisal Rates', [
-        ['totalInspectedItems', '# of Inspected Items', 'number'],
+        ['tier', 'Tier', 'tier'],
+        ['totalInspectedItems', '# of Appraised Items', 'number'],
         ['totalNonInspectedItems', '# of Non-Appraised Items', 'number'],
         ['appraisalRate', 'Appraisal Rate', 'number'],
-        ['nonAppraisalRate', 'Non-Appraisal Rate', 'number'],
+        ['nonAppraisalRate', 'Flat Value per Non-Appraised Item', 'number'],
     ]],
     ['Inspection Fees', [
         ['inspectionRate', 'Inspection Rate', 'number'],
+        ['nonAppraisedInspectionRate', 'Non-Appraised Inspection Rate', 'number'],
         ['meNote', 'M&E Note', 'textarea'],
     ]],
     ['Pricing', [

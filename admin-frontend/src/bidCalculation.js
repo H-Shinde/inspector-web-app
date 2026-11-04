@@ -1,4 +1,5 @@
 export const assetPercentageFields = ['fmvContinuedUse', 'fairMarketValueRemoved', 'orderlyLiquidationValue', 'forcedLiquidationValue', 'other'];
+import { tierSubtotals } from './tierRates';
 export const calculationTypes = ['Business Valuation (BV)', 'Calculation Valuation', 'Machinery & Equipment (M&E)'];
 const valuation = [
     { field: 'consolidationFee', operation: 'add', multiplier: '100.00', when: 'always' },
@@ -7,7 +8,7 @@ const valuation = [
     { field: 'rushDiscount', operation: 'add', multiplier: '400.00', when: 'always' },
     { field: 'additionalCharges', operation: 'add', multiplier: '1.00', when: 'always' },
 ];
-const percentages = assetPercentageFields.map((field) => ({ field, operation: 'add', multiplier: ({ orderlyLiquidationValue: '2.00', forcedLiquidationValue: '1.00', other: '10.00' })[field] || '5.00', when: 'always', mode: 'percentage' }));
+const percentages = assetPercentageFields.map((field) => ({ field, operation: 'add', multiplier: ({ fmvContinuedUse: '0.00', orderlyLiquidationValue: '5.00', forcedLiquidationValue: '2.00', other: '10.00' })[field] || '5.00', when: 'always', mode: 'percentage' }));
 export const defaultCalculationRules = {
     [calculationTypes[0]]: [...valuation, ...percentages],
     [calculationTypes[1]]: [...valuation, ...percentages],
@@ -35,11 +36,12 @@ export function calculationTerms(draft) {
     return rules[draft.appraisalType || calculationTypes[0]] || [];
 }
 export function calculateConfiguredTotal(draft) {
-    if (draft.calculationVersion === 'rates-v1') {
+    if (['rates-v1', 'tiers-v1'].includes(draft.calculationVersion)) {
         const count = BigInt(Math.max(0, Math.trunc(Number(draft.totalInspectedItems) || 0)));
         const other = BigInt(Math.max(0, Math.trunc(Number(draft.totalNonInspectedItems) || 0)));
-        const inspection = draft.reportFormat === 'Desktop' ? 0n : cents(draft.inspectionRate) * count;
-        const appraisal = cents(draft.appraisalRate) * count + cents(draft.nonAppraisalRate) * other;
+        const subtotals = draft.calculationVersion === 'tiers-v1' ? tierSubtotals(draft) : null;
+        const inspection = subtotals ? cents(subtotals.total.toFixed(2)) : draft.reportFormat === 'Desktop' ? 0n : cents(draft.inspectionRate) * count;
+        const appraisal = subtotals ? cents(subtotals.totalAppraisal.toFixed(2)) : cents(draft.appraisalRate) * count + cents(draft.nonAppraisalRate) * other;
         const consolidation = calculationTerms(draft).find((term) => term.field === 'consolidationFee');
         const amount = inspection + appraisal + (draft.rush ? cents(draft.rushFee) : 0n) - (draft.pdfOnly ? cents(draft.discount) : 0n) + (draft.consolidationFee && consolidation ? cents(consolidation.multiplier) : 0n);
         const absolute = amount < 0n ? -amount : amount;
