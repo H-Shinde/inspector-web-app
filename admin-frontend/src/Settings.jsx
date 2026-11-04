@@ -14,12 +14,13 @@ const isHidden = ({ field, label }) => hiddenFields.includes(field) || /addition
 
 // Fields whose operation and condition are fixed and applied automatically (no selectors shown).
 const fixedRules = {
+    consolidationFee: { operation: 'add', when: 'always' },
     ...Object.fromEntries(assetPercentageFields.map((field) => [field, { operation: 'add', when: 'always', mode: 'percentage' }])),
     discount: { operation: 'subtract', when: 'always' },
     rushDiscount: { operation: 'add', when: 'always' },
 };
 // These are checkboxes on the bid form: Settings stores a flat dollar amount that applies when the box is checked.
-const checkboxFields = ['discount', 'rushDiscount'];
+const checkboxFields = ['discount', 'rushDiscount', 'consolidationFee'];
 const normalizeRules = (all) => Object.fromEntries(Object.entries(all).map(([name, terms]) => [name, terms.map((term) => ({ ...term, ...(fixedRules[term.field] || {}) }))]));
 const labelOverrides = { rushDiscount: 'Rush surcharge' };
 const displayLabel = (field, label) => labelOverrides[field] || label;

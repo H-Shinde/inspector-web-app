@@ -310,7 +310,7 @@ function AddBidpage() {
                                 </div>
                             ))}
                         </div>
-                        {title === 'Pricing' && <p id="total-bid-help" className="add_bid_pricing_help">Total Bid = Inspection Total + Appraisal Total + Rush Fee − PDF Discount. Rush Fee applies when Rush is selected; PDF Discount applies when PDF Only is selected.</p>}
+                        {title === 'Pricing' && <p id="total-bid-help" className="add_bid_pricing_help">Total Bid = Inspection Total + Appraisal Total + Rush Fee − PDF Discount + Consolidation Fee. Consolidation adds ${feeDefault(draft, 'consolidationFee') || '0.00'} when selected.</p>}
                     </fieldset>
                 ))}
                 {error && <p className="add_bid_error" role="alert">{error}</p>}

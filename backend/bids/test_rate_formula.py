@@ -16,3 +16,6 @@ class RateFormulaTests(TestCase):
             bid = form.save(commit=False)
             self.assertEqual(str(bid.totalBid), expected)
             self.assertEqual(bid.totalInspectedItems, 10)
+        form = BidForm({**values, 'consolidationFee': True}, user=user)
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertEqual(str(form.save(commit=False).totalBid), '700.00')

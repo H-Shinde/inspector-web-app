@@ -1,6 +1,7 @@
 export const assetPercentageFields = ['fmvContinuedUse', 'fairMarketValueRemoved', 'orderlyLiquidationValue', 'forcedLiquidationValue', 'other'];
 export const calculationTypes = ['Business Valuation (BV)', 'Calculation Valuation', 'Machinery & Equipment (M&E)'];
 const valuation = [
+    { field: 'consolidationFee', operation: 'add', multiplier: '100.00', when: 'always' },
     { field: 'bidAmount', operation: 'add', multiplier: '1.00', when: 'always' },
     { field: 'discount', operation: 'subtract', multiplier: '100.00', when: 'always' },
     { field: 'rushDiscount', operation: 'add', multiplier: '400.00', when: 'always' },
@@ -39,7 +40,8 @@ export function calculateConfiguredTotal(draft) {
         const other = BigInt(Math.max(0, Math.trunc(Number(draft.totalNonInspectedItems) || 0)));
         const inspection = draft.reportFormat === 'Desktop' ? 0n : cents(draft.inspectionRate) * count;
         const appraisal = cents(draft.appraisalRate) * count + cents(draft.nonAppraisalRate) * other;
-        const amount = inspection + appraisal + (draft.rush ? cents(draft.rushFee) : 0n) - (draft.pdfOnly ? cents(draft.discount) : 0n);
+        const consolidation = calculationTerms(draft).find((term) => term.field === 'consolidationFee');
+        const amount = inspection + appraisal + (draft.rush ? cents(draft.rushFee) : 0n) - (draft.pdfOnly ? cents(draft.discount) : 0n) + (draft.consolidationFee && consolidation ? cents(consolidation.multiplier) : 0n);
         const absolute = amount < 0n ? -amount : amount;
         return `${amount < 0n ? '-' : ''}${absolute / 100n}.${String(absolute % 100n).padStart(2, '0')}`;
     }

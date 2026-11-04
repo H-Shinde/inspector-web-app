@@ -35,6 +35,7 @@ export const bidSections = [
         ['meNote', 'M&E Note', 'textarea'],
     ]],
     ['Pricing', [
+        ['consolidationFee', 'Consolidation Fee', 'checkbox'],
         ['total', 'Inspection Total', 'subtotal'], ['totalAppraisal', 'Appraisal Total', 'subtotal'],
         ['rush', 'Rush', 'checkbox'], ['rushFee', 'Rush Fee', 'number'],
         ['pdfOnly', 'PDF Only/ No hard copy', 'checkbox'], ['discount', 'PDF Discount', 'number'],
@@ -44,7 +45,7 @@ export const bidSections = [
 
 const machineryFields = new Set([
     'appraisalType', 'reportFormat', 'referenceNumber', 'status',
-    'propertyType', 'businessName', 'businessAddress', 'city',
+    'propertyType', 'businessName', 'businessAddress', 'city', 'state', 'zipCode', 'clientZipCode',
     'name', 'subjectContactEmail', 'subjectContactPhone',
     ...bidSections.filter(([title]) => ['Asset Valuation', 'Inspection Fees', 'Appraisal Rates', 'Pricing'].includes(title)).flatMap(([, fields]) => fields.map(([field]) => field)),
     'rush', 'pdfOnly', 'discount', 'rushDiscount',

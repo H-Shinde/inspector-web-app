@@ -196,7 +196,7 @@ function Jobspage() {
         setDetails((previous) => ({ ...previous, [selectedId]: { ...previous[selectedId], [sectionName]: { ...previous[selectedId]?.[sectionName], [field]: value } } }));
         void saveJob({ sectionDetails: { [sectionName]: { [field]: value } } }).catch(() => {});
     };
-    const locationZip = job?.clientZipCode || job?.zipCode || '';
+    const locationZip = [job?.clientZipCode, job?.zipCode].map((value) => String(value || '').trim()).find((value) => /^\d{5}(?:-\d{4})?$/.test(value)) || '';
     const referenceZip = /^\d{5}(?:-\d{4})?$/.test(locationZip) ? locationZip : '';
     const { inspectors: inspectorList } = useInspectorDirectory(false, referenceZip);
     const [pendingInspector, setPendingInspector] = useState('');
@@ -390,7 +390,7 @@ function Jobspage() {
                                 {job.inspectorId && !inspectorList.some((entry) => entry.id === job.inspectorId) && <option value={job.inspectorId}>{job.inspector}</option>}
                                 {sortedInspectors.map(({ inspector, distance }) => (
                                     <option key={inspector.id ?? inspector.name} value={inspector.id}>
-                                        {distance === null ? inspector.name : `${inspector.name} (${distance.toFixed(1)} mi)`}
+                                        {distance === null ? `${inspector.name} (distance unavailable)` : `${inspector.name} (${Number(distance).toFixed(1)} miles)`}
                                     </option>
                                 ))}
                             </select>

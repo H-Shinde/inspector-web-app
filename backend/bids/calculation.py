@@ -3,6 +3,7 @@ from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 
 TYPES = ['Business Valuation (BV)', 'Calculation Valuation', 'Machinery & Equipment (M&E)']
 FIELDS = {
+    'consolidationFee': 'Consolidation fee',
     'bidAmount': 'Appraisal fee', 'discount': 'PDF discount',
     'rushDiscount': 'Rush discount', 'additionalCharges': 'Additional charges',
     'completionDays': 'Completion days', 'fmvContinuedUse': 'FMV in continued use',
@@ -21,6 +22,7 @@ CHECKBOX_FIELDS = {'rush', 'pdfOnly', 'fmvContinuedUse', 'fairMarketValueRemoved
 
 def default_rules():
     valuation = [
+        {'field': 'consolidationFee', 'operation': 'add', 'multiplier': '100.00', 'when': 'always'},
         {'field': 'bidAmount', 'operation': 'add', 'multiplier': '1.00', 'when': 'always'},
         {'field': 'discount', 'operation': 'subtract', 'multiplier': '100.00', 'when': 'always'},
         {'field': 'rushDiscount', 'operation': 'add', 'multiplier': '400.00', 'when': 'always'},
@@ -74,7 +76,9 @@ def calculate_total(bid):
         non_appraised = Decimal(bid.totalNonInspectedItems or 0)
         inspection = Decimal('0') if bid.reportFormat == 'Desktop' else (bid.inspectionRate or 0) * inspected
         appraisal = (bid.appraisalRate or 0) * inspected + (bid.nonAppraisalRate or 0) * non_appraised
-        return (inspection + appraisal + (bid.rushFee or 0 if bid.rush else 0) - (bid.discount or 0 if bid.pdfOnly else 0)).quantize(Decimal('.01'), rounding=ROUND_HALF_UP)
+        terms = (bid.calculationRules or default_rules()).get(bid.appraisalType, [])
+        consolidation = next((Decimal(term['multiplier']) for term in terms if term['field'] == 'consolidationFee'), Decimal('0'))
+        return (inspection + appraisal + (bid.rushFee or 0 if bid.rush else 0) - (bid.discount or 0 if bid.pdfOnly else 0) + (consolidation if bid.consolidationFee else Decimal('0'))).quantize(Decimal('.01'), rounding=ROUND_HALF_UP)
     rules = bid.calculationRules or default_rules()
     total = Decimal('0')
     percentages = []
