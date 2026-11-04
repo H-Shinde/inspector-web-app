@@ -38,3 +38,5 @@ export const listClients = (signal) => apiRequest('/api/clients/', { signal }).t
 
 export const createBidInspector = (data) => apiWrite('/api/bids/inspectors/', data);
 export const createClient = (values) => apiWrite('/api/clients/', values);
+export const updateClient = (id, values) => apiWrite(`/api/clients/${encodeURIComponent(id)}/`, values, { method: 'PATCH' });
+export const deleteClient = (id) => apiWrite(`/api/clients/${encodeURIComponent(id)}/`, undefined, { method: 'DELETE' });

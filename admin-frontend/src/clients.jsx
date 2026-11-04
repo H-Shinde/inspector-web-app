@@ -6,16 +6,25 @@ import 'datatables.net-dt/css/dataTables.dataTables.css';
 import navLogo from './bison_logo_nav.png';
 import './clients.css';
 import { fields } from './clientData';
-import { listClients } from './bidsApi';
+import { listClients, deleteClient } from './bidsApi';
 import AddClientDialog from './AddClientDialog';
+import { FaEdit, FaTrash } from 'react-icons/fa';
 
 DataTable.use(DT);
 const columns = fields.map(([data, title]) => ({ data, title, visible: data !== 'id', searchable: data !== 'id', defaultContent: '', render: DT.render.text() }));
+columns.push({ data: null, title: 'Actions', orderable: false, searchable: false });
 
 export default function Clients() {
     const [rows, setRows] = useState([]);
     const [menuOpen, setMenuOpen] = useState(false);
     const [adding, setAdding] = useState(false);
+    const [editing, setEditing] = useState(null);
+    const [deleting, setDeleting] = useState(null);
+    const [busy, setBusy] = useState(false);
+    const [deleteError, setDeleteError] = useState('');
+    const deleteDialog = useRef(null);
+    useEffect(() => { if (deleting && !deleteDialog.current.open) deleteDialog.current.showModal(); }, [deleting]);
+    const closeDelete = () => { if (busy) return; deleteDialog.current.close(); setDeleting(null); setDeleteError(''); };
     const [notice, setNotice] = useState('');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -64,6 +73,10 @@ export default function Clients() {
                 <div className="table_top_header"><button type="button" className="add_bid_button" disabled={loading || !!error} onClick={() => setAdding(true)}>+ Add Client</button></div>
                 <div className="bids_table_container" onClick={handleRowClick} onKeyDown={handleRowKeyDown}>
                     <DataTable ref={table} data={rows} columns={columns} className="bids_table"
+                        slots={{ [fields.length]: (data, type, row) => <div className="action_buttons">
+                            <button type="button" title="Edit client" aria-label={`Edit ${row.name}`} onClick={() => setEditing(row)}><FaEdit /></button>
+                            <button type="button" title="Delete client" aria-label={`Delete ${row.name}`} onClick={() => { setDeleteError(''); setDeleting(row); }}><FaTrash /></button>
+                        </div> }}
                         options={{ paging: true, searching: true, ordering: true, info: true, pageLength: 10,
                             createdRow: (row) => { row.tabIndex = 0; },
                             layout: { topStart: 'pageLength', topEnd: 'search', bottomStart: 'info', bottomEnd: 'paging' },
@@ -71,6 +84,19 @@ export default function Clients() {
                 </div>
             </section>
         </main>
+        {editing && <AddClientDialog client={editing} onClose={() => setEditing(null)} onCreated={(client) => {
+            setRows((previous) => previous.map((row) => row.id === client.id ? client : row)); setEditing(null); setNotice('Client has been updated.');
+        }} />}
+        <dialog ref={deleteDialog} className="popup confirm_popup" aria-labelledby="delete-client-title" onCancel={(event) => { event.preventDefault(); closeDelete(); }}>
+            <div className="confirm_body"><h2 id="delete-client-title">Delete client?</h2><p>Delete {deleting?.name}? Existing bids and jobs retain their saved client information.</p>{deleteError && <p role="alert">{deleteError}</p>}</div>
+            <div className="actions"><button type="button" className="bid_form_cancel" disabled={busy} onClick={closeDelete}>Cancel</button>
+                <button type="button" className="bid_form_delete" disabled={busy} onClick={async () => {
+                    setBusy(true); setDeleteError('');
+                    try { await deleteClient(deleting.id); setRows((previous) => previous.filter((row) => row.id !== deleting.id)); deleteDialog.current.close(); setDeleting(null); setNotice('Client has been deleted.'); }
+                    catch (error) { setDeleteError(error.message); }
+                    finally { setBusy(false); }
+                }}>{busy ? 'Deleting…' : 'Delete Client'}</button></div>
+        </dialog>
         {adding && <AddClientDialog onClose={() => setAdding(false)} onCreated={(client) => {
             setRows((previous) => [...previous, client]);
             setAdding(false); setNotice('Client has been added.');

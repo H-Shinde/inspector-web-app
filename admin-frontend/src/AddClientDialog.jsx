@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import ValidatedForm from './ValidatedForm';
-import { createClient } from './bidsApi';
+import { createClient, updateClient } from './bidsApi';
 import { detailFields, newClient } from './clientData';
 
-export default function AddClientDialog({ onCreated, onClose }) {
+export default function AddClientDialog({ onCreated, onClose, client: existing }) {
     const dialog = useRef(null);
     const saving = useRef(false);
-    const [draft, setDraft] = useState(newClient);
+    const [draft, setDraft] = useState(() => existing ? Object.fromEntries(detailFields.map(([field]) => [field, existing[field] || ''])) : newClient);
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState('');
     useEffect(() => { dialog.current.showModal(); }, []);
@@ -18,7 +18,8 @@ export default function AddClientDialog({ onCreated, onClose }) {
         setBusy(true); setError('');
         let client;
         try {
-            client = await createClient(Object.fromEntries(Object.entries(draft).map(([key, value]) => [key, value.trim()])));
+            const values = Object.fromEntries(Object.entries(draft).map(([key, value]) => [key, value.trim()]));
+            client = existing ? await updateClient(existing.id, values) : await createClient(values);
         } catch (error) {
             setError(error.message);
             saving.current = false;
@@ -29,9 +30,9 @@ export default function AddClientDialog({ onCreated, onClose }) {
         onCreated(client);
     };
     return <dialog ref={dialog} className="popup" aria-labelledby="add-client-title" onCancel={(event) => { event.preventDefault(); close(); }}>
-        <ValidatedForm onSubmit={save} aria-label="Add client" aria-busy={busy}>
+        <ValidatedForm onSubmit={save} aria-label={existing ? 'Edit client' : 'Add client'} aria-busy={busy}>
             <div className="bid_form_header">
-                <h2 id="add-client-title">Add Client</h2>
+                <h2 id="add-client-title">{existing ? 'Edit Client' : 'Add Client'}</h2>
                 <button type="button" className="bid_form_close" aria-label="Close dialog" disabled={busy} onClick={close}>×</button>
             </div>
             {error && <p role="alert" className="add_bid_error">{error}</p>}

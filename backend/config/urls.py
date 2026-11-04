@@ -2,9 +2,10 @@ from bids.job_views import jobs, job_detail
 from bids.inspector_views import inspectors, inspector_detail
 from django.contrib import admin
 from django.urls import include, path
-from bids.client_views import clients
+from bids.client_views import clients, client_detail
 from bids.settings_views import bid_settings
 urlpatterns = [
+    path('api/clients/<int:pk>/', client_detail, name='client-detail'),
     path("api/jobs/", jobs, name="jobs"),
     path("api/jobs/<int:pk>/", job_detail, name="job-detail"),
     path("api/inspectors/", inspectors, name="inspectors"),
