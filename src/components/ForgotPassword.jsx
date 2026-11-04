@@ -9,7 +9,7 @@ import AppShell from "./AppShell";
  *  - onSubmit:    ({ email }) => void | Promise  (throw an Error to show a message)
  *  - onBack:      return to login
  */
-const css = `
+export const passwordPageCss = `
 .fp__card { padding: 16px; margin-top: 20px; display: flex; flex-direction: column; gap: 8px; }
 .fp__input { width: 100%; height: 48px; padding: 0 14px; border: 1px solid var(--line);
   border-radius: 10px; background: var(--field); color: var(--ink);
@@ -73,7 +73,7 @@ export default function ForgotPassword({
         logoSrc={logoSrc}
         footer={<button type="button" className="bv__cta" onClick={onBack}>Back to Log In</button>}
       >
-        <style>{css}</style>
+        <style>{passwordPageCss}</style>
         <div className="fp__badge">
           <div className="fp__dot">
             <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -103,7 +103,7 @@ export default function ForgotPassword({
         </button>
       }
     >
-      <style>{css}</style>
+      <style>{passwordPageCss}</style>
       <h1 className="bv__title">Forgot password?</h1>
       <p className="bv__sub">
         Enter the email address for your account and we'll send you a link to reset your password.

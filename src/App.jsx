@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { inspectorRequest, inspectorJob } from './inspectorApi';
 import InspectorInvitation from "./components/InspectorInvitation";
 import ProfileSetup from "./components/ProfileSetup";
 import Welcome from "./components/Welcome";
 import Login from "./components/Login";
 import ForgotPassword from "./components/ForgotPassword";
+import ResetPassword from './components/ResetPassword';
 import InspectorDashboard from "./components/InspectorDashboard";
 import JobRequest from "./components/JobRequest";
 import Messages from "./components/Messages";
@@ -14,7 +16,8 @@ import InspectorShell from "./components/InspectorShell";
 import logo from "./assets/logo.png";
 
 // Placeholder invite data — in the real app, load this from the invite link/token.
-const INVITE = { fullName: "John Doe", email: "jdoe@gmail.com", inspectorId: "BASE_INSP_0001" };
+const invitation = new URLSearchParams(window.location.search);
+const INVITE = { fullName: invitation.get('name') || '', email: invitation.get('email') || '', inspectorId: '' };
 
 // Every part starts completely empty, so it shows as "To-do" until the inspector fills it in.
 const mkPart = (id, name) => ({
@@ -48,10 +51,27 @@ const INITIAL_MESSAGES = [
 export default function App() {
   // "invite" | "setup" | "welcome" | "login" | "forgot" | "dashboard" | "job" | "parts" | "sheet"
   // Tip: change "invite" to "login" below if you want the app to open on the login screen.
-  const [step, setStep] = useState("invite");
+  const [step, setStep] = useState(window.location.pathname === '/UpdatePass' ? 'reset' : invitation.get('token') ? 'invite' : 'checking');
   const [name, setName] = useState(INVITE.fullName);
   const [email, setEmail] = useState(INVITE.email);
-  const [jobs, setJobs] = useState(INITIAL_JOBS);
+  const [inspectorId, setInspectorId] = useState(null);
+  const [jobs, setJobs] = useState([]);
+  const [jobError, setJobError] = useState('');
+  const loadJobs = async () => {
+    const data = await inspectorRequest('/api/inspector/jobs/');
+    setJobs(data.jobs.map(inspectorJob)); setInspectorId(data.inspectorId); setName(data.name); setEmail(data.email || ''); setJobError('');
+  };
+  const restoreSession = async () => {
+    setJobError('');
+    try { await loadJobs(); setStep('dashboard'); }
+    catch (error) {
+      if ([401, 403, 404].includes(error.status)) setStep('login');
+      else setJobError('Unable to connect. Check that Django is running, then retry.');
+    }
+  };
+  useEffect(() => {
+    if (window.location.pathname !== '/UpdatePass' && !invitation.get('token')) restoreSession();
+  }, []);
   const [activeId, setActiveId] = useState(null);
   const [partId, setPartId] = useState(null); // null = adding a new part
   const [tab, setTab] = useState("jobs");
@@ -71,8 +91,10 @@ export default function App() {
 
   const goTab = (t) => { setTab(t); setStep("dashboard"); };
 
-  const logout = () => {
-    // TODO: clear your auth token / session here.
+  const logout = async () => {
+    try { await inspectorRequest('/api/auth/logout/', {}); }
+    catch (error) { window.alert(error.message); return; }
+    setJobs([]); setInspectorId(null);
     setTab("jobs");
     setActiveId(null);
     setPartId(null);
@@ -88,6 +110,11 @@ export default function App() {
     );
   };
 
+  if (step === 'checking') return <div role="status" style={{ padding: 24 }}>
+    {jobError || 'Restoring your session…'}
+    {jobError && <button type="button" onClick={restoreSession}>Retry</button>}
+  </div>;
+
   if (step === "invite")
     return <InspectorInvitation logoSrc={logo} onContinue={() => setStep("setup")} onLogin={() => setStep("login")} />;
 
@@ -98,11 +125,23 @@ export default function App() {
         fullName={INVITE.fullName}
         email={INVITE.email}
         onSubmit={async ({ fullName, email: newEmail, password }) => {
-          // TODO: call your backend here to create the account. It should return a session/token so the
-          // inspector is signed in automatically. Throw an Error to show a message on the form.
-          console.log("register", fullName, newEmail);
+          const token = invitation.get('token');
+          if (!token) throw new Error('Open the registration link in your invitation email.');
+          const csrfResponse = await fetch('/api/auth/csrf/', { credentials: 'include' });
+          if (!csrfResponse.ok) throw new Error('Unable to connect to registration.');
+          const { csrfToken } = await csrfResponse.json();
+          const response = await fetch('/api/inspector-registration/', {
+            method: 'POST', credentials: 'include',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+            body: JSON.stringify({ token, fullName, password }),
+          });
+          const result = await response.json();
+          if (!response.ok) throw new Error(result.error || 'Unable to register.');
           setName(fullName);
-          setEmail(newEmail);
+          setEmail(result.email);
+          setInspectorId(result.inspectorId);
+          await inspectorRequest('/api/auth/inspector-login/', { email: result.email, password });
+          await loadJobs();
           setTab("jobs");
           setStep("welcome");
         }}
@@ -115,7 +154,7 @@ export default function App() {
       <Welcome
         logoSrc={logo}
         name={name}
-        inspectorId={INVITE.inspectorId}
+        inspectorId={inspectorId}
         onContinue={() => { setTab("jobs"); setStep("dashboard"); }}
       />
     );
@@ -127,8 +166,8 @@ export default function App() {
         email={email}
         onForgotPassword={() => setStep("forgot")}
         onSubmit={async ({ email: loginEmail, password }) => {
-          // TODO: call your backend here; throw an Error("Incorrect email or password.") to show it on the form.
-          console.log("login", loginEmail);
+          await inspectorRequest('/api/auth/inspector-login/', { email: loginEmail, password });
+          await loadJobs();
           setEmail(loginEmail);
           setTab("jobs");
           setStep("dashboard");
@@ -136,6 +175,7 @@ export default function App() {
       />
     );
 
+  if (step === 'reset') return <ResetPassword logoSrc={logo} onLogin={() => setStep('login')} />;
   if (step === "forgot")
     return (
       <ForgotPassword
@@ -143,9 +183,7 @@ export default function App() {
         email={email}
         onBack={() => setStep("login")}
         onSubmit={async ({ email: resetEmail }) => {
-          // TODO: call your backend to email a reset link. Always show success, even if the email
-          // isn't registered, so the form can't be used to find out who has an account.
-          console.log("reset password for", resetEmail);
+          await inspectorRequest('/api/auth/password-reset/', { email: resetEmail, app: 'inspector' });
           setEmail(resetEmail);
         }}
       />
@@ -164,8 +202,8 @@ export default function App() {
         onOpenPart={(p) => { setPartId(p.id); setStep("sheet"); }}
         onAddPart={() => { setPartId(null); setStep("sheet"); }}
         onComplete={async (j) => {
-          // TODO: backend call to submit the inspection
-          setJobStatus(j.id, "submitted");
+          await inspectorRequest(`/api/inspector/jobs/${j.id}/`, { action: 'complete', revision: j.revision });
+          await loadJobs();
           setStep("dashboard");
         }}
       />
@@ -186,8 +224,8 @@ export default function App() {
         onTab={goTab}
         onBack={() => setStep("parts")}
         onSave={async (p) => {
-          // TODO: backend call (upload photos first, then save the part)
-          savePart(job.id, p);
+          const result = await inspectorRequest(`/api/inspector/jobs/${job.id}/parts/`, { part: p, revision: job.revision });
+          setJobs((previous) => previous.map((entry) => entry.id === result.id ? inspectorJob(result) : entry));
           setStep("parts");
         }}
       />
@@ -205,16 +243,16 @@ export default function App() {
         onTab={goTab}
         onBack={() => setStep("dashboard")}
         onAccept={async (j) => {
-          // TODO: backend call
-          setJobStatus(j.id, "in-progress");
+          await inspectorRequest(`/api/inspector/jobs/${j.id}/`, { action: 'accept', revision: j.revision });
+          await loadJobs();
           setStep("dashboard");
         }}
         onDecline={async (j) => {
-          // TODO: backend call
-          setJobs((js) => js.filter((x) => x.id !== j.id));
+          await inspectorRequest(`/api/inspector/jobs/${j.id}/`, { action: 'decline', revision: j.revision });
+          await loadJobs();
           setStep("dashboard");
         }}
-        onViewAgreement={() => console.log("open engagement agreement")}
+        onViewAgreement={() => window.open(`/api/inspector/jobs/${job.id}/agreement/`, '_blank', 'noopener,noreferrer')}
       />
     );
   }
@@ -250,12 +288,13 @@ export default function App() {
   if (tab === "profile")
     return (
       <Profile
+        onProfileSaved={(profile) => { setName(profile.name); setEmail(profile.email); }}
         logoSrc={logo}
         tab={tab}
         onTab={setTab}
         name={name}
         email={email}
-        inspectorId={INVITE.inspectorId}
+        inspectorId={inspectorId}
         jobs={jobs}
         onLogout={logout}
       />

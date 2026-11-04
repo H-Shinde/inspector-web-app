@@ -79,10 +79,12 @@ const Svg = ({ children, size = 20 }) => (
 const initials = (name = "") =>
   name.trim().split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("") || "?";
 
+import ProfileEditor from './ProfileEditor';
 export default function Profile({
-  name = "", email = "", inspectorId = "", jobs = [], logoSrc, tab = "profile", onTab, onLogout = () => {},
+  name = "", email = "", inspectorId = "", jobs = [], logoSrc, tab = "profile", onTab, onLogout = () => {}, onProfileSaved = () => {},
 }) {
   const [confirm, setConfirm] = useState(false);
+  const [editing, setEditing] = useState(false);
 
   const count = (s) => jobs.filter((j) => j.status === s).length;
   const stats = [
@@ -102,6 +104,8 @@ export default function Profile({
       <style>{css}</style>
 
       <div className="pf">
+        <button type="button" className="pf__out" onClick={() => setEditing(true)}>Edit Profile</button>
+        {editing && <ProfileEditor onClose={() => setEditing(false)} onSaved={(profile) => { onProfileSaved(profile); setEditing(false); }} />}
         <div className="pf__hero pf__rise">
           <div className="pf__avatar" aria-hidden="true">{initials(name)}</div>
           <div className="pf__id">
