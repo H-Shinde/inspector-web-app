@@ -35,6 +35,12 @@ def sign_in(request):
         return JsonResponse(
             {"error": "Invalid email or password."}, status=401
         )
+    if request.path.endswith('/inspector-login/'):
+        from bids.models import Inspector
+        if not Inspector.objects.filter(user=user, is_active=True).exists():
+            return JsonResponse({'error': 'An active inspector account is required.'}, status=403)
+    elif user.email.casefold() != 'admin@email.com':
+        return JsonResponse({'error': 'This account cannot access the admin app.'}, status=403)
     login(request, user)
     return JsonResponse({"email": user.email})
 
@@ -42,6 +48,8 @@ def sign_in(request):
 def current_user(request):
     if not request.user.is_authenticated:
         return JsonResponse({"error": "Sign in required."}, status=401)
+    if request.user.email.casefold() != 'admin@email.com':
+        return JsonResponse({'error': 'Admin access required.'}, status=403)
     return JsonResponse({"id": request.user.pk, "email": request.user.email})
 @require_POST
 def sign_out(request):
@@ -76,7 +84,7 @@ def password_reset(request):
         from_email=settings.DEFAULT_FROM_EMAIL,
         subject_template_name="accounts/password_reset_subject.txt",
         email_template_name="accounts/password_reset_email.txt",
-        extra_email_context={"frontend_url": settings.FRONTEND_URL.rstrip("/")},
+        extra_email_context={"frontend_url": (settings.INSPECTOR_FRONTEND_URL if data.get('app') == 'inspector' else settings.FRONTEND_URL).rstrip("/")},
     )
     return JsonResponse({"message": "If an account matches that email, you will receive a password-reset link."})
 

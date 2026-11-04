@@ -28,6 +28,7 @@ def serialize_job(job):
         'inspectorEmail': job.inspector.email if job.inspector else '',
         'inspectorEmailFor': job.inspector.name if job.inspector else '',
         'items': job.items, 'sectionDetails': job.sectionDetails, 'valuationHistory': job.valuationHistory,
+        'inspectionParts': job.inspectionParts,
         'createdAt': job.createdAt, 'completedAt': job.completedAt, 'deletedAt': job.deletedAt,
         'pdf': result.get('engagementAgreement', ''),
     })

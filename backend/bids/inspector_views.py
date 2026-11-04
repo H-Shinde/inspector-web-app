@@ -1,6 +1,8 @@
 import json
 import math
 import re
+from urllib.parse import urlencode
+from django.core import signing
 import logging
 from django.conf import settings
 from django.core.mail import send_mail
@@ -70,10 +72,12 @@ def save_inspector(request, instance=None):
         with transaction.atomic():
             inspector.save()
             if instance is None:
+                token = signing.dumps({'inspectorId': inspector.pk, 'email': inspector.email}, salt='inspector-registration')
+                registration_url = settings.INSPECTOR_FRONTEND_URL.rstrip('/') + '/?' + urlencode({'token': token, 'email': inspector.email, 'name': inspector.name})
                 sent = send_mail(
                     'Invitation to Bison Valuation',
                     'You have been invited to work as an inspector with Bison Valuation.\n\n'
-                    'Please contact the person who invited you to arrange access and complete your inspector profile.\n\n'
+                    f'Open the inspector app to register and complete your profile:\n{registration_url}\n\n'
                     'Bison Valuation',
                     settings.DEFAULT_FROM_EMAIL,
                     [inspector.email],

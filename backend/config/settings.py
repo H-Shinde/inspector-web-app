@@ -61,6 +61,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "accounts.access.AdminAppAccessMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -139,6 +140,7 @@ STATIC_URL = "static/"
 # Console email prints links in the Django terminal during development.
 # SMTP settings can be supplied through environment variables for real delivery.
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000")
+INSPECTOR_FRONTEND_URL = os.environ.get('INSPECTOR_FRONTEND_URL', 'http://localhost:5173')
 DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL") or (
     f"Bison Valuation <{os.environ['EMAIL_HOST_USER']}>"
     if os.environ.get('EMAIL_HOST_USER') else "Bison Valuation <noreply@localhost>"
@@ -169,7 +171,7 @@ else:
 INSTALLED_APPS += ["accounts"]
 AUTH_USER_MODEL = "accounts.User"
 
-CSRF_TRUSTED_ORIGINS = ["http://localhost:3000", "http://127.0.0.1:3000"]
+CSRF_TRUSTED_ORIGINS = ["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:5173", "http://127.0.0.1:5173"]
 
 
 INSTALLED_APPS += ["bids"]

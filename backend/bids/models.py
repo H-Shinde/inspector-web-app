@@ -25,6 +25,7 @@ class Client(models.Model):
         return self.name
         
 class Inspector(models.Model):
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='inspector_profile')
     rating = models.PositiveSmallIntegerField(default=0, validators=[MaxValueValidator(5)])
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -168,6 +169,7 @@ class BidSettings(models.Model):
 
 
 class Job(models.Model):
+    inspectionParts = models.JSONField(default=list, blank=True)
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     source_bid = models.OneToOneField(Bid, on_delete=models.PROTECT, related_name='job')
     inspector = models.ForeignKey(Inspector, on_delete=models.PROTECT, null=True, blank=True)
