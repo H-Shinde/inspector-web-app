@@ -1,0 +1,11 @@
+/* Keep required indicators in sync with each field's required attribute. */
+form label:has(+ input[required]):not(:has(+ input[readonly]))::after,
+form label:has(+ select[required])::after,
+form label:has(+ textarea[required]):not(:has(+ textarea[readonly]))::after,
+form label:has(input[required]:not([readonly]))::after,
+form label:has(select[required])::after,
+form label:has(textarea[required]:not([readonly]))::after {
+    content: ' *';
+    color: #b42318;
+    font-weight: 600;
+}

@@ -1,0 +1,48 @@
+.frame{
+    width: 1440px;
+    height: 1024px;
+    background-color: #fff;
+}
+
+.welcome_back{
+    color: #000;
+    font-family: Geist;
+    font-size: 32px;
+    font-style: normal;
+    font-weight: 700;
+    line-height: normal;
+}
+
+.verify_personal_info{
+    width: 1093px;
+    height: 31px;
+    color: #475569;
+    text-align: center;
+    font-family: Geist;
+    font-size: 26px;
+    font-style: normal;
+    font-weight: 700;
+    line-height: normal;
+}
+
+.enter_password_frame{
+    display: flex;
+    width: 733px;
+    height: 239px;
+    padding: 16px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 25px;
+    border-radius: 12px;
+    border: 1px solid #E2E8F0;
+    background: #FFF;
+    box-shadow: 0 4px 12px 0 rgba(15, 23, 42, 0.02);
+
+}
+
+.login_image{
+    width: 508px;
+    height: 381px;
+    aspect-ratio: 4/3;
+    background: url(<path-to-image>) lightgray 1.788px -5.364px / 100% 100% no-repeat;
+}

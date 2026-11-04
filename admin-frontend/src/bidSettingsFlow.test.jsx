@@ -1,0 +1,93 @@
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import AddBidpage from './AddBidpage';
+import { getBidSettings } from './bidSettingsApi';
+import { createServerBid, listClients, listBidInspectors, uploadBidAgreement } from './bidsApi';
+import { generateEngagementAgreement } from './engagementAgreement';
+import { defaultCalculationRules, calculationTypes } from './bidCalculation';
+jest.mock('./bidSettingsApi', () => ({ getBidSettings: jest.fn() }));
+jest.mock('./bidsApi', () => ({ ...jest.requireActual('./bidsApi'), createServerBid: jest.fn(), listClients: jest.fn(), listBidInspectors: jest.fn(), uploadBidAgreement: jest.fn() }));
+jest.mock('./engagementAgreement', () => ({ ...jest.requireActual('./engagementAgreement'), generateEngagementAgreement: jest.fn() }));
+beforeEach(() => {
+    jest.clearAllMocks();
+    listClients.mockResolvedValue([]); listBidInspectors.mockResolvedValue([{ id: 7, name: 'Inspector' }]);
+    const rules = JSON.parse(JSON.stringify(defaultCalculationRules)); rules[calculationTypes[0]][0].multiplier = '2';
+    getBidSettings.mockResolvedValue({ rules });
+    createServerBid.mockImplementation(async (values) => ({ ...values, id: 42, referenceNumber: 'BID-000042', totalBid: '2000.00' }));
+    uploadBidAgreement.mockImplementation(async (bid) => ({ ...bid, hasAgreement: true }));
+    generateEngagementAgreement.mockResolvedValue(new Blob(['pdf'], { type: 'application/pdf' }));
+    URL.createObjectURL = jest.fn(() => 'blob:agreement'); URL.revokeObjectURL = jest.fn();
+    HTMLDialogElement.prototype.showModal = function () { this.open = true; };
+    HTMLDialogElement.prototype.close = function () { this.open = false; };
+});
+test('uses settings for the live preview and the saved snapshot for the agreement', async () => {
+    render(<AddBidpage />);
+    await waitFor(() => expect(screen.getByRole('button', { name: '+ Add Bid' })).toBeEnabled());
+    expect(screen.queryByLabelText('Assigned inspector (required)')).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Appraisal Type'), { target: { value: calculationTypes[0] } });
+    fireEvent.change(screen.getByLabelText('Business Name'), { target: { value: 'Example' } });
+    fireEvent.change(screen.getByLabelText('Contact Name'), { target: { value: 'Contact' } });
+    fireEvent.change(screen.getByLabelText('Appraisal Fee'), { target: { value: '1000' } });
+    expect(screen.getByLabelText('Total Bid')).toHaveValue('2000.00');
+    fireEvent.click(screen.getByRole('button', { name: '+ Add Bid' }));
+    expect(await screen.findByTitle('Engagement agreement PDF preview')).toHaveAttribute('src', 'blob:agreement');
+    expect(createServerBid).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm & Create' }));
+    await screen.findByRole('heading', { name: 'Bid and agreement created' });
+    expect(screen.getByTitle('Engagement agreement PDF preview')).toHaveAttribute('src', 'blob:agreement');
+    expect(screen.getByRole('link', { name: 'Download Preview PDF' })).toHaveAttribute('download', 'BID-000042-engagement-agreement.pdf');
+    expect(generateEngagementAgreement).toHaveBeenCalledWith(expect.objectContaining({ referenceNumber: 'BID-000042', calculationRules: expect.any(Object), totalBid: '2000.00' }));
+});
+test('blocks creation if settings fail to load and allows retry', async () => {
+    getBidSettings.mockRejectedValueOnce(new Error('Settings unavailable.'));
+    render(<AddBidpage />);
+    expect(await screen.findByText('Settings unavailable.', { exact: false })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '+ Add Bid' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry calculation settings' }));
+    await screen.findByDisplayValue('0.00');
+    expect(screen.getByRole('button', { name: '+ Add Bid' })).toBeEnabled();
+});
+
+test('asset valuation checkboxes add editable percentages to the live total', async () => {
+    render(<AddBidpage />);
+    await waitFor(() => expect(screen.getByRole('button', { name: '+ Add Bid' })).toBeEnabled());
+    fireEvent.change(screen.getByLabelText('Appraisal Type'), { target: { value: calculationTypes[0] } });
+    fireEvent.change(screen.getByLabelText('Appraisal Fee'), { target: { value: '1000' } });
+    const checkbox = screen.getByLabelText('FMV in Continued Use (+5.00%)');
+    fireEvent.click(checkbox);
+    expect(screen.getByLabelText('Total Bid')).toHaveValue('2100.00');
+    fireEvent.click(screen.getByLabelText('Fair Market Value Removed (+5.00%)'));
+    expect(screen.getByLabelText('Total Bid')).toHaveValue('2200.00');
+    fireEvent.click(checkbox);
+    expect(screen.getByLabelText('Total Bid')).toHaveValue('2100.00');
+});
+
+test('rush surcharge and PDF discount default from settings when checked', async () => {
+    const rules = JSON.parse(JSON.stringify(defaultCalculationRules));
+    rules[calculationTypes[0]].find((term) => term.field === 'discount').multiplier = '100';
+    rules[calculationTypes[0]].find((term) => term.field === 'rushDiscount').multiplier = '75';
+    getBidSettings.mockResolvedValue({ rules });
+    render(<AddBidpage />);
+    await waitFor(() => expect(screen.getByRole('button', { name: '+ Add Bid' })).toBeEnabled());
+    fireEvent.change(screen.getByLabelText('Appraisal Type'), { target: { value: calculationTypes[0] } });
+    fireEvent.change(screen.getByLabelText('Appraisal Fee'), { target: { value: '1000' } });
+    expect(screen.getByLabelText('Rush Surcharge')).toBeDisabled();
+    fireEvent.click(screen.getByLabelText('Rush'));
+    expect(screen.getByLabelText('Rush Surcharge')).toHaveValue(75);
+    expect(screen.getByLabelText('Total Bid')).toHaveValue('1075.00');
+    fireEvent.click(screen.getByLabelText('PDF Only/ No hard copy'));
+    expect(screen.getByLabelText('Discount')).toHaveValue(100);
+    expect(screen.getByLabelText('Total Bid')).toHaveValue('975.00');
+    fireEvent.click(screen.getByLabelText('Rush'));
+    expect(screen.getByLabelText('Total Bid')).toHaveValue('900.00');
+});
+
+test('M&E desktop appraisals do not show Total Inspected Items', async () => {
+    render(<AddBidpage />);
+    await waitFor(() => expect(screen.getByRole('button', { name: '+ Add Bid' })).toBeEnabled());
+    fireEvent.change(screen.getByLabelText('Appraisal Type'), { target: { value: 'Machinery & Equipment (M&E)' } });
+    expect(screen.getByLabelText('Total Inspected Items')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Report Format'), { target: { value: 'Desktop' } });
+    expect(screen.queryByLabelText('Total Inspected Items')).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Report Format'), { target: { value: 'Onsite' } });
+    expect(screen.getByLabelText('Total Inspected Items')).toBeInTheDocument();
+});

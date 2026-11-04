@@ -39,7 +39,7 @@ const css = `
 
 export default function Welcome({
   name = "John Doe",
-  inspectorId = "BASE_INSP_0001",
+  inspectorId = null,
   logoSrc,
   onContinue = () => {},
 }) {

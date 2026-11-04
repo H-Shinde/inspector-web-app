@@ -1,0 +1,109 @@
+from copy import deepcopy
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+
+TYPES = ['Business Valuation (BV)', 'Calculation Valuation', 'Machinery & Equipment (M&E)']
+FIELDS = {
+    'consolidationFee': 'Consolidation fee',
+    'bidAmount': 'Appraisal fee', 'discount': 'PDF discount',
+    'rushDiscount': 'Rush discount', 'additionalCharges': 'Additional charges',
+    'completionDays': 'Completion days', 'fmvContinuedUse': 'FMV in continued use',
+    'fairMarketValueRemoved': 'Fair market value removed',
+    'orderlyLiquidationValue': 'Orderly liquidation value',
+    'forcedLiquidationValue': 'Forced liquidation value',
+    'totalInspectedItems': 'Total inspected items',
+    'totalNonInspectedItems': 'Total non-inspected items',
+    'totalAppraisal': 'Total appraisal', 'total': 'Inspection total',
+    'nonRushTotal': 'Non-rush total', 'additionalLocations': 'Additional locations',
+    'rush': 'Rush checkbox', 'pdfOnly': 'PDF Only checkbox', 'other': 'Other',
+}
+ASSET_FIELDS = {'fmvContinuedUse', 'fairMarketValueRemoved', 'orderlyLiquidationValue', 'forcedLiquidationValue', 'other'}
+CHECKBOX_FIELDS = {'rush', 'pdfOnly', 'fmvContinuedUse', 'fairMarketValueRemoved', 'orderlyLiquidationValue', 'forcedLiquidationValue'}
+
+
+def default_rules():
+    valuation = [
+        {'field': 'consolidationFee', 'operation': 'add', 'multiplier': '100.00', 'when': 'always'},
+        {'field': 'bidAmount', 'operation': 'add', 'multiplier': '1.00', 'when': 'always'},
+        {'field': 'discount', 'operation': 'subtract', 'multiplier': '100.00', 'when': 'always'},
+        {'field': 'rushDiscount', 'operation': 'add', 'multiplier': '400.00', 'when': 'always'},
+        {'field': 'additionalCharges', 'operation': 'add', 'multiplier': '1.00', 'when': 'always'},
+    ]
+    rates = {'fmvContinuedUse': '0.00', 'orderlyLiquidationValue': '5.00', 'forcedLiquidationValue': '2.00', 'other': '10.00'}
+    percentages = [{'field': field, 'operation': 'add', 'multiplier': rates.get(field, '5.00'), 'when': 'always', 'mode': 'percentage'} for field in FIELDS if field in ASSET_FIELDS]
+    return {bid_type: deepcopy([term for term in valuation if bid_type != TYPES[2] or term['field'] != 'additionalCharges'] + percentages) for bid_type in TYPES}
+
+
+def validate_rules(rules):
+    if not isinstance(rules, dict) or set(rules) != set(TYPES):
+        raise ValueError('Provide a formula for each bid type.')
+    result = {}
+    for bid_type, terms in rules.items():
+        if not isinstance(terms, list) or not terms or len(terms) > len(FIELDS):
+            raise ValueError('Each formula needs at least one field.')
+        seen = set()
+        result[bid_type] = []
+        for term in terms:
+            if not isinstance(term, dict) or not {'field', 'operation', 'multiplier', 'when'} <= set(term) or set(term) - {'field', 'operation', 'multiplier', 'when', 'mode'}:
+                raise ValueError('Invalid formula entry.')
+            field = term['field']
+            if not isinstance(field, str) or field not in FIELDS or field in seen:
+                raise ValueError('Choose unique, supported fields.')
+            if bid_type == TYPES[2] and field == 'additionalCharges':
+                raise ValueError('Additional charges are not available for Machinery and Equipment.')
+            if term['operation'] not in ['add', 'subtract'] or term['when'] not in ['always', 'rush', 'pdfOnly', 'notRush', 'notPdfOnly']:
+                raise ValueError('Choose a valid operation and condition.')
+            mode = term.get('mode', 'fixed')
+            if mode not in ['fixed', 'percentage'] or (mode == 'percentage' and (field not in ASSET_FIELDS or term['operation'] != 'add')):
+                raise ValueError('Percentages are additive Asset Valuation options only.')
+            if field in ASSET_FIELDS and mode != 'percentage':
+                raise ValueError('Asset Valuation options must use percentages.')
+            try:
+                multiplier = Decimal(str(term['multiplier']))
+                if not multiplier.is_finite() or not 0 <= multiplier <= 1000000 or multiplier != multiplier.quantize(Decimal('.01')):
+                    raise ValueError('Multipliers must be between 0 and 1000000 with up to two decimal places.')
+            except (InvalidOperation, TypeError):
+                raise ValueError('Enter a valid multiplier.')
+            if mode == 'percentage' and multiplier > 100:
+                raise ValueError('Percentages must be between 0 and 100.')
+            seen.add(field)
+            result[bid_type].append({**term, 'multiplier': str(multiplier.quantize(Decimal('.01')))})
+    return result
+
+
+def calculate_total(bid):
+    if getattr(bid, 'calculationVersion', 'legacy') in ['rates-v1', 'tiers-v1']:
+        inspected = Decimal(bid.totalInspectedItems or 0)
+        non_appraised = Decimal(bid.totalNonInspectedItems or 0)
+        inspection = Decimal('0') if bid.reportFormat == 'Desktop' else (bid.inspectionRate or 0) * inspected
+        appraisal = (bid.appraisalRate or 0) * inspected + (bid.nonAppraisalRate or 0) * non_appraised
+        if bid.calculationVersion == 'tiers-v1':
+            from .tier_rates import subtotals
+            inspection, appraisal = subtotals(bid)
+        terms = (bid.calculationRules or default_rules()).get(bid.appraisalType, [])
+        consolidation = next((Decimal(term['multiplier']) for term in terms if term['field'] == 'consolidationFee'), Decimal('0'))
+        return (inspection + appraisal + (bid.rushFee or 0 if bid.rush else 0) - (bid.discount or 0 if bid.pdfOnly else 0) + (consolidation if bid.consolidationFee else Decimal('0'))).quantize(Decimal('.01'), rounding=ROUND_HALF_UP)
+    rules = bid.calculationRules or default_rules()
+    total = Decimal('0')
+    percentages = []
+    for term in rules.get(bid.appraisalType, []):
+        condition = term['when']
+        if condition == 'rush' and not bid.rush or condition == 'pdfOnly' and not bid.pdfOnly:
+            continue
+        if condition == 'notRush' and bid.rush or condition == 'notPdfOnly' and bid.pdfOnly:
+            continue
+        value = getattr(bid, term['field'], 0) or 0
+        if term['field'] in CHECKBOX_FIELDS:
+            value = 1 if value else 0
+        try:
+            value = Decimal(str(value))
+        except InvalidOperation:
+            value = Decimal('0')
+        if term.get('mode') == 'percentage':
+            if value:
+                percentages.append(Decimal(term['multiplier']))
+            continue
+        contribution = (value * Decimal(term['multiplier'])).quantize(Decimal('.01'), rounding=ROUND_HALF_UP)
+        total += contribution if term['operation'] == 'add' else -contribution
+    base = max(total, Decimal('0'))
+    total += sum((base * rate / 100).quantize(Decimal('.01'), rounding=ROUND_HALF_UP) for rate in percentages)
+    return total.quantize(Decimal('.01'))

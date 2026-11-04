@@ -85,7 +85,7 @@ export default function JobRequest({
         <>
           <div className="jr__actions">
             <button type="button" className="jr__btn jr__btn--accept" disabled={!agreed || busy}
-                    onClick={() => run(onAccept)}>Accept</button>
+                    onClick={() => run(onAccept)}>Accept Job</button>
             <button type="button" className="jr__btn jr__btn--decline" disabled={busy}
                     onClick={() => run(onDecline)}>Decline</button>
           </div>

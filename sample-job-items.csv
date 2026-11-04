@@ -1,0 +1,11 @@
+Name,Type,Make,Model,Serial Number,Year,Hours/Miles,Photo#,Ref#,Comments
+Forklift,Material Handling,Toyota,8FGCU25,SAMPLE-FL-001,2020,2450 hours,1,ITEM-001,Sample asset; condition to be verified.
+Excavator,Construction,Caterpillar,305 CR,SAMPLE-EX-002,2021,1820 hours,2,ITEM-002,Sample asset with standard bucket.
+Skid Steer Loader,Construction,Bobcat,S650,SAMPLE-SS-003,2019,3120 hours,3,ITEM-003,Sample asset; inspect hydraulic system.
+Delivery Van,Vehicle,Ford,Transit 250,SAMPLE-VAN-004,2022,42500 miles,4,ITEM-004,Sample asset; mileage is illustrative.
+Air Compressor,Shop Equipment,Ingersoll Rand,2475N7.5,SAMPLE-AC-005,2018,960 hours,5,ITEM-005,Sample stationary compressor.
+Backup Generator,Power Equipment,Generac,SG100,SAMPLE-GEN-006,2021,380 hours,6,ITEM-006,Sample asset; maintenance records pending.
+CNC Milling Machine,Manufacturing,Haas,VF-2,SAMPLE-CNC-007,2020,5680 hours,7,ITEM-007,Sample asset; tooling excluded.
+Scissor Lift,Access Equipment,Genie,GS-1930,SAMPLE-SL-008,2023,290 hours,8,ITEM-008,Sample asset; test batteries and controls.
+Pallet Jack,Material Handling,Crown,WP 3000,SAMPLE-PJ-009,2022,650 hours,9,ITEM-009,Sample electric pallet jack.
+Welding Machine,Shop Equipment,Miller,Multimatic 255,SAMPLE-WM-010,2021,410 hours,10,ITEM-010,"Sample asset; includes cart, cables and torch."
