@@ -51,7 +51,7 @@ const INITIAL_MESSAGES = [
 export default function App() {
   // "invite" | "setup" | "welcome" | "login" | "forgot" | "dashboard" | "job" | "parts" | "sheet"
   // Tip: change "invite" to "login" below if you want the app to open on the login screen.
-  const [step, setStep] = useState(window.location.pathname === '/UpdatePass' ? 'reset' : invitation.get('token') ? 'invite' : 'checking');
+  const [step, setStep] = useState(window.location.pathname.endsWith('/UpdatePass') ? 'reset' : invitation.get('token') ? 'invite' : 'checking');
   const [name, setName] = useState(INVITE.fullName);
   const [email, setEmail] = useState(INVITE.email);
   const [inspectorId, setInspectorId] = useState(null);
@@ -70,7 +70,7 @@ export default function App() {
     }
   };
   useEffect(() => {
-    if (window.location.pathname !== '/UpdatePass' && !invitation.get('token')) restoreSession();
+    if (!window.location.pathname.endsWith('/UpdatePass') && !invitation.get('token')) restoreSession();
   }, []);
   const [activeId, setActiveId] = useState(null);
   const [partId, setPartId] = useState(null); // null = adding a new part
@@ -124,7 +124,7 @@ export default function App() {
         logoSrc={logo}
         fullName={INVITE.fullName}
         email={INVITE.email}
-        onSubmit={async ({ fullName, email: newEmail, password }) => {
+        onSubmit={async ({ fullName, email: newEmail, password, ...profile }) => {
           const token = invitation.get('token');
           if (!token) throw new Error('Open the registration link in your invitation email.');
           const csrfResponse = await fetch('/api/auth/csrf/', { credentials: 'include' });
@@ -133,13 +133,15 @@ export default function App() {
           const response = await fetch('/api/inspector-registration/', {
             method: 'POST', credentials: 'include',
             headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-            body: JSON.stringify({ token, fullName, password }),
+            body: JSON.stringify({ token, fullName, email: newEmail, password, ...profile }),
           });
           const result = await response.json();
           if (!response.ok) throw new Error(result.error || 'Unable to register.');
           setName(fullName);
           setEmail(result.email);
           setInspectorId(result.inspectorId);
+          if (result.status === 'Inactive') { window.alert('Registration complete. Your account is inactive. Contact your administrator to activate it.'); setStep('login'); return; }
+          window.history.replaceState(null, '', window.location.pathname);
           await inspectorRequest('/api/auth/inspector-login/', { email: result.email, password });
           await loadJobs();
           setTab("jobs");
