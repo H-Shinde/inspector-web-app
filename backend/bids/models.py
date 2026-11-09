@@ -5,6 +5,7 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 from django.utils import timezone
 from .calculation import default_rules, calculate_total
+from .tier_rates import default_tier_tables, default_appraisal_tiers
 
 class Client(models.Model):
     owner = models.ForeignKey(
@@ -149,6 +150,8 @@ class Bid(models.Model):
         upload_to="bid-agreements/",
         blank=True,
     )
+    tierRates = models.JSONField(null=True, blank=True, editable=False)
+    appraisalTierRates = models.JSONField(null=True, blank=True, editable=False)
     calculationRules = models.JSONField(null=True, blank=True, editable=False)
     createdAt = models.DateTimeField(auto_now_add=True)
 
@@ -166,6 +169,8 @@ class Bid(models.Model):
 class BidSettings(models.Model):
     owner = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     rules = models.JSONField(default=default_rules)
+    tierRates = models.JSONField(default=default_tier_tables)
+    appraisalTierRates = models.JSONField(default=default_appraisal_tiers)
 
 
 class Job(models.Model):

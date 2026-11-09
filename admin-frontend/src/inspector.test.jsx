@@ -4,9 +4,9 @@ import { listInspectors, createInspector, updateInspector } from './inspectorApi
 jest.mock('./inspectorApi', () => ({ listInspectors: jest.fn(), createInspector: jest.fn(), updateInspector: jest.fn() }));
 jest.mock('datatables.net-react', () => {
     const React = require('react');
-    const Table = React.forwardRef(({ data, slots }, ref) => {
+    const Table = React.forwardRef(({ data, slots, columns }, ref) => {
         React.useImperativeHandle(ref, () => ({ dt: () => ({ row: (element) => ({ data: () => data.find((row) => String(row.id) === element.dataset.id) }) }) }));
-        return <table><tbody>{data.map((row) => <tr key={row.id} data-id={row.id}><td>{row.name}</td><td>{row.cityStateZip}</td><td>{slots[4](null, null, row)}</td></tr>)}</tbody></table>;
+        return <table><tbody>{data.map((row) => <tr key={row.id} data-id={row.id}><td>{row.name}</td><td>{row.cityStateZip}</td><td>{slots[columns.findIndex((column) => column.title === 'Actions')](null, null, row)}</td></tr>)}</tbody></table>;
     });
     Table.use = () => {}; return Table;
 });

@@ -7,9 +7,15 @@ import ValidatedForm from './ValidatedForm';
 import LogoutButton from './LogoutButton';
 import navLogo from './bison_logo_nav.png';
 import './Settings.css';
+import { tierTables } from './tierRates';
+const tableLabels = { inspection: 'Inspection Rate by Item Quantity (Appraised)', nonAppraisedInspection: 'Inspection Rate by Item Quantity (Non-Appraised)', appraisal: 'Appraisal Rate by Item Quantity' };
 
 // Fields that no longer appear anywhere on the Settings page.
-const hiddenFields = ['rush', 'pdfOnly', 'additionalLocations'];
+const hiddenFields = [
+    'rush', 'pdfOnly', 'additionalLocations',
+    'totalInspectedItems', 'totalNonInspectedItems', 'forcedLiquidationValue',
+    'totalAppraisal', 'total', 'nonRushTotal', 'bidAmount',
+];
 const isHidden = ({ field, label }) => hiddenFields.includes(field) || /additional locations?/i.test(label || '');
 
 // Fields whose operation and condition are fixed and applied automatically (no selectors shown).
@@ -28,6 +34,7 @@ const displayLabel = (field, label) => labelOverrides[field] || label;
 export default function Settings() {
     const { data, setData, loading, error, retry } = useBidSettings();
     const [rules, setRules] = useState(null);
+    const [tables, setTables] = useState(tierTables);
     const [type, setType] = useState('Business Valuation (BV)');
     const [busy, setBusy] = useState(false);
     const [menuOpen, setMenuOpen] = useState(false);
@@ -40,7 +47,7 @@ export default function Settings() {
     const saving = useRef(false);
     const [saveError, setSaveError] = useState('');
     const [notice, setNotice] = useState('');
-    useEffect(() => { if (data) setRules(normalizeRules(data.rules)); }, [data]);
+    useEffect(() => { if (data) { setRules(normalizeRules(data.rules)); setTables(data.tierRates || tierTables); } }, [data]);
     const fields = (data?.fields || [])
         .filter((entry) => !isHidden(entry))
         .filter(({ field }) => type !== 'Machinery & Equipment (M&E)' || field !== 'additionalCharges')
@@ -59,7 +66,7 @@ export default function Settings() {
         event.preventDefault();
         if (saving.current) return;
         saving.current = true; setBusy(true); setSaveError(''); setNotice('');
-        try { const result = await saveBidSettings(rules); setData(result); setNotice('Bid calculation settings saved.'); }
+        try { const result = await saveBidSettings(rules, tables); setData(result); setNotice('Bid calculation settings saved.'); }
         catch (error) { setSaveError(error.message); }
         finally { saving.current = false; setBusy(false); }
     };
@@ -98,6 +105,17 @@ export default function Settings() {
                 <fieldset disabled={busy} className="settings_fields">
                     <label htmlFor="settings-type">Bid type</label>
                     <select id="settings-type" value={type} onChange={(event) => setType(event.target.value)}>{data.types.map((value) => <option key={value} value={value}>{appraisalTypeLabel(value)}</option>)}</select>
+                    <section className="tier_settings" aria-label="Tier rate tables">
+                        <h2>Inspection and appraisal tier rates</h2>
+                        <p>Dollar rates per item. Quantities 1–10 use column 10, 11–20 use column 20, and so on. Quantities above 50 use column 50. New bids use these rates and keep a copy of them.</p>
+                        <div className="tier_settings_grid">{Object.entries(tableLabels).map(([key, title]) => <div className="tier_table_scroll" key={key}>
+                            <table className="tier_settings_table"><caption>{title}</caption>
+                                <thead><tr><th scope="col">Tier</th>{[10,20,30,40,50].map((quantity) => <th scope="col" key={quantity}>{quantity}</th>)}</tr></thead>
+                                <tbody>{tables[key].map((row, tier) => <tr key={tier}><th scope="row">{tier + 1}</th>{row.map((value, column) => <td key={column}><span aria-hidden="true">$ </span><input aria-label={`${title}, tier ${tier + 1}, quantity ${(column + 1) * 10}`} type="number" min="0" max="1000000" step="0.01" required value={value} onChange={(event) => { const next = tables[key].map((entry) => [...entry]); next[tier][column] = event.target.value; setTables({ ...tables, [key]: next }); setNotice(''); }} /></td>)}</tr>)}</tbody>
+                            </table>
+                        </div>)}</div>
+                        <button type="button" className="bid_form_cancel" onClick={() => { setTables(data.tierDefaults || tierTables); setNotice('Tier defaults restored. Click Save Settings to save.'); }}>Restore tier rate defaults</button>
+                    </section>
                     <div className="settings_rule_grid">
                         {fields.map(({ field, label }) => {
                             const percentage = assetPercentageFields.includes(field);

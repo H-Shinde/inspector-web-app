@@ -13,10 +13,14 @@ class BidForm(forms.ModelForm):
         if self.instance._state.adding:
             self.instance.calculationVersion = 'tiers-v1'
         if self.instance.calculationVersion == 'tiers-v1':
-            from .tier_rates import subtotals, rate, APPRAISED_INSPECTION, APPRAISAL
+            from .tier_rates import subtotals, rate, default_tier_tables
             bid = self.instance
-            bid.inspectionRate = rate(APPRAISED_INSPECTION, bid.tier, bid.totalInspectedItems or 0)
-            bid.appraisalRate = rate(APPRAISAL, bid.tier, bid.totalInspectedItems or 0)
+            if bid._state.adding:
+                saved = BidSettings.objects.filter(owner=self.user).first()
+                bid.tierRates = saved.tierRates if saved else default_tier_tables()
+            tables = bid.tierRates or default_tier_tables()
+            bid.inspectionRate = rate(tables['inspection'], bid.tier, bid.totalInspectedItems or 0)
+            bid.appraisalRate = rate(tables['appraisal'], bid.tier, bid.totalInspectedItems or 0)
             bid.total, bid.totalAppraisal = subtotals(bid)
         elif self.instance.calculationVersion == 'rates-v1':
             bid = self.instance

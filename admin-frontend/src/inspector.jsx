@@ -17,9 +17,14 @@ DataTable.use(DT);
 const fields = [['id', '# ID'], ['name', 'Name'], ['cityStateZip', 'Location'], ['status', 'Status']];
 const columns = [
     ...fields.map(([data, title]) => ({ data, title, visible: data !== 'id', searchable: data !== 'id', defaultContent: '', render: DT.render.text() })),
+    { data: 'rating', title: 'Rating', defaultContent: 0, type: 'num', render: (value, type) => {
+        const rating = Math.min(5, Math.max(0, Math.trunc(Number(value) || 0)));
+        if (type !== 'display') return rating;
+        return `<span class="inspector_rating" role="img" aria-label="${rating ? `${rating} out of 5 stars` : 'Not rated'}" title="${rating ? `${rating} out of 5 stars` : 'Not rated'}"><span class="inspector_rating_filled" aria-hidden="true">${'★'.repeat(rating)}</span><span class="inspector_rating_empty" aria-hidden="true">${'☆'.repeat(5 - rating)}</span></span>`;
+    } },
     { data: null, title: 'Actions', orderable: false, searchable: false },
 ];
-const ACTIONS_COLUMN = fields.length;
+const ACTIONS_COLUMN = fields.length + 1;
 
 function InspectorActions({ row, onMessage, onRate, busy }) {
     return <div className="action_buttons">

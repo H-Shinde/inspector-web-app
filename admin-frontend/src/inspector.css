@@ -37,3 +37,7 @@
 .inspector_page table.bids_table tbody tr:focus-visible { outline: 2px solid #005581; outline-offset: -2px; }
 .inspector_details_popup { width: min(760px, calc(100% - 32px)); max-height: 90vh; overflow-y: auto; }
 .inspector_details_popup dd { white-space: pre-wrap; }
+
+.inspector_rating { display: inline-flex; white-space: nowrap; font-size: 19px; letter-spacing: 1px; line-height: 1; }
+.inspector_rating_filled { color: #b77900; }
+.inspector_rating_empty { color: #64748b; }

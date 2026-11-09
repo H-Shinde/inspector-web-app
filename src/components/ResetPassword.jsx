@@ -18,7 +18,7 @@ export default function ResetPassword({ logoSrc, onLogin }) {
         try {
             const query = new URLSearchParams(window.location.search);
             await inspectorRequest('/api/auth/password-reset-confirm/', { uid: query.get('uid'), token: query.get('token'), new_password1: password, new_password2: confirm });
-            setDone(true); window.history.replaceState(null, '', '/');
+            setDone(true); window.history.replaceState(null, '', window.location.pathname.startsWith('/inspector') ? '/inspector/' : '/');
         } catch (error) { setError(error.message); }
         finally { setBusy(false); }
     };

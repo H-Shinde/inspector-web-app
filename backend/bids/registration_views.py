@@ -8,6 +8,7 @@ from django.db import transaction, IntegrityError
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from .models import Inspector
+from .inspector_views import InspectorForm
 
 
 @require_http_methods(['GET', 'POST'])
@@ -27,6 +28,17 @@ def inspector_registration(request):
             password = data.get('password', '')
             if not isinstance(name, str) or not name.strip() or len(name.strip()) > 200 or not isinstance(password, str):
                 raise ValueError('Enter your full name and password.')
+            required = ['phone', 'email', 'address', 'city', 'state', 'zipCode']
+            for field in required:
+                if not isinstance(data.get(field), str) or not data[field].strip():
+                    return JsonResponse({'error': f'{field} is required.'}, status=400)
+            if data['email'].strip().casefold() != inspector.email.casefold():
+                return JsonResponse({'error': 'Use the email address that received this invitation.'}, status=400)
+            profile = {field: data[field].strip() for field in required}
+            profile.update(name=name.strip(), email=inspector.email, is_active=inspector.is_active, rating=inspector.rating, region=inspector.region, notes=inspector.notes, focus=inspector.focus)
+            form = InspectorForm(profile, instance=inspector)
+            if not form.is_valid():
+                return JsonResponse({'error': ' '.join(f'{field}: {" ".join(messages)}' for field, messages in form.errors.items())}, status=400)
             User = get_user_model()
             if User.objects.filter(email__iexact=inspector.email).exists():
                 raise ValueError('An account already exists for this email. Contact your administrator.')
@@ -34,10 +46,11 @@ def inspector_registration(request):
             validate_password(password, user)
             user.set_password(password)
             user.save()
+            inspector = form.save(commit=False)
             inspector.name = name.strip()
             inspector.user = user
-            inspector.save(update_fields=['name', 'user'])
-            return JsonResponse({'registered': True, 'email': inspector.email, 'fullName': inspector.name, 'inspectorId': inspector.pk}, status=201)
+            inspector.save()
+            return JsonResponse({'registered': True, 'status': 'Active' if inspector.is_active else 'Inactive', 'email': inspector.email, 'fullName': inspector.name, 'inspectorId': inspector.pk}, status=201)
     except signing.BadSignature:
         return JsonResponse({'error': 'Invitation link is invalid or expired. Request a new invitation.'}, status=400)
     except ValidationError as error:

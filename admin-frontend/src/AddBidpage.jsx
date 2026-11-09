@@ -56,7 +56,7 @@ function AddBidpage() {
                 : fields,
     ]);
     const visibleFields = new Set(visibleSections.flatMap(([, fields]) => fields.map(([field]) => field)));
-    const submissionDraft = { calculationVersion: 'tiers-v1', calculationRules: calculationSettings.data?.rules, ...(isMachinery ? Object.fromEntries(Object.entries(draft).filter(([field]) => visibleFields.has(field))) : draft), tier: draft.tier || '1' };
+    const submissionDraft = { calculationVersion: 'tiers-v1', tierRates: calculationSettings.data?.tierRates, calculationRules: calculationSettings.data?.rules, ...(isMachinery ? Object.fromEntries(Object.entries(draft).filter(([field]) => visibleFields.has(field))) : draft), tier: draft.tier || '1' };
     const totalBid = calculateTotalBid(submissionDraft);
     // Rush surcharge and PDF discount default to the amounts in the saved settings while their box is checked.
     const rules = calculationSettings.data?.rules;

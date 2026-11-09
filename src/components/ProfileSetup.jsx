@@ -66,6 +66,8 @@ export default function ProfileSetup({
 }) {
   const [fullName, setFullName] = useState(initialName);
   const [email, setEmail] = useState(initialEmail);
+  const [profile, setProfile] = useState({ phone: '', address: '', city: '', state: '', zipCode: '' });
+  const profileFields = [['phone', 'Phone'], ['address', 'Address'], ['city', 'City'], ['state', 'State'], ['zipCode', 'ZIP']];
   const [showPw, setShowPw] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [password, setPassword] = useState("");
@@ -76,6 +78,7 @@ export default function ProfileSetup({
   const [formError, setFormError] = useState("");
 
   const errors = {
+    ...Object.fromEntries(profileFields.map(([field, label]) => [field, profile[field].trim() ? '' : `${label} is required.`])),
     name: fullName.trim() ? "" : "Enter your full name.",
     email: /^\S+@\S+\.\S+$/.test(email) ? "" : "Enter a valid email address.",
     password: password ? "" : "Enter a password.",
@@ -91,7 +94,7 @@ export default function ProfileSetup({
     if (Object.values(errors).some(Boolean)) return;
     try {
       setBusy(true);
-      await onSubmit({ fullName: fullName.trim(), email, password });
+      await onSubmit({ fullName: fullName.trim(), email: email.trim(), password, ...profile });
     } catch (err) {
       setFormError(err?.message || "Something went wrong. Please try again.");
     } finally {
@@ -118,7 +121,7 @@ export default function ProfileSetup({
       <form id="setup-form" onSubmit={handleSubmit} noValidate>
         <div className="bv__card ps__card">
           <div className="ps__field">
-            <label className="bv__label" htmlFor="ps-name">Full name</label>
+            <label className="bv__label" htmlFor="ps-name">Inspector *</label>
             <input id="ps-name" type="text" autoComplete="name" className="ps__input"
                    value={fullName} onChange={(e) => setFullName(e.target.value)}
                    aria-invalid={!!show("name")} />
@@ -126,13 +129,22 @@ export default function ProfileSetup({
           </div>
 
           <div className="ps__field">
-            <label className="bv__label" htmlFor="ps-email">Email address</label>
+            <label className="bv__label" htmlFor="ps-email">Email address *</label>
             <input id="ps-email" type="email" autoComplete="email" className="ps__input"
-                   value={email} onChange={(e) => setEmail(e.target.value)}
+                   value={email} onChange={(e) => setEmail(e.target.value)} readOnly required
                    aria-invalid={!!show("email")} />
             {show("email") && <span className="ps__err">{errors.email}</span>}
           </div>
 
+          {profileFields.map(([field, label]) => <div className="ps__field" key={field}>
+            <label className="bv__label" htmlFor={`ps-${field}`}>{label} *</label>
+            {['focus', 'status'].includes(field) ? <select id={`ps-${field}`} className="ps__input" required value={profile[field]} aria-invalid={!!show(field)} onChange={(event) => setProfile({ ...profile, [field]: event.target.value })}>
+              <option value="">Select {label.toLowerCase()}</option>
+              {(field === 'focus' ? ['Inspection', 'Appraisal', 'Appraisal, Inspection'] : ['Active', 'Inactive']).map((value) => <option key={value} value={value}>{value}</option>)}
+            </select> : field === 'notes' ? <textarea id={`ps-${field}`} className="ps__input" required value={profile[field]} aria-invalid={!!show(field)} onChange={(event) => setProfile({ ...profile, [field]: event.target.value })} style={{ height: 96, paddingTop: 12 }} /> :
+              <input id={`ps-${field}`} className="ps__input" type={field === 'phone' ? 'tel' : 'text'} required maxLength={field === 'state' ? 2 : field === 'zipCode' ? 10 : field === 'address' ? 300 : field === 'phone' ? 50 : field === 'city' ? 150 : 200} value={profile[field]} aria-invalid={!!show(field)} onChange={(event) => setProfile({ ...profile, [field]: event.target.value })} />}
+            {show(field) && <span className="ps__err">{errors[field]}</span>}
+          </div>)}
           <div className="ps__hr" />
 
           <div className="ps__field">
