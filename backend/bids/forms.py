@@ -1,5 +1,7 @@
 from decimal import Decimal
 from django import forms
+from django.utils import timezone
+from .calculation import current_settings_rules
 
 from .models import Bid, Inspector, Client, BidSettings
 from .validation import contact_error
@@ -10,12 +12,17 @@ class BidForm(forms.ModelForm):
         super()._post_clean()
         if self.errors:
             return
-        if self.instance._state.adding:
-            self.instance.calculationVersion = 'tiers-v1'
+        bid = self.instance
+        routing_changed = self.original_pricing_type != (bid.appraisalType, bid.reportFormat)
+        if bid._state.adding or (routing_changed and bid.calculationVersion in ['tiers-v1', 'rates-v1']):
+            bid.calculationVersion = 'tiers-v1' if bid.appraisalType == 'Machinery & Equipment (M&E)' and bid.reportFormat == 'Onsite' else 'rates-v1'
+            if bid.calculationVersion != 'tiers-v1':
+                bid.tier = 1
+                bid.tierRates = None
         if self.instance.calculationVersion == 'tiers-v1':
             from .tier_rates import subtotals, rate, default_tier_tables
             bid = self.instance
-            if bid._state.adding:
+            if bid._state.adding or not bid.tierRates:
                 saved = BidSettings.objects.filter(owner=self.user).first()
                 bid.tierRates = saved.tierRates if saved else default_tier_tables()
             tables = bid.tierRates or default_tier_tables()
@@ -29,7 +36,7 @@ class BidForm(forms.ModelForm):
         if self.instance._state.adding:
             from .calculation import default_rules
             saved_settings = BidSettings.objects.filter(owner=self.user).first()
-            self.instance.calculationRules = saved_settings.rules if saved_settings else default_rules()
+            self.instance.calculationRules = current_settings_rules(saved_settings.rules if saved_settings else default_rules())
         if self.instance.totalBid <= 0:
             self.add_error(None, 'Calculated bid total must be greater than zero.')
 
@@ -40,12 +47,19 @@ class BidForm(forms.ModelForm):
     def __init__(self, *args, user, **kwargs):
         if args and args[0] is not None:
             data = args[0].copy()
+            instance = kwargs.get('instance')
+            if instance is None or instance._state.adding:
+                if data.get('completionDays') in [None, '']:
+                    data['completionDays'] = 5
+                if data.get('valueDate') in [None, '']:
+                    data['valueDate'] = timezone.localdate().isoformat()
             for field in ['fmvContinuedUse', 'fairMarketValueRemoved', 'orderlyLiquidationValue', 'forcedLiquidationValue', 'other']:
                 if isinstance(data.get(field), bool):
                     data[field] = '1' if data[field] else '0'
             args = (data, *args[1:])
         super().__init__(*args, **kwargs)
         self.user = user
+        self.original_pricing_type = (self.instance.appraisalType, self.instance.reportFormat)
 
         for field in [
             "bidAmount",
@@ -60,7 +74,7 @@ class BidForm(forms.ModelForm):
         bid = super().save(commit=False)
         if bid._state.adding:
             settings, _ = BidSettings.objects.get_or_create(owner=self.user)
-            bid.calculationRules = settings.rules
+            bid.calculationRules = current_settings_rules(settings.rules)
         if commit:
             bid.save()
             self.save_m2m()

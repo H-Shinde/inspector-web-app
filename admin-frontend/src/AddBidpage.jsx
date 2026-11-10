@@ -1,6 +1,6 @@
 import { assetPercentageFields, calculationTerms, settingAmount } from './bidCalculation';
 import ClientTypeahead from './ClientTypeahead';
-import { tierSubtotals } from './tierRates';
+import { usesNewBidTiers, newBidSubtotals } from './newBidPricing';
 import { reportChoices, reportSelection, reportFields } from './appraisalTypes';
 import useBidSettings from './useBidSettings';
 import ValidatedForm from './ValidatedForm';
@@ -33,7 +33,16 @@ function AddBidpage() {
         return () => controller.abort();
     }, [clientAttempt]);
     const [menuOpen, setMenuOpen] = useState(false);
-    const [draft, setDraft] = useState(() => ({ date: '', ...Object.fromEntries(sections.flatMap(([, fields]) => fields.map(([field, , type]) => [field, field === 'status' ? 'Pending' : type === 'checkbox' ? false : '']))) }));
+    const [draft, setDraft] = useState(() => {
+        const today = new Date();
+        const valueDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+        return {
+            date: '',
+            ...Object.fromEntries(sections.flatMap(([, fields]) => fields.map(([field, , type]) => [field, field === 'status' ? 'Pending' : type === 'checkbox' ? false : '']))),
+            completionDays: '5',
+            valueDate,
+        };
+    });
     const [error, setError] = useState('');
     const confirmDialog = useRef(null);
     const creating = useRef(false);
@@ -47,7 +56,9 @@ function AddBidpage() {
     const [emailDraft, setEmailDraft] = useState(null);
     const [agreementError, setAgreementError] = useState('');
     const isMachinery = draft.appraisalType === MACHINERY_EQUIPMENT;
+    const usesTiers = usesNewBidTiers(draft);
     const visibleSections = getBidSections(draft.appraisalType)
+        .map(([title, fields]) => [title, fields.filter(([field]) => field !== 'tier' || usesTiers)])
         .filter(([title]) => !(isMachinery && draft.reportFormat === 'Desktop' && title === 'Inspection Fees'))
         .map(([title, fields]) => [title,
         title === 'Appraisal Details' ? fields.filter(([field]) => field !== 'rush')
@@ -56,7 +67,13 @@ function AddBidpage() {
                 : fields,
     ]);
     const visibleFields = new Set(visibleSections.flatMap(([, fields]) => fields.map(([field]) => field)));
-    const submissionDraft = { calculationVersion: 'tiers-v1', tierRates: calculationSettings.data?.tierRates, calculationRules: calculationSettings.data?.rules, ...(isMachinery ? Object.fromEntries(Object.entries(draft).filter(([field]) => visibleFields.has(field))) : draft), tier: draft.tier || '1' };
+    const submissionDraft = {
+        ...Object.fromEntries(Object.entries(draft).filter(([field]) => field !== 'tier' && (!isMachinery || visibleFields.has(field)))),
+        calculationVersion: usesTiers ? 'tiers-v1' : 'rates-v1',
+        calculationRules: calculationSettings.data?.rules,
+        ...(usesTiers ? { tierRates: calculationSettings.data?.tierRates, tier: draft.tier || '1' } : {}),
+    };
+    const subtotals = newBidSubtotals(submissionDraft);
     const totalBid = calculateTotalBid(submissionDraft);
     // Rush surcharge and PDF discount default to the amounts in the saved settings while their box is checked.
     const rules = calculationSettings.data?.rules;
@@ -250,7 +267,15 @@ function AddBidpage() {
         <main>
             {calculationSettings.loading && <p role="status">Loading bid calculation settings…</p>}
             {calculationSettings.error && <p role="alert">{calculationSettings.error} <button type="button" onClick={calculationSettings.retry}>Retry calculation settings</button></p>}
-            <ValidatedForm className="fieldsframe" onSubmit={handleAdd} aria-label="Add bid">
+            <ValidatedForm className="fieldsframe" onSubmit={handleAdd} aria-label="Add bid" renderFooter={(validationErrors) => (
+                <div className="bid_decision_actions add_bid_submit_row">
+                    <div className="add_bid_submit_errors">
+                        {validationErrors}
+                        {error && <p className="add_bid_error" role="alert">{error}</p>}
+                    </div>
+                    <button type="submit" className="bid_accept_button" disabled={calculationSettings.loading || !!calculationSettings.error}>+ Add Bid</button>
+                </div>
+            )}>
                 {visibleSections.map(([title, fields]) => (
                     <fieldset className="add_bid_section" key={title}>
                         <legend>{title}</legend>
@@ -267,8 +292,8 @@ function AddBidpage() {
                                     <label htmlFor={`add-${field}`}>{label}{type === 'checkbox' && assetPercentageFields.includes(field) && (() => { const rule = calculationTerms(submissionDraft).find((term) => term.field === field && term.mode === 'percentage'); return rule ? ` (+${rule.multiplier}%)` : ''; })()}</label>
                                     {type === 'tier' ? (
                                         <select id={`add-${field}`} name={field} value={draft.tier || '1'} onChange={(event) => setDraft({ ...draft, tier: event.target.value })}>{[1,2,3,4,5].map((tier) => <option key={tier} value={tier}>Tier {tier}</option>)}</select>
-                                    ) : ['inspectionRate', 'appraisalRate', 'nonAppraisedInspectionRate'].includes(field) ? (
-                                        <input id={`add-${field}`} readOnly value={tierSubtotals(submissionDraft)[field].toFixed(2)} />
+                                    ) : usesTiers && ['inspectionRate', 'appraisalRate', 'nonAppraisedInspectionRate'].includes(field) ? (
+                                        <input id={`add-${field}`} readOnly value={subtotals[field].toFixed(2)} />
                                     ) : type === 'appraisalType' ? (
                                         <select id={`add-${field}`} name={field} required value={reportSelection(draft)} onChange={(event) => setDraft(withFeeDefaults({ ...draft, ...reportFields(event.target.value) }))}>
                                             <option value="">Select appraisal type</option>
@@ -283,7 +308,7 @@ function AddBidpage() {
                                     ) : type === 'status' || field === 'referenceNumber' ? (
                                         <input id={`add-${field}`} name={field} value={field === 'status' ? 'Pending' : referenceNumber} readOnly />
                                     ) : type === 'subtotal' ? (
-                                        <input id={`add-${field}`} name={field} readOnly value={tierSubtotals(submissionDraft)[field].toFixed(2)} />
+                                        <input id={`add-${field}`} name={field} readOnly value={subtotals[field].toFixed(2)} />
                                     ) : type === 'total' ? (
                                         <><input id={`add-${field}`} name={field} value={calculationSettings.loading ? 'Loading…' : calculationSettings.error ? 'Unavailable' : totalBid} readOnly aria-describedby="total-bid-help" />
                                         {!calculationSettings.loading && !calculationSettings.error && Number(totalBid) <= 0 && <p className="add_bid_error">Calculated bid total must be greater than zero.</p>}</>
@@ -316,10 +341,6 @@ function AddBidpage() {
                         {title === 'Pricing' && <p id="total-bid-help" className="add_bid_pricing_help">Total Bid = Inspection Total + Appraisal Total + Rush Fee − PDF Discount + Consolidation Fee. Consolidation adds ${feeDefault(draft, 'consolidationFee') || '0.00'} when selected.</p>}
                     </fieldset>
                 ))}
-                {error && <p className="add_bid_error" role="alert">{error}</p>}
-                <div className="bid_decision_actions">
-                    <button type="submit" className="bid_accept_button" disabled={calculationSettings.loading || !!calculationSettings.error}>+ Add Bid</button>
-                </div>
             </ValidatedForm>
         </main>
         <footer className="bid_page_footer" />

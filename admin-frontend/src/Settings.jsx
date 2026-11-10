@@ -18,7 +18,7 @@ const hiddenFields = [
 ];
 const isHidden = ({ field, label }) => hiddenFields.includes(field) || /additional locations?/i.test(label || '');
 
-// Fields whose operation and condition are fixed and applied automatically (no selectors shown).
+// Apply standard fee operations automatically; conditions are not configurable in Settings.
 const fixedRules = {
     consolidationFee: { operation: 'add', when: 'always' },
     ...Object.fromEntries(assetPercentageFields.map((field) => [field, { operation: 'add', when: 'always', mode: 'percentage' }])),
@@ -27,7 +27,7 @@ const fixedRules = {
 };
 // These are checkboxes on the bid form: Settings stores a flat dollar amount that applies when the box is checked.
 const checkboxFields = ['discount', 'rushDiscount', 'consolidationFee'];
-const normalizeRules = (all) => Object.fromEntries(Object.entries(all).map(([name, terms]) => [name, terms.map((term) => ({ ...term, ...(fixedRules[term.field] || {}) }))]));
+const normalizeRules = (all) => Object.fromEntries(Object.entries(all).map(([name, terms]) => [name, terms.filter((term) => term.field !== 'completionDays').map((term) => ({ ...term, when: 'always', ...(fixedRules[term.field] || {}) }))]));
 const labelOverrides = { rushDiscount: 'Rush surcharge' };
 const displayLabel = (field, label) => labelOverrides[field] || label;
 
@@ -35,7 +35,7 @@ export default function Settings() {
     const { data, setData, loading, error, retry } = useBidSettings();
     const [rules, setRules] = useState(null);
     const [tables, setTables] = useState(tierTables);
-    const [type, setType] = useState('Business Valuation (BV)');
+    const [type, setType] = useState('Machinery & Equipment (M&E)');
     const [busy, setBusy] = useState(false);
     const [menuOpen, setMenuOpen] = useState(false);
     const [restoreType, setRestoreType] = useState(null);
@@ -59,7 +59,7 @@ export default function Settings() {
             const others = previous[type].filter((term) => term.field !== field);
             const fixed = fixedRules[field] || {};
             const defaultTerm = data.defaults[type]?.find((term) => term.field === field);
-            return { ...previous, [type]: changes.operation === 'ignore' ? others : [...others, { field, operation: 'add', multiplier: assetPercentageFields.includes(field) ? '5.00' : '1.00', when: 'always', ...defaultTerm, ...existing, ...changes, ...fixed, ...(assetPercentageFields.includes(field) ? { mode: 'percentage' } : {}) }] };
+            return { ...previous, [type]: changes.operation === 'ignore' ? others : [...others, { field, operation: 'add', multiplier: assetPercentageFields.includes(field) ? '5.00' : '1.00', when: 'always', ...defaultTerm, ...existing, ...changes, when: 'always', ...fixed, ...(assetPercentageFields.includes(field) ? { mode: 'percentage' } : {}) }] };
         });
     };
     const save = async (event) => {
@@ -118,14 +118,18 @@ export default function Settings() {
                     </section>
                     <div className="settings_rule_grid">
                         {fields.map(({ field, label }) => {
+                            if (field === 'completionDays') return <div key={field} className="settings_rule_card settings_rule_active">
+                                <h3>{label}</h3>
+                                <div className="settings_rule_controls">
+                                    <label htmlFor="settings-completion-days"><span>Default days</span>
+                                        <input id="settings-completion-days" aria-label="Completion days default" type="number" min="0" step="1" value={5} readOnly />
+                                    </label>
+                                </div>
+                            </div>;
                             const percentage = assetPercentageFields.includes(field);
-                            const fixed = !!fixedRules[field];
                             const term = rules[type].find((entry) => entry.field === field);
                             return <div key={field} className={`settings_rule_card${term ? ' settings_rule_active' : ''}`}><h3>{label}</h3><div className="settings_rule_controls">
-                                {fixed && <label className="settings_rule_check"><input type="checkbox" aria-label={`Include ${label}`} checked={!!term} onChange={(event) => update(field, event.target.checked ? {} : { operation: 'ignore' })} /><span>Include in bid calculation</span></label>}
-                                {!fixed && <label><span>Operation</span><select aria-label={`${label} operation`} value={term?.operation || 'ignore'} onChange={(event) => update(field, { operation: event.target.value })}><option value="ignore">Ignore</option><option value="add">Add</option>{!percentage && <option value="subtract">Subtract</option>}</select></label>}
-                                <label><span>{percentage ? 'Percentage (%)' : checkboxFields.includes(field) ? 'Flat rate ($)' : 'Rate / fee'}</span><input id={`rule-${field}-multiplier`} aria-label={`${label} ${percentage ? 'percentage' : 'multiplier'}`} type="number" required={!!term} disabled={!term} min="0" max={percentage ? 100 : 1000000} step="0.01" value={term?.multiplier ?? ''} onChange={(event) => update(field, { multiplier: event.target.value })} /></label>
-                                {!fixed && <label><span>Apply when</span><select aria-label={`${label} condition`} disabled={!term} value={term?.when || 'always'} onChange={(event) => update(field, { when: event.target.value })}><option value="always">Always</option><option value="rush">Rush checked</option><option value="notRush">Rush unchecked</option><option value="pdfOnly">PDF Only checked</option><option value="notPdfOnly">PDF Only unchecked</option></select></label>}
+                                <label><span>{percentage ? 'Percentage (%)' : checkboxFields.includes(field) ? 'Flat rate ($)' : 'Rate / fee'}</span><input id={`rule-${field}-multiplier`} aria-label={`${label} ${percentage ? 'percentage' : 'multiplier'}`} type="number" required={!!term} min="0" max={percentage ? 100 : 1000000} step="0.01" value={term?.multiplier ?? ''} onChange={(event) => update(field, { multiplier: event.target.value })} /></label>
                             </div></div>;
                         })}
                     </div>

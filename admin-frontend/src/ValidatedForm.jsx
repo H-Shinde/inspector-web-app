@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { validateInput } from './fieldValidation';
 import './ValidatedForm.css';
 
-export default function ValidatedForm({ children, onSubmit, onChange, onInput, onBlur, ...props }) {
+export default function ValidatedForm({ children, onSubmit, onChange, onInput, onBlur, renderFooter, ...props }) {
     const [errors, setErrors] = useState({});
     const keyFor = (input) => input.id || input.name;
     const validateForm = (form) => {
@@ -23,6 +23,7 @@ export default function ValidatedForm({ children, onSubmit, onChange, onInput, o
         }
         onSubmit?.(event);
     };
+    const errorSummary = Object.keys(errors).length > 0 ? <div className="add_bid_error" role="alert" aria-live="polite">{Object.entries(errors).map(([key, message]) => <p key={key}>{message}</p>)}</div> : null;
     return <form {...props} noValidate onSubmit={submit}
         onChange={(event) => { validateForm(event.currentTarget); onChange?.(event); }}
         onInput={(event) => { validateForm(event.currentTarget); onInput?.(event); }}
@@ -34,7 +35,8 @@ export default function ValidatedForm({ children, onSubmit, onChange, onInput, o
             }
             onBlur?.(event);
         }}>
-        {Object.keys(errors).length > 0 && <div className="add_bid_error" role="alert" aria-live="polite">{Object.entries(errors).map(([key, message]) => <p key={key}>{message}</p>)}</div>}
+        {!renderFooter && errorSummary}
         {children}
+        {renderFooter?.(errorSummary)}
     </form>;
 }

@@ -61,3 +61,8 @@
 .client_typeahead_results li[aria-selected=true] { background: #ebf0f5; }
 .client_typeahead_results span { font-size: 12px; color: #64748b; }
 .client_typeahead_results p { padding: 10px 12px; margin: 0; font-size: 13px; }
+
+.add_bid_page .add_bid_submit_row { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.add_bid_submit_errors { flex: 1 1 240px; min-width: 0; }
+.add_bid_submit_errors .add_bid_error p { margin: 4px 0; }
+.add_bid_page .add_bid_submit_row > button { flex-shrink: 0; margin-left: auto; }

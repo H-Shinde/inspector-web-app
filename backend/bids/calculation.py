@@ -33,6 +33,16 @@ def default_rules():
     return {bid_type: deepcopy([term for term in valuation if bid_type != TYPES[2] or term['field'] != 'additionalCharges'] + percentages) for bid_type in TYPES}
 
 
+def current_settings_rules(rules):
+    """Use the current Settings controls for new bids, leaving saved bid snapshots intact."""
+    return {bid_type: [
+        {**term, 'when': 'always',
+         **({'operation': 'subtract'} if term['field'] == 'discount' else
+            {'operation': 'add'} if term['field'] in ASSET_FIELDS | {'rushDiscount', 'consolidationFee'} else {})}
+        for term in terms if term['field'] != 'completionDays'
+    ] for bid_type, terms in rules.items()}
+
+
 def validate_rules(rules):
     if not isinstance(rules, dict) or set(rules) != set(TYPES):
         raise ValueError('Provide a formula for each bid type.')
@@ -46,6 +56,8 @@ def validate_rules(rules):
             if not isinstance(term, dict) or not {'field', 'operation', 'multiplier', 'when'} <= set(term) or set(term) - {'field', 'operation', 'multiplier', 'when', 'mode'}:
                 raise ValueError('Invalid formula entry.')
             field = term['field']
+            if field == 'completionDays':
+                raise ValueError('Completion days is an integer bid default, not a calculation fee.')
             if not isinstance(field, str) or field not in FIELDS or field in seen:
                 raise ValueError('Choose unique, supported fields.')
             if bid_type == TYPES[2] and field == 'additionalCharges':

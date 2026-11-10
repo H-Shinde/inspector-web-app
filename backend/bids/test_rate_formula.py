@@ -10,7 +10,7 @@ class RateFormulaTests(TestCase):
                       inspectionRate='20', appraisalRate='30', nonAppraisalRate='10',
                       totalInspectedItems='10', totalNonInspectedItems='5', rush=True,
                       rushFee='100', pdfOnly=True, discount='50', reportFormat='Onsite')
-        for report, expected in [('Onsite', '775.00'), ('Desktop', '425.00')]:
+        for report, expected in [('Onsite', '775.00'), ('Desktop', '400.00')]:
             form = BidForm({**values, 'reportFormat': report}, user=user)
             self.assertTrue(form.is_valid(), form.errors)
             bid = form.save(commit=False)

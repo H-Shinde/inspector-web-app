@@ -200,7 +200,8 @@ body {
 
 .auth_logo {
   display: block;
-  width: 120px;
+  width: 220px;
+  max-width: 100%;
   height: auto;
   margin: 0 auto 28px;
 }
@@ -364,3 +365,57 @@ body {
 .auth_submit:disabled { opacity: 0.65; cursor: wait; }
 .logout_error { margin: 8px; color: #9F3030; font-size: 12px; line-height: 1.4; }
 .logout_button:disabled { opacity: 0.65; cursor: wait; }
+
+/* Short, one-time entrances and responsive interaction feedback. */
+@keyframes admin-enter {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes admin-menu-enter {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .auth_card { animation: admin-enter 420ms cubic-bezier(0.22, 1, 0.36, 1); }
+  .auth_footer { animation: admin-enter 500ms ease-out; }
+  .frame_home .main_content { animation: admin-enter 320ms ease-out; }
+  .frame_home .hamburger_dropdown { animation: admin-menu-enter 180ms ease-out; }
+  .popup[open] { animation: admin-enter 220ms ease-out; }
+
+  .auth_submit,
+  .frame_home button {
+    transition: background-color 160ms ease, border-color 160ms ease,
+      box-shadow 160ms ease, transform 160ms ease;
+  }
+
+  .auth_field input {
+    transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+  }
+
+  .auth_field input:focus-visible { box-shadow: 0 0 0 4px rgba(0, 85, 129, 0.1); }
+
+  @media (hover: hover) and (pointer: fine) {
+    .auth_submit:not(:disabled):hover,
+    .frame_home .add_bid_button:not(:disabled):hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 14px rgba(0, 55, 85, 0.18);
+    }
+  }
+
+  .auth_submit:not(:disabled):active,
+  .frame_home .add_bid_button:not(:disabled):active {
+    transform: translateY(0);
+    box-shadow: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth_page *, .auth_page *::before, .auth_page *::after,
+  .frame_home *, .frame_home *::before, .frame_home *::after,
+  .popup, .popup * {
+    animation: none !important;
+    transition: none !important;
+  }
+}

@@ -3,7 +3,7 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from .models import BidSettings
 from .tier_rates import default_tier_tables, validate_tier_tables
-from .calculation import FIELDS, CHECKBOX_FIELDS, ASSET_FIELDS, TYPES, default_rules, validate_rules
+from .calculation import FIELDS, CHECKBOX_FIELDS, ASSET_FIELDS, TYPES, default_rules, validate_rules, current_settings_rules
 
 
 @require_http_methods(['GET', 'PUT'])
@@ -16,7 +16,7 @@ def bid_settings(request):
             data = json.loads(request.body)
             if not isinstance(data, dict) or not {'rules'} <= set(data) or set(data) - {'rules', 'tierRates'}:
                 raise ValueError('Provide calculation rules.')
-            rules = validate_rules(data['rules'])
+            rules = current_settings_rules(validate_rules(data['rules']))
             tables = validate_tier_tables(data.get('tierRates', settings.tierRates))
         except (ValueError, UnicodeDecodeError) as error:
             return JsonResponse({'error': str(error)}, status=400)
@@ -24,7 +24,7 @@ def bid_settings(request):
         settings.tierRates = tables
         settings.save(update_fields=['rules', 'tierRates'])
     return JsonResponse({
-        'rules': settings.rules,
+        'rules': current_settings_rules(settings.rules),
         'tierRates': settings.tierRates,
         'tierDefaults': default_tier_tables(),
         'defaults': default_rules(),
