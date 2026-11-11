@@ -95,7 +95,7 @@ class Bid(models.Model):
     clientPhone = models.CharField(max_length=50, blank=True)
     clientEmail = models.EmailField(blank=True)
 
-    name = models.CharField(max_length=200)
+    name = models.CharField(max_length=200, blank=True)
     subjectContactEmail = models.EmailField(blank=True)
     subjectContactPhone = models.CharField(max_length=50, blank=True)
 

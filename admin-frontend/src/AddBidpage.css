@@ -1,6 +1,10 @@
 @import './Bidspage.css';
 
 .add_bid_page .fieldsframe { display: flex; flex-direction: column; gap: 28px; }
+.add_bid_pricing_section .add_bid_section_fields { grid-template-columns: minmax(0, 1fr); }
+.add_bid_page .add_bid_pricing_section .add_bid_checkbox { padding-top: 0; }
+.add_bid_pricing_section .add_bid_totalBid { padding-top: 16px; border-top: 2px solid #005581; }
+.add_bid_pricing_section .add_bid_totalBid input { color: #005581; font-size: 20px; }
 .add_bid_section { min-width: 0; margin: 0; padding: 20px 0 0; border: 0; border-top: 1px solid #C8D4E0; }
 .add_bid_section legend { padding: 0 12px 0 0; color: #005581; font-size: 18px; font-weight: 600; }
 .add_bid_section_fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }

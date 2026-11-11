@@ -12,7 +12,7 @@ export function csvToBids(text) {
     const unknown = header.filter((title, index) => !columns[index]);
     if (unknown.length) throw new Error(`Unknown CSV columns: ${unknown.join(', ')}.`);
     if (new Set(columns).size !== columns.length) throw new Error('Remove duplicate CSV columns.');
-    for (const required of ['appraisalType', 'businessName', 'name']) {
+    for (const required of ['appraisalType', 'businessName']) {
         if (!columns.includes(required)) throw new Error(`Missing required column: ${required}.`);
     }
     const checkboxes = new Set(fields.filter(([, , type]) => type === 'checkbox').map(([field]) => field));

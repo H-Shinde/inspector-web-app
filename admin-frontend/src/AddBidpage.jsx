@@ -277,7 +277,7 @@ function AddBidpage() {
                 </div>
             )}>
                 {visibleSections.map(([title, fields]) => (
-                    <fieldset className="add_bid_section" key={title}>
+                    <fieldset className={`add_bid_section${['Appraisal Rates', 'Inspection Fees', 'Pricing'].includes(title) ? ' add_bid_pricing_section' : ''}`} key={title}>
                         <legend>{title}</legend>
                         <div className="add_bid_section_fields">
                             {title === 'Client Information' && (
@@ -321,7 +321,7 @@ function AddBidpage() {
                                             value={type === 'checkbox' ? undefined : draft[field]}
                                             checked={type === 'checkbox' ? draft[field] : undefined}
                                             placeholder={type !== 'checkbox' ? `Enter ${label.toLowerCase()}` : undefined}
-                                            required={['name', 'businessName'].includes(field)}
+                                            required={field === 'businessName'}
                                             disabled={(field === 'discount' && !draft.pdfOnly) || (field === 'rushDiscount' && !draft.rush)}
 
                                             onChange={(event) => {

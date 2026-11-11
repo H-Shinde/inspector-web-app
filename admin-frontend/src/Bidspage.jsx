@@ -188,7 +188,7 @@ function Bidspage({ onChange }) {
                     </select> : editDraft && field === 'reportFormat' && editDraft.appraisalType === 'Machinery & Equipment (M&E)' ? <select id={`view-${field}`} value={editDraft[field] ?? ''} onChange={(event) => changeField(field, event.target.value)}>
                         <option value="">Select report format</option><option>Onsite</option><option>Desktop</option>
                     </select> : editDraft && inputType === 'checkbox' ? <input id={`view-${field}`} type="checkbox" checked={['fmvContinuedUse', 'fairMarketValueRemoved', 'orderlyLiquidationValue', 'forcedLiquidationValue'].includes(field) ? Number(editDraft[field]) !== 0 : !!editDraft[field]} onChange={(event) => changeField(field, event.target.checked)} />
-                        : <input id={`view-${field}`} type={editDraft && !['status', 'total', 'subtotal', 'appraisalType'].includes(inputType) ? inputType : 'text'} readOnly={!editDraft || ['status', 'referenceNumber', 'totalBid', 'total', 'totalAppraisal'].includes(field)} required={!!editDraft && ['name', 'businessName'].includes(field)}
+                        : <input id={`view-${field}`} type={editDraft && !['status', 'total', 'subtotal', 'appraisalType'].includes(inputType) ? inputType : 'text'} readOnly={!editDraft || ['status', 'referenceNumber', 'totalBid', 'total', 'totalAppraisal'].includes(field)} required={!!editDraft && field === 'businessName'}
                             min={inputType === 'number' ? 0 : undefined}
                             step={inputType === 'number' ? (['completionDays', 'additionalLocations'].includes(field) ? 1 : 0.01) : undefined}
 
