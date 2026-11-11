@@ -26,6 +26,8 @@ class Client(models.Model):
         return self.name
         
 class Inspector(models.Model):
+    invitationNonce = models.UUIDField(null=True, blank=True, editable=False)
+    invitationSentAt = models.DateTimeField(null=True, blank=True, editable=False)
     user = models.OneToOneField(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='inspector_profile')
     rating = models.PositiveSmallIntegerField(default=0, validators=[MaxValueValidator(5)])
     owner = models.ForeignKey(

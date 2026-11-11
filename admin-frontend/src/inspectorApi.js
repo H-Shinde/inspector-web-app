@@ -9,3 +9,5 @@ export function listInspectors({ zipCode, clientId, includeInactive = false } = 
 export const createInspector = (draft) => apiWrite('/api/inspectors/', draft);
 export const updateInspector = (id, draft) => apiWrite(`/api/inspectors/${encodeURIComponent(id)}/`, draft, { method: 'PATCH' });
 export const getInspector = (id, signal) => apiRequest(`/api/inspectors/${encodeURIComponent(id)}/`, { signal });
+
+export const resendInspectorInvitation = (id) => apiWrite(`/api/inspectors/${encodeURIComponent(id)}/invite/`, {});

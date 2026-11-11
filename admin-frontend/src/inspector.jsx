@@ -1,3 +1,4 @@
+import { resendInspectorInvitation } from './inspectorApi';
 import { useUpdatesRefresh } from './updates';
 import { RecordUpdateBadge } from './updates';
 import { UpdateBadge } from './updates';
@@ -31,6 +32,7 @@ const ACTIONS_COLUMN = fields.length + 1;
 
 function InspectorActions({ row, onMessage, onRate, busy }) {
     return <div className="action_buttons">
+        {!row.isRegistered && <button type="button" disabled={busy || !row.is_active} title="Resend invitation" aria-label={`Resend invitation to ${row.email}`} onClick={() => onInvite(row)}>Resend invite</button>}
         <button type="button" title="Message inspector" aria-label={`Message ${row.name}`} onClick={() => onMessage(row)}><FaEnvelope /></button>
         <button type="button" disabled={busy} title="Rate inspector" aria-label={`Rate ${row.name}`} onClick={() => onRate(row)}><span aria-hidden="true">★</span></button>
     </div>;
@@ -59,6 +61,20 @@ export default function Inspector() {
     useUpdatesRefresh('inspector', reload);
     const [menuOpen, setMenuOpen] = useState(false);
     const [adding, setAdding] = useState(false);
+    const [invitationBusy, setInvitationBusy] = useState(false);
+    const [invitationNotice, setInvitationNotice] = useState('');
+    const [invitationError, setInvitationError] = useState('');
+    const invitationMessage = (saved) => saved.invitationDelivery !== 'email'
+        ? `Invitation prepared for ${saved.email}. ${saved.invitationDelivery === 'console' ? 'The registration email is shown in the backend terminal.' : 'A development email backend is configured.'} No email was sent to the inbox.`
+        : `Invitation emailed to ${saved.email}. The registration link expires in 7 days.`;
+    const resend = async (inspector) => {
+        if (invitationBusy) return;
+        setInvitationBusy(true); setInvitationError(''); setInvitationNotice('');
+        try { const saved = await resendInspectorInvitation(inspector.id); setInvitationNotice(invitationMessage(saved)); reload(); }
+        catch (error) { setInvitationError(error.message); }
+        finally { setInvitationBusy(false); }
+    };
+
     const [editing, setEditing] = useState(null);
     const [ratingBusy, setRatingBusy] = useState(false);
     const [ratingError, setRatingError] = useState('');
@@ -92,16 +108,18 @@ export default function Inspector() {
             </nav>
             <main className="main_content">
                 <div className="table_header"><div><h1>Inspectors</h1><p>Manage inspectors and their service locations.</p></div></div>
+                {invitationNotice && <p role="status">{invitationNotice}</p>}
+                {invitationError && <p role="alert">{invitationError}</p>}
                 {loading && <p role="status">Loading inspectors…</p>}
                 {ratingError && <p role="alert">{ratingError}</p>}
                 {error && <p role="alert">{error} <button type="button" onClick={reload}>Retry</button></p>}
                 <section className="bids_panel" aria-label="Inspectors">
                     <div className="table_top_header">
-                        <button type="button" className="add_bid_button" onClick={() => setAdding(true)}>+ Add Inspector</button>
+                        <button type="button" className="add_bid_button" onClick={() => setAdding(true)}>+ Invite Inspector</button>
                     </div>
                     <div className="bids_table_container" onClick={openRow} onKeyDown={handleRowKeyDown}>
                         <DataTable ref={table} data={rows} columns={columns} className="bids_table"
-                            slots={{ 1: (data, type, row) => <span>{row.name}<RecordUpdateBadge kind="inspector" id={row.id} /></span>, [ACTIONS_COLUMN]: (data, type, row) => <InspectorActions row={row} busy={ratingBusy} onRate={(inspector) => { setSelectedRating(inspector.rating || 0); setRatingError(''); setRatingTarget(inspector); }}
+                            slots={{ 1: (data, type, row) => <span>{row.name}{!row.isRegistered && <small style={{ display: 'block' }}>Invitation pending</small>}<RecordUpdateBadge kind="inspector" id={row.id} /></span>, [ACTIONS_COLUMN]: (data, type, row) => <InspectorActions row={row} busy={ratingBusy || invitationBusy} onInvite={resend} onRate={(inspector) => { setSelectedRating(inspector.rating || 0); setRatingError(''); setRatingTarget(inspector); }}
                                 onMessage={(inspector) => {
                                     selectGlobalInspector(inspector.id);
                                     window.location.href = `/Messaging?inspectorId=${encodeURIComponent(inspector.id)}`;
@@ -143,7 +161,7 @@ export default function Inspector() {
                     <div className="actions"><button type="button" className="bid_form_cancel" onClick={closeDetails}>Close</button><button type="button" className="bid_form_save" onClick={() => { setEditing(viewedInspector); closeDetails(); }}>Edit Inspector</button></div>
                 </>}
             </dialog>
-            {(adding || editing) && <InspectorDialog inspector={editing} onClose={() => { setAdding(false); setEditing(null); }} onSaved={() => { setAdding(false); setEditing(null); reload(); }} />}
+            {(adding || editing) && <InspectorDialog inspector={editing} onClose={() => { setAdding(false); setEditing(null); }} onSaved={(saved) => { setAdding(false); setEditing(null); reload(); if (saved.invitationDelivery) setInvitationNotice(invitationMessage(saved)); }} />}
             <footer className="bid_page_footer" />
         </div>
     );

@@ -27,7 +27,7 @@ if _email_config_path.exists():
             if _key in {
                 'EMAIL_BACKEND', 'EMAIL_HOST', 'EMAIL_PORT', 'EMAIL_USE_TLS',
                 'EMAIL_HOST_USER', 'EMAIL_HOST_PASSWORD', 'DEFAULT_FROM_EMAIL',
-                'FRONTEND_URL',
+                'FRONTEND_URL', 'INSPECTOR_FRONTEND_URL', 'EMAIL_USE_SSL',
             } and _value:
                 os.environ.setdefault(_key, str(_value))
 
@@ -147,13 +147,14 @@ DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL") or (
     if os.environ.get('EMAIL_HOST_USER') else "Bison Valuation <noreply@localhost>"
 )
 PASSWORD_RESET_TIMEOUT = 3600
-_email_backend = os.environ.get("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
+_email_backend = os.environ.get("EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend" if os.environ.get("EMAIL_HOST") else "django.core.mail.backends.console.EmailBackend")
 _smtp_options = {
     "host": os.environ.get("EMAIL_HOST", "localhost"),
     "port": int(os.environ.get("EMAIL_PORT", "587")),
     "username": os.environ.get("EMAIL_HOST_USER", ""),
     "password": os.environ.get("EMAIL_HOST_PASSWORD", ""),
-    "use_tls": os.environ.get("EMAIL_USE_TLS", "true").lower() == "true",
+    "use_tls": os.environ.get("EMAIL_USE_TLS", "false" if os.environ.get("EMAIL_USE_SSL", "false").lower() == "true" else "true").lower() == "true",
+    "use_ssl": os.environ.get("EMAIL_USE_SSL", "false").lower() == "true",
     "timeout": 10,
 }
 if DJANGO_VERSION >= (6, 1):
@@ -167,6 +168,7 @@ else:
     EMAIL_HOST_USER = _smtp_options["username"]
     EMAIL_HOST_PASSWORD = _smtp_options["password"]
     EMAIL_USE_TLS = _smtp_options["use_tls"]
+    EMAIL_USE_SSL = _smtp_options["use_ssl"]
     EMAIL_TIMEOUT = _smtp_options["timeout"]
 
 INSTALLED_APPS += ["accounts"]

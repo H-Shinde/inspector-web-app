@@ -13,7 +13,7 @@ class InspectorDirectoryTests(TestCase):
         self.assertEqual(mail.outbox[-1].to, ['invited@example.com'])
         self.assertIn('invited', mail.outbox[-1].body)
 
-    @patch('bids.inspector_views.send_mail', side_effect=RuntimeError('SMTP unavailable'))
+    @patch('bids.invitations.send_mail', side_effect=RuntimeError('SMTP unavailable'))
     def test_failed_invitation_does_not_create_inspector(self, send):
         response = self.client.post('/api/inspectors/', data=json.dumps({'email': 'failed@example.com'}), content_type='application/json')
         self.assertEqual(response.status_code, 503)

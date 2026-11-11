@@ -21,7 +21,7 @@ export default function InspectorDialog({ inspector, onSaved, onClose }) {
     };
     return <dialog ref={dialog} className="popup" aria-labelledby="inspector-form-title" onCancel={(event) => { event.preventDefault(); close(); }}>
         <ValidatedForm onSubmit={save} aria-label={inspector ? 'Edit inspector' : 'Add inspector'}>
-            <div className="bid_form_header"><h2 id="inspector-form-title">{inspector ? 'Edit Inspector' : 'Add Inspector'}</h2><button type="button" className="bid_form_close" aria-label="Close inspector form" disabled={busy} onClick={close}>×</button></div>
+            <div className="bid_form_header"><h2 id="inspector-form-title">{inspector ? 'Edit Inspector' : 'Invite Inspector'}</h2><button type="button" className="bid_form_close" aria-label="Close inspector form" disabled={busy} onClick={close}>×</button></div>
             {error && <p role="alert" className="add_bid_error">{error}</p>}
             {inspector ? <InspectorFormFields draft={draft} disabled={busy} onChange={(field, value) => setDraft({ ...draft, [field]: value })} /> :
                 <div className="bid_form_body"><div className="bid_form_field"><label htmlFor="new-inspector-email">E-mail</label><input id="new-inspector-email" name="email" type="email" required maxLength={254} disabled={busy} value={draft.email} onChange={(event) => setDraft({ ...draft, email: event.target.value })} /></div></div>}

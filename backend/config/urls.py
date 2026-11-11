@@ -11,7 +11,9 @@ from bids.live_updates import job_events
 from bids.message_views import messages, attachment
 from bids.live_updates import message_events
 from bids.notification_views import notifications, notification_events
+from bids.inspector_views import resend_invitation
 urlpatterns = [
+    path('api/inspectors/<int:pk>/invite/', resend_invitation),
     path('api/notifications/', notifications),
     path('api/notification-events/', notification_events),
     path('api/inspector/notifications/', notifications),

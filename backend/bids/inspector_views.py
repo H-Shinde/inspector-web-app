@@ -3,13 +3,15 @@ import math
 import re
 from urllib.parse import urlencode
 from django.core import signing
+from django.contrib.auth import get_user_model
+from .invitations import send_invitation
 import logging
 from django.conf import settings
 from django.core.mail import send_mail
 from django.db import transaction
 from django import forms
 from django.db.models.deletion import ProtectedError
-from django.http import JsonResponse
+from django.http import JsonResponse, Http404
 from django.shortcuts import get_object_or_404
 from django.views.decorators.http import require_http_methods
 from .models import Inspector, Client
@@ -45,6 +47,8 @@ def serialize_inspector(inspector, origin=None):
         'id': inspector.pk,
         **{field: getattr(inspector, field) for field in InspectorForm.Meta.fields},
         'status': 'Active' if inspector.is_active else 'Inactive',
+        'isRegistered': bool(inspector.user_id),
+        'invitationSentAt': inspector.invitationSentAt,
         'cityStateZip': ', '.join(filter(None, [inspector.city, ' '.join(filter(None, [inspector.state, inspector.zipCode]))])),
         'latitude': location[0] if location else None,
         'longitude': location[1] if location else None,
@@ -59,6 +63,14 @@ def save_inspector(request, instance=None):
             raise ValueError()
     except (ValueError, UnicodeDecodeError):
         return JsonResponse({'error': 'Provide a valid JSON object.'}, status=400)
+    if isinstance(data.get('email'), str):
+        data['email'] = data['email'].strip().lower()
+    if instance is None:
+        email = data.get('email', '')
+        if get_user_model().objects.filter(email__iexact=email).exists():
+            return JsonResponse({'error': 'This email already has an account. Ask the inspector to log in.'}, status=409)
+        if Inspector.objects.filter(owner=request.user, email__iexact=email).exists():
+            return JsonResponse({'error': 'This inspector is already in your directory. Use Resend invitation to send a new registration link.'}, status=409)
     current = {field: getattr(instance, field) for field in InspectorForm.Meta.fields} if instance else {'is_active': True, 'focus': 'Inspection', 'rating': 0}
     if instance is None and 'name' not in data and isinstance(data.get('email'), str):
         current['name'] = data['email'].strip()[:200]
@@ -72,23 +84,13 @@ def save_inspector(request, instance=None):
         with transaction.atomic():
             inspector.save()
             if instance is None:
-                token = signing.dumps({'inspectorId': inspector.pk, 'email': inspector.email}, salt='inspector-registration')
-                registration_url = settings.INSPECTOR_FRONTEND_URL.rstrip('/') + '/?' + urlencode({'token': token, 'email': inspector.email, 'name': inspector.name})
-                sent = send_mail(
-                    'Invitation to Bison Valuation',
-                    'You have been invited to work as an inspector with Bison Valuation.\n\n'
-                    f'Open the inspector app to register and complete your profile:\n{registration_url}\n\n'
-                    'Bison Valuation',
-                    settings.DEFAULT_FROM_EMAIL,
-                    [inspector.email],
-                    fail_silently=False,
-                )
-                if sent != 1:
-                    raise RuntimeError('Email backend did not accept the invitation.')
+                delivery = send_invitation(inspector)
     except Exception:
         logging.getLogger(__name__).exception('Unable to save inspector or send invitation')
         return JsonResponse({'error': 'Unable to send the inspector invitation. Check the email configuration and try again.'}, status=503)
-    return JsonResponse(serialize_inspector(inspector), status=200 if instance else 201)
+    result = serialize_inspector(inspector)
+    if instance is None: result['invitationDelivery'] = delivery
+    return JsonResponse(result, status=200 if instance else 201)
 
 
 @require_http_methods(['GET', 'POST'])
@@ -134,3 +136,21 @@ def inspector_detail(request, pk):
     except ProtectedError:
         return JsonResponse({'error': 'This inspector is assigned to bids. Mark them inactive instead.'}, status=409)
     return JsonResponse({'deleted': True})
+
+
+@require_http_methods(['POST'])
+def resend_invitation(request, pk):
+    if not request.user.is_authenticated:
+        return JsonResponse({'error': 'Sign in required.'}, status=401)
+    try:
+        with transaction.atomic():
+            inspector = get_object_or_404(Inspector.objects.select_for_update(), pk=pk, owner=request.user)
+            if inspector.user_id or not inspector.is_active:
+                return JsonResponse({'error': 'This inspector is already registered or inactive.'}, status=409)
+            delivery = send_invitation(inspector)
+        return JsonResponse({**serialize_inspector(inspector), 'invitationDelivery': delivery})
+    except Http404:
+        raise
+    except Exception:
+        logging.getLogger(__name__).exception('Unable to resend inspector invitation')
+        return JsonResponse({'error': 'Unable to email the invitation. Check the email configuration and try again.'}, status=503)

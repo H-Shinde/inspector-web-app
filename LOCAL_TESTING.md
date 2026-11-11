@@ -45,3 +45,15 @@ Open a conversation to clear its loaded messages. Open a job to acknowledge chan
 Both apps use the same locally bundled Inter variable font, defined in `src/typography.css` and `admin-frontend/src/typography.css`. Vite fingerprints the WOFF2 asset; each HTML entry preloads the same font used by its CSS. No runtime font request goes to Google Fonts. Inter's SIL Open Font License is included in each app's public/fonts directory.
 
 Source: https://github.com/rsms/inter (InterVariable.woff2, LICENSE.txt). Keep the two typography files and font assets identical when updating branding. UI text uses weights 400, 500, 600 and 700; tables and numeric fields use aligned tabular figures.
+
+## Invite-only inspector registration
+
+In the admin Inspector directory, choose Invite Inspector and enter their email. Every invitation has a randomly generated, signed, email-bound link. Links expire after seven days and are consumed by registration. Resend invite replaces the previous link without creating a second inspector. Registered or inactive inspectors cannot receive a new signup invite.
+
+The inspector app validates the invitation before displaying registration and uses the email returned by the server; query-string name/email values are not trusted. Existing registered inspectors use Log in.
+
+For delivery to real inboxes, copy backend/email_config.example.json to backend/email_config.json and replace the placeholders with your provider's SMTP details, verified sender, and deployed inspector-app URL. The private config is gitignored. Environment variables override this file. Never commit real mail credentials. With the default console backend, the email is printed in the backend terminal and the admin UI explicitly says it has not been emailed. Restart Django after configuring email.
+
+### Gmail setup
+
+Enable 2-Step Verification on the sending Google account and create an app password at https://myaccount.google.com/apppasswords. From the project root run `.venv\Scripts\python.exe backend\configure_gmail.py`. It prompts for the sender address, a hidden app password, and the inspector app URL; it verifies SMTP authentication over TLS before saving the gitignored configuration. It sends no test email. Restart Django and use Resend invite.

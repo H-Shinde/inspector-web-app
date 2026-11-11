@@ -1,3 +1,4 @@
+import InvitationGate from './components/InvitationGate';
 import { UpdatesProvider, useRecordSeen, useConversationSeen, useUpdatesRefresh } from './updates';
 import { useState, useEffect } from "react";
 import { inspectorRequest, inspectorJob } from './inspectorApi';
@@ -18,7 +19,7 @@ import logo from "./assets/logo.png";
 
 // Placeholder invite data — in the real app, load this from the invite link/token.
 const invitation = new URLSearchParams(window.location.search);
-const INVITE = { fullName: invitation.get('name') || '', email: invitation.get('email') || '', inspectorId: '' };
+
 
 // Every part starts completely empty, so it shows as "To-do" until the inspector fills it in.
 const mkPart = (id, name) => ({
@@ -53,9 +54,10 @@ function AppContent() {
   // "invite" | "setup" | "welcome" | "login" | "forgot" | "dashboard" | "job" | "parts" | "sheet"
   // Tip: change "invite" to "login" below if you want the app to open on the login screen.
   const [step, setStep] = useState(window.location.pathname.endsWith('/UpdatePass') ? 'reset' : invitation.get('token') ? 'invite' : 'checking');
-  const [name, setName] = useState(INVITE.fullName);
-  const [email, setEmail] = useState(INVITE.email);
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
   const [inspectorId, setInspectorId] = useState(null);
+  const [validatedInvite, setValidatedInvite] = useState(null);
   const [jobs, setJobs] = useState([]);
   const [jobError, setJobError] = useState('');
   const loadJobs = async () => {
@@ -164,14 +166,16 @@ function AppContent() {
   </div>;
 
   if (step === "invite")
-    return <InspectorInvitation logoSrc={logo} onContinue={() => setStep("setup")} onLogin={() => setStep("login")} />;
+    return <InvitationGate token={invitation.get('token')} logoSrc={logo} onLogin={() => { window.history.replaceState(null, '', window.location.pathname); setStep('login'); }}>
+      {(details) => <InspectorInvitation logoSrc={logo} onContinue={() => { setValidatedInvite(details); setName(details.fullName); setEmail(details.email); setStep('setup'); }} onLogin={() => { window.history.replaceState(null, '', window.location.pathname); setStep('login'); }} />}
+    </InvitationGate>;
 
   if (step === "setup")
     return (
       <ProfileSetup
         logoSrc={logo}
-        fullName={INVITE.fullName}
-        email={INVITE.email}
+        fullName={validatedInvite?.fullName || ''}
+        email={validatedInvite?.email || ''}
         onSubmit={async ({ fullName, email: newEmail, password, ...profile }) => {
           const token = invitation.get('token');
           if (!token) throw new Error('Open the registration link in your invitation email.');

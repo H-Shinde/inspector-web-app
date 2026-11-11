@@ -8,6 +8,7 @@ from django.db import transaction, IntegrityError
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from .models import Inspector
+from .invitations import INVITATION_AGE
 from .inspector_views import InspectorForm
 
 
@@ -17,13 +18,13 @@ def inspector_registration(request):
         data = json.loads(request.body) if request.method == 'POST' else request.GET
         if not hasattr(data, 'get'):
             raise ValueError('Invalid request.')
-        invite = signing.loads(data.get('token', ''), salt='inspector-registration', max_age=7 * 24 * 3600)
+        invite = signing.loads(data.get('token', ''), salt='inspector-registration', max_age=INVITATION_AGE)
         with transaction.atomic():
             inspector = Inspector.objects.select_for_update().filter(pk=invite['inspectorId'], email=invite['email'], is_active=True).first()
-            if inspector is None or inspector.user_id:
+            if inspector is None or inspector.user_id or (inspector.invitationNonce and invite.get('nonce') != str(inspector.invitationNonce)):
                 return JsonResponse({'error': 'Invitation is unavailable or already used.'}, status=400)
             if request.method == 'GET':
-                return JsonResponse({'email': inspector.email, 'fullName': inspector.name, 'inspectorId': inspector.pk})
+                return JsonResponse({'email': inspector.email, 'fullName': '' if inspector.name.casefold() == inspector.email.casefold() else inspector.name, 'inspectorId': inspector.pk})
             name = data.get('fullName', '')
             password = data.get('password', '')
             if not isinstance(name, str) or not name.strip() or len(name.strip()) > 200 or not isinstance(password, str):
@@ -50,7 +51,7 @@ def inspector_registration(request):
             inspector.name = name.strip()
             inspector.user = user
             inspector.save()
-            return JsonResponse({'registered': True, 'status': 'Active' if inspector.is_active else 'Inactive', 'email': inspector.email, 'fullName': inspector.name, 'inspectorId': inspector.pk}, status=201)
+            return JsonResponse({'registered': True, 'status': 'Active' if inspector.is_active else 'Inactive', 'email': inspector.email, 'fullName': '' if inspector.name.casefold() == inspector.email.casefold() else inspector.name, 'inspectorId': inspector.pk}, status=201)
     except signing.BadSignature:
         return JsonResponse({'error': 'Invitation link is invalid or expired. Request a new invitation.'}, status=400)
     except ValidationError as error:
