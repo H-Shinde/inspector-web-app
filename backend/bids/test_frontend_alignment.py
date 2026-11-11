@@ -38,7 +38,7 @@ class FrontendAlignmentTests(TestCase):
         self.assertEqual(result.json()['valueDate'], '2026-01-02')
 
     def test_invalid_days_dates_and_required_fields(self):
-        for change in [dict(completionDays='1.5'), dict(completionDays=-1), dict(valueDate='bad'), dict(name=''), dict(businessName='')]:
+        for change in [dict(completionDays='1.5'), dict(completionDays=-1), dict(valueDate='bad'), dict(businessName='')]:
             response = self.client.post('/api/bids/', data=json.dumps({**self.values, 'appraisalType': TYPES[0], **change}), content_type='application/json')
             self.assertEqual(response.status_code, 400, response.content)
             self.assertIn('fields', response.json())
@@ -101,3 +101,7 @@ class FrontendAlignmentTests(TestCase):
             self.assertEqual(next(t for t in terms if t['field'] == 'discount')['operation'], 'subtract')
         self.assertEqual(self.client.get('/api/bid-settings/').json(), response.json())
 
+
+    def test_contact_name_is_optional_as_in_admin_form(self):
+        bid = self.create(appraisalType=TYPES[0], name='')
+        self.assertEqual(bid['name'], '')
