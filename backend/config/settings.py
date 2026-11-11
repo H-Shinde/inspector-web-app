@@ -57,11 +57,12 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-    "django.contrib.sessions.middleware.SessionMiddleware",
+    "accounts.app_sessions.AppSessionMiddleware",
     "django.middleware.common.CommonMiddleware",
-    "django.middleware.csrf.CsrfViewMiddleware",
+    "accounts.app_sessions.AppCsrfMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "accounts.access.AdminAppAccessMiddleware",
+    "accounts.request_actor.RequestActorMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -178,3 +179,7 @@ INSTALLED_APPS += ["bids"]
 
 # Private agreements are served by authenticated API views.
 MEDIA_ROOT = BASE_DIR / "media"
+
+# Separate browser sessions and CSRF secrets for the two apps.
+INSPECTOR_SESSION_COOKIE_NAME = "inspector_sessionid"
+INSPECTOR_CSRF_COOKIE_NAME = "inspector_csrftoken"

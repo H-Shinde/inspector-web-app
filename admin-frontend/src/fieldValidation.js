@@ -12,6 +12,7 @@ export function fieldError(field, value, { required = false, type = 'text' } = {
     if (/^(clientState|state)$/.test(field)) return stateCodes.has(text.toUpperCase()) ? '' : 'Enter a valid two-letter state code, such as NY.';
     if (/^(clientCity|city)$/.test(field) && !/^[\p{L}][\p{L}\p{M} .’'\-]*$/u.test(text)) return 'Enter a city name, such as New York.';
     if (type === 'email' || /email$/i.test(field)) return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text) ? '' : 'Enter a valid email address, such as name@example.com.';
+    if (field === 'year' && text.toUpperCase() === 'N/A') return '';
     if (field === 'year') return /^\d{4}$/.test(text) && Number(text) >= 1000 ? '' : 'Enter a four-digit year.';
     if (type === 'number' || integers.has(field)) {
         if (!Number.isFinite(Number(text)) || Number(text) < 0) return 'Enter a number greater than or equal to zero.';

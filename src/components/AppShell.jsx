@@ -5,8 +5,6 @@ import React, { useState } from "react";
  * Props: tag (pill text in the bar), logoSrc, footer (node), children.
  */
 const CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@600&family=Inter:wght@400;500;600;700&display=swap');
-
 .bv {
   --brand: #005581; --brand-press: #00456a; --brand-tint: #e8f1f6;
   --ink: #0f172a; --muted: #5b6b7b; --line: #e5e9ee; --field: #f5f7fa;
@@ -14,7 +12,7 @@ const CSS = `
   all: initial;
   display: flex; flex-direction: column; min-height: 100dvh; width: 100%;
   background: #fff; color: var(--ink); color-scheme: light; text-align: left;
-  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-family: var(--font-family-ui);
   -webkit-font-smoothing: antialiased; box-sizing: border-box;
 }
 .bv *, .bv *::before, .bv *::after { box-sizing: border-box; }
@@ -25,7 +23,7 @@ const CSS = `
 .bv__bar-in { max-width: 480px; margin: 0 auto; height: 56px; padding: 0 20px;
   display: flex; align-items: center; gap: 10px; }
 .bv__logo { height: 28px; width: auto; flex: none; }
-.bv__brand { flex: 1; min-width: 0; font-family: 'Source Serif 4', Georgia, serif;
+.bv__brand { flex: 1; min-width: 0; font-family: var(--font-family-ui);
   font-weight: 600; font-size: 18px; letter-spacing: -0.01em; color: var(--ink);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .bv__tag { flex: none; background: var(--brand-tint); color: var(--brand);

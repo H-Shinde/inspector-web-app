@@ -1,3 +1,4 @@
+import { UpdatesProvider } from './updates';
 import ValidatedForm from './ValidatedForm';
 import { useEffect, useState } from 'react';
 import { authPost, getCurrentUser } from './authApi';
@@ -93,8 +94,7 @@ function App() {
     const next = Page ? `${path}${window.location.search}${window.location.hash}` : new URLSearchParams(window.location.search).get('next');
     return <Login destination={safeDestination(next)} />;
   }
-  if (Page) return <Page />;
-  return <Homepage />;
+  return <UpdatesProvider>{Page ? <Page /> : <Homepage />}</UpdatesProvider>;
 }
 
 export default App;

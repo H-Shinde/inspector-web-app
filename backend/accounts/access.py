@@ -7,7 +7,7 @@ class AdminAppAccessMiddleware:
 
     def __call__(self, request):
         admin_api = any(request.path.startswith(prefix) for prefix in [
-            '/api/bids/', '/api/jobs/', '/api/clients/', '/api/inspectors/', '/api/bid-settings/',
+            '/api/bids/', '/api/jobs/', '/api/clients/', '/api/inspectors/', '/api/bid-settings/', '/api/notifications/', '/api/notification-events/', '/api/messages/', '/api/message-events/',
         ])
         if admin_api and request.user.is_authenticated and request.user.email.casefold() != 'admin@email.com':
             return JsonResponse({'error': 'Admin access required.'}, status=403)

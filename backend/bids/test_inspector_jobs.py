@@ -1,3 +1,4 @@
+from accounts.test_helpers import force_inspector_login
 import json
 from django.test import TestCase
 from django.contrib.auth import get_user_model
@@ -12,7 +13,7 @@ class InspectorJobsTests(TestCase):
         self.inspector = Inspector.objects.create(owner=self.owner, user=self.user, name='Inspector', email=self.user.email)
         bid = Bid.objects.create(owner=self.owner, name='Contact', businessName='Example', appraisalType='Business Valuation (BV)')
         self.job = Job.objects.create(owner=self.owner, source_bid=bid, inspector=self.inspector, status='Assigned')
-        self.client.force_login(self.user)
+        force_inspector_login(self.client, self.user)
 
     def action(self, action, revision=0):
         return self.client.post(f'/api/inspector/jobs/{self.job.pk}/', data=json.dumps({'action': action, 'revision': revision}), content_type='application/json')
@@ -27,8 +28,8 @@ class InspectorJobsTests(TestCase):
         self.job.save(update_fields=['inspectionParts'])
         self.assertEqual(self.action('complete', revision=1).status_code, 200)
         self.job.refresh_from_db()
-        self.assertEqual(self.job.status, 'Complete')
-        self.assertIsNotNone(self.job.completedAt)
+        self.assertEqual(self.job.status, 'Pending Review')
+        self.assertIsNone(self.job.completedAt)
         self.assertEqual(self.action('decline').status_code, 409)
 
     def test_decline_returns_job_to_admin(self):
@@ -41,7 +42,7 @@ class InspectorJobsTests(TestCase):
     def test_other_inspector_cannot_change_job(self):
         other = get_user_model().objects.create_user(username='other', email='other@example.com')
         Inspector.objects.create(owner=self.owner, user=other, name='Other', email=other.email)
-        self.client.force_login(other)
+        force_inspector_login(self.client, other)
         self.assertEqual(self.action('complete').status_code, 404)
 
     def test_parts_persist_and_submission_rejects_incomplete_data(self):

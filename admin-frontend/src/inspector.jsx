@@ -1,3 +1,6 @@
+import { useUpdatesRefresh } from './updates';
+import { RecordUpdateBadge } from './updates';
+import { UpdateBadge } from './updates';
 import LogoutButton from './LogoutButton';
 import { useEffect, useRef, useState } from 'react';
 import DataTable from 'datatables.net-react';
@@ -53,6 +56,7 @@ export default function Inspector() {
         }
     };
     const { inspectors: rows, loading, error, reload } = useInspectorDirectory(true);
+    useUpdatesRefresh('inspector', reload);
     const [menuOpen, setMenuOpen] = useState(false);
     const [adding, setAdding] = useState(false);
     const [editing, setEditing] = useState(null);
@@ -77,7 +81,7 @@ export default function Inspector() {
                 <div className="nav_links">
                     {['Bids', 'History', 'Inspector', 'Clients', 'Reports', 'Messaging'].map((label) => (
                         <div key={label} className={label === 'Inspector' ? 'bids_box_selected' : ''}>
-                            <a className="nav_bar_text" href={label === 'Bids' ? '/Homepage' : `/${label}`} aria-current={label === 'Inspector' ? 'page' : undefined}>{label}</a>
+                            <a className="nav_bar_text" href={label === 'Bids' ? '/Homepage' : `/${label}`} aria-current={label === 'Inspector' ? 'page' : undefined}>{label}<UpdateBadge kind={label === 'Messaging' ? 'message' : label === 'Bids' ? 'work' : label === 'Inspector' ? 'inspector' : label === 'Clients' ? 'client' : null} /></a>
                         </div>
                     ))}
                 </div>
@@ -97,7 +101,7 @@ export default function Inspector() {
                     </div>
                     <div className="bids_table_container" onClick={openRow} onKeyDown={handleRowKeyDown}>
                         <DataTable ref={table} data={rows} columns={columns} className="bids_table"
-                            slots={{ [ACTIONS_COLUMN]: (data, type, row) => <InspectorActions row={row} busy={ratingBusy} onRate={(inspector) => { setSelectedRating(inspector.rating || 0); setRatingError(''); setRatingTarget(inspector); }}
+                            slots={{ 1: (data, type, row) => <span>{row.name}<RecordUpdateBadge kind="inspector" id={row.id} /></span>, [ACTIONS_COLUMN]: (data, type, row) => <InspectorActions row={row} busy={ratingBusy} onRate={(inspector) => { setSelectedRating(inspector.rating || 0); setRatingError(''); setRatingTarget(inspector); }}
                                 onMessage={(inspector) => {
                                     selectGlobalInspector(inspector.id);
                                     window.location.href = `/Messaging?inspectorId=${encodeURIComponent(inspector.id)}`;

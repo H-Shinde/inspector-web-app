@@ -35,12 +35,12 @@ const css = `
 .pa__search { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; height: 42px; padding: 0 14px; border: 1px solid var(--line);
   border-radius: 21px; background: #fff; color: var(--muted); transition: border-color 160ms ease, box-shadow 160ms ease; }
 .pa__search:focus-within { border-color: var(--brand); box-shadow: 0 0 0 3px rgba(0,85,129,.14); }
-.pa__search input { flex: 1; min-width: 0; border: 0; outline: none; background: none; font: 500 14px 'Inter', system-ui, sans-serif; color: var(--ink); }
+.pa__search input { flex: 1; min-width: 0; border: 0; outline: none; background: none; font: 500 14px var(--font-family-ui); color: var(--ink); }
 .pa__search input::placeholder { color: #94a3b8; }
 .pa__menu { position: absolute; z-index: 5; top: 50px; left: 0; min-width: 170px; padding: 6px; border-radius: 14px; background: #fff; border: 1px solid var(--line);
   box-shadow: 0 16px 32px -12px rgba(15,23,42,.3); transform-origin: top left; animation: pa-pop 160ms cubic-bezier(.2,.8,.2,1) both; }
 @keyframes pa-pop { from { opacity: 0; transform: scale(.92); } to { opacity: 1; transform: none; } }
-.pa__mi { width: 100%; appearance: none; border: 0; background: none; text-align: left; padding: 10px 12px; border-radius: 9px; font: 500 14px 'Inter', system-ui, sans-serif;
+.pa__mi { width: 100%; appearance: none; border: 0; background: none; text-align: left; padding: 10px 12px; border-radius: 9px; font: 500 14px var(--font-family-ui);
   color: var(--ink); display: flex; align-items: center; justify-content: space-between; gap: 12px; cursor: pointer; }
 .pa__mi:hover { background: var(--field); }
 .pa__mi[aria-checked="true"] { color: var(--brand); font-weight: 600; }
@@ -49,7 +49,7 @@ const css = `
 .pa__card { margin-top: 14px; padding: 12px; border: 1px solid var(--line); border-radius: 16px; background: #fff; box-shadow: 0 1px 2px rgba(15,23,42,.04); }
 .pa__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 .pa__part { position: relative; width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px; appearance: none; text-align: left;
-  padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--field); color: var(--ink); font: 600 15px 'Inter', system-ui, sans-serif; cursor: pointer;
+  padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--field); color: var(--ink); font: 600 15px var(--font-family-ui); cursor: pointer;
   transition: transform 160ms ease, background-color 160ms ease, border-color 160ms ease, box-shadow 200ms ease; -webkit-tap-highlight-color: transparent; }
 .pa__part:hover { background: #fff; border-color: #c9dde8; box-shadow: 0 10px 20px -12px rgba(0,85,129,.35); transform: translateY(-1px); }
 .pa__part:active { transform: scale(.985); }
@@ -63,12 +63,13 @@ const css = `
 .pa__empty { padding: 28px 12px; text-align: center; font-size: 14px; line-height: 1.5; color: var(--muted); }
 
 .pa__done { margin-top: 18px; width: 100%; height: 52px; appearance: none; border: 0; border-radius: 12px; background: var(--brand); color: #fff;
-  font: 600 16px 'Inter', system-ui, sans-serif; cursor: pointer; transition: background-color 140ms ease, transform 140ms ease, opacity 140ms ease; }
+  font: 600 16px var(--font-family-ui); cursor: pointer; transition: background-color 140ms ease, transform 140ms ease, opacity 140ms ease; }
 .pa__done:hover { background: var(--brand-press); }
 .pa__done:active { transform: scale(.99); }
 .pa__done:disabled { opacity: .4; cursor: default; transform: none; }
 .pa__done:focus-visible { outline: 3px solid rgba(0,85,129,.35); outline-offset: 2px; }
 .pa__hint { margin-top: 8px; text-align: center; font-size: 12px; color: var(--muted); }
+.pa__lock p { white-space: pre-wrap; }
 .pa__lock { margin-top: 14px; text-align: center; font-size: 13px; font-weight: 600; color: #0e6b47; background: #dff5ea; border-radius: 12px; padding: 12px; }
 
 .pa__ov { position: fixed; inset: 0; z-index: 10; background: rgba(8,12,20,.5); display: flex; align-items: flex-end; justify-content: center; animation: pa-fade 180ms ease both; }
@@ -76,7 +77,7 @@ const css = `
 .pa__sheet h3 { font-size: 18px; font-weight: 700; letter-spacing: -0.01em; }
 .pa__sheet p { margin-top: 6px; font-size: 14px; line-height: 1.5; color: var(--muted); }
 .pa__row { margin-top: 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.pa__btn { height: 48px; appearance: none; border: 1px solid var(--line); border-radius: 12px; background: #fff; color: var(--ink); font: 600 15px 'Inter', system-ui, sans-serif; cursor: pointer; }
+.pa__btn { height: 48px; appearance: none; border: 1px solid var(--line); border-radius: 12px; background: #fff; color: var(--ink); font: 600 15px var(--font-family-ui); cursor: pointer; }
 .pa__btn--go { background: var(--brand); border-color: var(--brand); color: #fff; }
 .pa__btn:disabled { opacity: .6; cursor: default; }
 
@@ -104,10 +105,13 @@ export default function PartAnalysis({
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
 
-  const readOnly = job.status === "submitted";
+  const readOnly = ["pending-review", "completed", "submitted"].includes(job.status);
   const parts = job.parts || [];
   const done = parts.filter((p) => partStatus(p) === "completed").length;
-  const allDone = parts.length > 0 && done === parts.length;
+  const allocated = parts.reduce((total, part) => total + (Number(part.qty) || 1), 0);
+  const canAdd = !job.expectedItemCount || allocated < job.expectedItemCount;
+  const quantitiesMatch = !job.expectedItemCount || (parts.every((part) => /^[1-9][0-9]*$/.test(String(part.qty || ''))) && parts.reduce((total, part) => total + Number(part.qty), 0) === job.expectedItemCount);
+  const allDone = parts.length > 0 && done === parts.length && quantitiesMatch;
   const shown = parts.filter((p) =>
     (filter === "all" || partStatus(p) === filter) && p.name.toLowerCase().includes(query.trim().toLowerCase()));
 
@@ -120,9 +124,10 @@ export default function PartAnalysis({
     <InspectorShell logoSrc={logoSrc} userName={userName} onBack={onBack} onTab={onTab}>
       <style>{css}</style>
 
+      {job.status === "needs-changes" && <div role="status" className="pa__lock"><strong>Needs changes</strong><p>{job.reviewNotes}</p></div>}
       <div className="pa__top pa__rise">
         <h1>{job.businessName || job.title}</h1>
-        <span className="pa__prog">Progress: <b>{done}/{parts.length}</b></span>
+        <span className="pa__prog">Progress: <b>{done}/{parts.length}</b>{job.expectedItemCount > 0 && <> ? {job.expectedItemCount} items in bid</>}</span>
       </div>
       <div className="pa__bar pa__rise" style={{ "--i": 1 }} role="progressbar" aria-valuemin={0} aria-valuemax={parts.length} aria-valuenow={done}>
         <i style={{ "--w": parts.length ? `${(done / parts.length) * 100}%` : "0%" }} />
@@ -150,7 +155,7 @@ export default function PartAnalysis({
           <input type="search" placeholder="Search part" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search parts" />
           <Svg size={18}><circle cx="11" cy="11" r="6.5" /><path d="m20 20-4-4" /></Svg>
         </label>
-        {!readOnly && (
+        {!readOnly && canAdd && (
           <button type="button" className="pa__ib pa__ib--add" onClick={onAddPart} aria-label="Add part"><Svg><path d="M12 5v14M5 12h14" /></Svg></button>
         )}
       </div>
@@ -178,11 +183,11 @@ export default function PartAnalysis({
       </div>
 
       {readOnly ? (
-        <p className="pa__lock">Submitted — this inspection is read-only.</p>
+        <p className="pa__lock">{job.status === "completed" ? "Completed by admin. This inspection is read-only." : "Pending review. This inspection is read-only until the admin requests changes."}</p>
       ) : (
         <>
           <button type="button" className="pa__done" disabled={!allDone} onClick={() => setConfirm(true)}>Complete</button>
-          {!allDone && <p className="pa__hint">{parts.length ? "Finish every part to complete the inspection." : "Add parts to get started."}</p>}
+          {!allDone && <p className="pa__hint">{parts.length ? !quantitiesMatch ? `Item quantities must total ${job.expectedItemCount}, matching the bid.` : "Finish every part to complete the inspection." : "Add parts to get started."}</p>}
         </>
       )}
 
@@ -190,7 +195,7 @@ export default function PartAnalysis({
         <div className="pa__ov" onClick={() => !busy && setConfirm(false)}>
           <div className="pa__sheet" role="dialog" aria-label="Submit inspection" onClick={(e) => e.stopPropagation()}>
             <h3>Submit inspection?</h3>
-            <p>All {parts.length} parts will be sent to the admin and you won't be able to edit them afterwards.</p>
+            <p>All {parts.length} parts will be sent to the admin for review. You can edit again if the admin requests changes.</p>
             {err && <p style={{ color: "var(--danger)" }} role="alert">{err}</p>}
             <div className="pa__row">
               <button type="button" className="pa__btn" disabled={busy} onClick={() => setConfirm(false)}>Cancel</button>

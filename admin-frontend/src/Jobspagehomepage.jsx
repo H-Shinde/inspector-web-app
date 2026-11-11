@@ -1,3 +1,5 @@
+import { RecordUpdateBadge } from './updates';
+import { UpdateBadge } from './updates';
 import { listJobs, finishJob, deleteJob } from './jobsApi';
 import { appraisalTypeLabel } from './appraisalTypes';
 import LogoutButton from './LogoutButton';
@@ -88,10 +90,16 @@ function JobHomepage() {
     const [attempt, setAttempt] = useState(0);
     useEffect(() => {
         const controller = new AbortController(); setLoading(true); setError('');
-        listJobs(controller.signal).then((rows) => { if (!controller.signal.aborted) setTableData(rows); })
-            .catch((error) => { if (!controller.signal.aborted) setError(error.message); })
+        const refresh = () => listJobs(controller.signal).then((rows) => {
+            if (!controller.signal.aborted) { setTableData(rows); setError(''); }
+        }).catch((error) => { if (!controller.signal.aborted) setError(error.message); })
             .finally(() => { if (!controller.signal.aborted) setLoading(false); });
-        return () => controller.abort();
+        void refresh();
+        const updates = typeof EventSource !== 'undefined' ? new EventSource('/api/job-events/', { withCredentials: true }) : null;
+        updates?.addEventListener('jobs-changed', refresh);
+        const timer = updates ? null : window.setInterval(refresh, 3000);
+        window.addEventListener('focus', refresh);
+        return () => { controller.abort(); updates?.close(); window.clearInterval(timer); window.removeEventListener('focus', refresh); };
     }, [attempt]);
 
     const columns = [
@@ -198,16 +206,16 @@ function JobHomepage() {
                   <a className='nav_bar_text' href='/History' style={{ textDecoration: 'none' }}>History</a>
                 </div>
                 <div className='inspector_box'>
-                  <a className='nav_bar_text' href='/Inspector' style={{ textDecoration: 'none' }}>Inspector</a>
+                  <a className='nav_bar_text' href='/Inspector' style={{ textDecoration: 'none' }}>Inspector <UpdateBadge kind="inspector" /></a>
                 </div>
                 <div className='clients_box'>
-                  <a className='nav_bar_text' href='/Clients' style={{ textDecoration: 'none' }}>Clients</a>
+                  <a className='nav_bar_text' href='/Clients' style={{ textDecoration: 'none' }}>Clients <UpdateBadge kind="client" /></a>
                 </div>
                 <div className='reports_box'>
                   <a className='nav_bar_text' href='/Reports' style={{ textDecoration: 'none' }}>Reports</a>
                 </div>
                 <div className='messaging'>
-                  <a className='nav_bar_text' href='/Messaging' style={{ textDecoration: 'none' }}>Messaging</a>
+                  <a className='nav_bar_text' href='/Messaging' style={{ textDecoration: 'none' }}>Messaging <UpdateBadge kind="message" /></a>
                 </div>
             </div>
             <button type="button" className='burger_icon_position' aria-label="Account menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>
@@ -235,10 +243,10 @@ function JobHomepage() {
             </div>
             <div className='bidsjobsbox'>
                 <button type="button" onClick={handleBidsClick} className='jobsbox'>
-                    Bids
+                    Bids <UpdateBadge kind="bid" />
                 </button>
                 <div className="bidsbox" aria-current="page">
-                    Jobs
+                    Jobs <UpdateBadge kind="job" />
                 </div>
             </div>
         {loading && <p role="status">Loading jobs…</p>}
@@ -255,13 +263,13 @@ function JobHomepage() {
             className="bids_table"
             slots={{
                 4: (data, type, row) => (
-                    <span className={`bid_status bid_status_${statusClass(row.status)}`}>{row.status}</span>
+                    <span className={`bid_status bid_status_${statusClass(row.status)}`}>{row.status}<RecordUpdateBadge kind="job" id={row.id} /></span>
                 ),
                 5: (data, type, row) => <span>{row.inspector || 'Unassigned'}</span>,
                 7: (data, type, row) => (
                     <div className="action_buttons">
-                        <button type="button" className="job_complete_button" title="Mark Complete" aria-label={`Mark job for ${row.name} complete`}
-                            onClick={(event) => { event.stopPropagation(); setCompleteTarget(row); }}><FaCheck aria-hidden="true" /></button>
+                        <button type="button" className="job_complete_button" title="Review inspection" disabled={row.status !== 'Pending Review'} aria-label={`Review inspection for ${row.name}`}
+                            onClick={(event) => { event.stopPropagation(); window.location.href = `/Jobspage?jobId=${row.id}`; }}><FaCheck aria-hidden="true" /></button>
                         <button
                             className="delete_icon" title="Delete job" aria-label={`Delete job for ${row.name}`}
                             onClick={(event) => { event.stopPropagation(); setDeleteTarget(row); }}

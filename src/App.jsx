@@ -1,3 +1,4 @@
+import { UpdatesProvider, useRecordSeen, useConversationSeen, useUpdatesRefresh } from './updates';
 import { useState, useEffect } from "react";
 import { inspectorRequest, inspectorJob } from './inspectorApi';
 import InspectorInvitation from "./components/InspectorInvitation";
@@ -48,7 +49,7 @@ const INITIAL_MESSAGES = [
     createdAt: new Date(Date.now() - 60 * 60 * 1000).toISOString() },
 ];
 
-export default function App() {
+function AppContent() {
   // "invite" | "setup" | "welcome" | "login" | "forgot" | "dashboard" | "job" | "parts" | "sheet"
   // Tip: change "invite" to "login" below if you want the app to open on the login screen.
   const [step, setStep] = useState(window.location.pathname.endsWith('/UpdatePass') ? 'reset' : invitation.get('token') ? 'invite' : 'checking');
@@ -61,6 +62,7 @@ export default function App() {
     const data = await inspectorRequest('/api/inspector/jobs/');
     setJobs(data.jobs.map(inspectorJob)); setInspectorId(data.inspectorId); setName(data.name); setEmail(data.email || ''); setJobError('');
   };
+  useUpdatesRefresh('profile', () => { void loadJobs().catch((error) => setJobError(error.message)); });
   const restoreSession = async () => {
     setJobError('');
     try { await loadJobs(); setStep('dashboard'); }
@@ -72,12 +74,58 @@ export default function App() {
   useEffect(() => {
     if (!window.location.pathname.endsWith('/UpdatePass') && !invitation.get('token')) restoreSession();
   }, []);
+  useEffect(() => {
+    if (!['dashboard', 'parts', 'job', 'messages', 'profile'].includes(step)) return;
+    const refresh = () => { void loadJobs().catch((error) => setJobError(error.message)); };
+    refresh();
+    const updates = typeof EventSource !== 'undefined' ? new EventSource('/api/inspector/events/', { withCredentials: true }) : null;
+    updates?.addEventListener('jobs-changed', refresh);
+    updates?.addEventListener('session-expired', () => { updates.close(); setStep('login'); });
+    const timer = updates ? null : window.setInterval(refresh, 3000);
+    window.addEventListener('focus', refresh);
+    return () => { updates?.close(); window.clearInterval(timer); window.removeEventListener('focus', refresh); };
+  }, [step]);
   const [activeId, setActiveId] = useState(null);
   const [partId, setPartId] = useState(null); // null = adding a new part
   const [tab, setTab] = useState("jobs");
-  const [messages, setMessages] = useState(INITIAL_MESSAGES);
+  const [messages, setMessages] = useState([]);
+  const [messageError, setMessageError] = useState('');
+  const [hasEarlierMessages, setHasEarlierMessages] = useState(false);
+  const mergeMessages = (rows) => setMessages((current) => [...new Map([...current, ...rows].map((message) => [message.id, message])).values()].sort((a, b) => a.id - b.id));
+  const loadEarlierMessages = async () => {
+    try { const data = await inspectorRequest(`/api/inspector/messages/?before=${messages[0].id}`); mergeMessages(data.messages); setHasEarlierMessages(data.hasEarlier); }
+    catch (error) { setMessageError(error.message); }
+  };
+  useEffect(() => {
+    if (tab !== 'messages' || ['login', 'checking', 'invite', 'setup', 'reset', 'forgot'].includes(step)) return;
+    let active = true;
+    const load = (initial = false) => inspectorRequest('/api/inspector/messages/').then((data) => {
+      if (active) { mergeMessages(data.messages); setMessageError(''); if (initial) setHasEarlierMessages(data.hasEarlier); }
+    }).catch((error) => { if (active) setMessageError(error.message); });
+    void load(true);
+    const updates = new EventSource('/api/inspector/message-events/', { withCredentials: true });
+    updates.addEventListener('messages-changed', () => { void load(); });
+    return () => { active = false; updates.close(); };
+  }, [tab, step, inspectorId]);
+
 
   const findJob = (id) => jobs.find((j) => String(j.id) === String(id));
+  const openedJob = ['parts', 'sheet', 'job'].includes(step) ? findJob(activeId) : null;
+  useRecordSeen('job', openedJob?.id, step === 'sheet' ? -1 : openedJob?.revision);
+  useConversationSeen(tab === 'messages' && Number(messages.at(-1)?.inspectorId) === Number(inspectorId) ? inspectorId : null, tab === 'messages' ? messages.at(-1)?.id : null);
+  useRecordSeen('profile', tab === 'profile' ? inspectorId : null);
+  useEffect(() => {
+    const openUpdate = async (event) => {
+      const notification = event.detail;
+      if (notification.kind === 'message') { setTab('messages'); setStep('dashboard'); }
+      else if (notification.kind === 'profile') { setTab('profile'); setStep('dashboard'); }
+      else { await loadJobs(); setTab('jobs'); if (notification.kind === 'job' && notification.target.includes('jobId=')) { setActiveId(notification.objectId); setStep('parts'); } else setStep('dashboard'); }
+    };
+    const handler = (event) => { void openUpdate(event).catch((error) => setJobError(error.message)); };
+    window.addEventListener('app-open-update', handler);
+    return () => window.removeEventListener('app-open-update', handler);
+  }, []);
+
 
   const setJobStatus = (id, status) =>
     setJobs((js) => js.map((j) => (j.id === id ? { ...j, status } : j)));
@@ -92,9 +140,9 @@ export default function App() {
   const goTab = (t) => { setTab(t); setStep("dashboard"); };
 
   const logout = async () => {
-    try { await inspectorRequest('/api/auth/logout/', {}); }
+    try { await inspectorRequest('/api/auth/inspector-logout/', {}); }
     catch (error) { window.alert(error.message); return; }
-    setJobs([]); setInspectorId(null);
+    setJobs([]); setInspectorId(null); setMessages([]); setMessageError(''); setHasEarlierMessages(false);
     setTab("jobs");
     setActiveId(null);
     setPartId(null);
@@ -127,7 +175,7 @@ export default function App() {
         onSubmit={async ({ fullName, email: newEmail, password, ...profile }) => {
           const token = invitation.get('token');
           if (!token) throw new Error('Open the registration link in your invitation email.');
-          const csrfResponse = await fetch('/api/auth/csrf/', { credentials: 'include' });
+          const csrfResponse = await fetch('/api/auth/inspector-csrf/', { credentials: 'include' });
           if (!csrfResponse.ok) throw new Error('Unable to connect to registration.');
           const { csrfToken } = await csrfResponse.json();
           const response = await fetch('/api/inspector-registration/', {
@@ -185,7 +233,7 @@ export default function App() {
         email={email}
         onBack={() => setStep("login")}
         onSubmit={async ({ email: resetEmail }) => {
-          await inspectorRequest('/api/auth/password-reset/', { email: resetEmail, app: 'inspector' });
+          await inspectorRequest('/api/auth/inspector-password-reset/', { email: resetEmail, app: 'inspector' });
           setEmail(resetEmail);
         }}
       />
@@ -267,22 +315,15 @@ export default function App() {
         tab={tab}
         onTab={setTab}
         messages={messages}
-        onSend={async (text, files = []) => {
-          // TODO: POST to your backend, e.g. /messages { text } — the server sets the recipient to the admin
-          // and the sender from the auth token (never trust a recipient id from the client).
-          // Throw an Error to mark the message "Not sent" with a Retry link.
-          // TODO: upload each File to storage first (e.g. signed upload URLs), then send the returned URLs with the message.
-          const attachments = files.map((f, i) => ({
-            id: `att${Date.now()}${i}`, name: f.name, url: URL.createObjectURL(f), // demo: local preview URL
-            type: f.type.startsWith("video/") ? "video" : "image",
-          }));
-          const mine = { id: `m${Date.now()}`, from: "inspector", text, attachments, createdAt: new Date().toISOString() };
-          setMessages((m) => [...m, mine]);
-
-          // DEMO ONLY: fake an admin reply. Delete this and load real replies via polling/websocket.
-          setTimeout(() => {
-            setMessages((m) => [...m, { id: `a${Date.now()}`, from: "admin", text: "Thanks, got your message. I'll get back to you shortly.", createdAt: new Date().toISOString() }]);
-          }, 1500);
+        error={messageError}
+        hasEarlier={hasEarlierMessages}
+        onLoadEarlier={loadEarlierMessages}
+        onSend={async (text, files = [], clientId) => {
+          const values = new FormData();
+          values.append('text', text); values.append('clientId', clientId);
+          files.forEach((file) => values.append('files', file));
+          const sent = await inspectorRequest('/api/inspector/messages/', values);
+          setMessages((current) => [...new Map([...current, sent].map((message) => [message.id, message])).values()].sort((a, b) => a.id - b.id));
         }}
       />
     );
@@ -314,3 +355,5 @@ export default function App() {
     />
   );
 }
+
+export default function App() { return <UpdatesProvider><AppContent /></UpdatesProvider>; }

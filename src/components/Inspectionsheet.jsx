@@ -1,6 +1,6 @@
 import React, { useRef, useState } from "react";
 import InspectorShell from "./InspectorShell";
-import { FIELDS, emptyPart, partStatus } from "./parts";
+import { FIELDS, CONDITIONS, emptyPart, partStatus } from "./parts";
 
 /**
  * Screens 8 & 9 — Inspection sheet. Edit a part (pass `part`) or add one (omit `part`).
@@ -24,9 +24,10 @@ const css = `
 .sh__card { margin-top: 16px; padding: 18px 16px; border: 1px solid var(--line); border-radius: 16px; background: #fff; box-shadow: 0 1px 2px rgba(15,23,42,.04); }
 .sh__f { display: grid; grid-template-columns: 96px 1fr; align-items: center; gap: 14px; }
 .sh__f + .sh__f { margin-top: 12px; }
+.sh__f select.sh__in { appearance: auto; cursor: pointer; }
 .sh__f label { text-align: right; font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
 .sh__in, .sh__ta { width: 100%; border: 1px solid var(--line); border-radius: 10px; background: var(--field); color: var(--ink); outline: none; appearance: none;
-  font: 500 15px 'Inter', system-ui, sans-serif; transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease; }
+  font: 500 15px var(--font-family-ui); transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease; }
 .sh__in { height: 44px; padding: 0 12px; }
 .sh__in:focus, .sh__ta:focus { border-color: var(--brand); background: #fff; box-shadow: 0 0 0 3px rgba(0,85,129,.14); }
 .sh__ta { margin-top: 16px; min-height: 96px; padding: 12px; resize: vertical; line-height: 1.45; }
@@ -44,7 +45,7 @@ const css = `
 
 .sh__bar { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding-top: 10px; border-top: 1px solid var(--line); }
 .sh__save { grid-column: 2; height: 48px; min-width: 148px; padding: 0 28px; appearance: none; border: 0; border-radius: 12px; background: var(--brand); color: #fff;
-  font: 600 15px 'Inter', system-ui, sans-serif; cursor: pointer; transition: background-color 140ms ease, transform 140ms ease, opacity 140ms ease; }
+  font: 600 15px var(--font-family-ui); cursor: pointer; transition: background-color 140ms ease, transform 140ms ease, opacity 140ms ease; }
 .sh__save:hover { background: var(--brand-press); }
 .sh__save:active { transform: scale(.97); }
 .sh__save:disabled { opacity: .6; cursor: default; transform: none; }
@@ -63,6 +64,7 @@ const MODE = { qty: "numeric", year: "numeric", mileage: "numeric" };
 export default function InspectionSheet({
   job = {}, part, userName, logoSrc, onBack = () => {}, onTab, onSave = async () => {},
 }) {
+  const readOnly = ["pending-review", "completed", "submitted"].includes(job.status);
   const adding = !part;
   const initial = useRef(part || emptyPart()).current;
   const [form, setForm] = useState(initial);
@@ -104,11 +106,11 @@ export default function InspectionSheet({
       logoSrc={logoSrc} userName={userName} onBack={back} onTab={onTab}
       footer={
         <div className="sh__bar">
-          <button type="button" className="sh__save" disabled={busy} onClick={save}>
+          <button type="button" className="sh__save" disabled={busy || readOnly} onClick={save}>
             {busy ? "Saving…" : adding ? "Add Part" : "Update"}
           </button>
           <input ref={camRef} type="file" accept="image/*" capture="environment" hidden onChange={addPhoto} />
-          <button type="button" className="sh__cam" onClick={() => camRef.current?.click()} aria-label="Take or attach a photo">
+          <button type="button" className="sh__cam" disabled={readOnly} onClick={() => camRef.current?.click()} aria-label="Take or attach a photo">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z" /><circle cx="12" cy="13.5" r="3.5" />
             </svg>
@@ -134,11 +136,14 @@ export default function InspectionSheet({
         {FIELDS.map(([k, label]) => (
           <div className="sh__f" key={k}>
             <label htmlFor={`sh-${k}`}>{label}</label>
-            <input id={`sh-${k}`} className="sh__in" value={form[k]} onChange={set(k)} inputMode={MODE[k]}
-                   autoCapitalize={k === "serial" ? "characters" : undefined} autoComplete="off" />
+            {k === 'condition' ? <select id={`sh-${k}`} className="sh__in" value={CONDITIONS.includes(form[k]) ? form[k] : ''} disabled={readOnly} onChange={set(k)}>
+                <option value="">Select condition</option>
+                {CONDITIONS.map((condition) => <option key={condition}>{condition}</option>)}
+            </select> : <input id={`sh-${k}`} className="sh__in" readOnly={readOnly} value={form[k]} onChange={set(k)} inputMode={MODE[k]}
+                   autoCapitalize={k === "serial" ? "characters" : undefined} autoComplete="off" />}
           </div>
         ))}
-        <textarea className="sh__ta" placeholder="Type comments here…" aria-label="Comments" value={form.comments} onChange={set("comments")} />
+        <textarea className="sh__ta" readOnly={readOnly} placeholder="Type comments here…" aria-label="Comments" value={form.comments} onChange={set("comments")} />
 
         {form.photos.length > 0 && (
           <div className="sh__ph">

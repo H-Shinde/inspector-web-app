@@ -13,7 +13,7 @@ export const bidSections = [
         ['subjectContactPhone', 'Contact Phone', 'tel'],
     ]],
     ['Appraisal Details', [
-        ['valueType', 'Value Type'], ['valueDate', 'Value Date', 'date'],
+        ['date', 'Request Date', 'date'], ['valueType', 'Value Type'], ['valueDate', 'Value Date', 'date'],
         ['intendedUse', 'Intended Use'], ['intendedUser', 'Intended User'],
         ['completionDays', 'Completion Days', 'number'], ['rush', 'Rush', 'checkbox'],
     ]],
@@ -56,7 +56,7 @@ const machineryFields = new Set([
 
 export function getBidSections(appraisalType) {
     return appraisalType === 'Machinery & Equipment (M&E)' ? bidSections.map(([title, fields]) => [title,
-        [...fields.filter(([field]) => machineryFields.has(field)), ...(title === 'Appraisal Details' ? [['date', 'Request Date', 'date']] : [])]
+        [...fields.filter(([field]) => machineryFields.has(field))]
             .map(([field, label, type]) => [field, field === 'bidAmount' ? 'M&E Bid' : field === 'city' ? 'Business City' : field === 'discount' ? 'PDF Discount' : label, type]),
     ]).filter(([, fields]) => fields.length) : bidSections;
 }

@@ -1,3 +1,4 @@
+import StateSelect from '../StateSelect';
 import { useEffect, useState } from 'react';
 import { inspectorRequest } from '../inspectorApi';
 
@@ -17,7 +18,7 @@ export default function ProfileEditor({ onSaved, onClose }) {
         }}>
             {[['name','Full name'],['phone','Phone'],['address','Street address'],['city','City'],['state','State'],['zipCode','ZIP code']].map(([field,label]) => <div key={field} style={{ margin: '12px 0' }}>
                 <label htmlFor={`profile-${field}`}>{label}</label>
-                <input id={`profile-${field}`} style={{ display: 'block', width: '100%', padding: 10, boxSizing: 'border-box' }} value={draft[field] || ''} disabled={busy} onChange={(event) => setDraft({ ...draft, [field]: event.target.value })} />
+                {field === 'state' ? <StateSelect id={`profile-${field}`} value={draft.state} disabled={busy} onChange={(event) => setDraft({ ...draft, state: event.target.value })} /> : <input id={`profile-${field}`} style={{ display: 'block', width: '100%', padding: 10, boxSizing: 'border-box' }} value={draft[field] || ''} disabled={busy} onChange={(event) => setDraft({ ...draft, [field]: event.target.value })} />}
             </div>)}
             <button type="button" disabled={busy} onClick={onClose}>Cancel</button>
             <button type="submit" disabled={busy}>{busy ? 'Saving…' : 'Save Profile'}</button>

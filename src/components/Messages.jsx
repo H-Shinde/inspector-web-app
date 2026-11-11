@@ -53,7 +53,7 @@ const css = `
   border-radius: 24px; background: #fff; box-shadow: 0 6px 20px -10px rgba(15,23,42,.25); transition: border-color 160ms ease, box-shadow 160ms ease; }
 .ms__comp:focus-within { border-color: var(--brand); box-shadow: 0 0 0 3px rgba(0,85,129,.14); }
 .ms__ta { flex: 1; min-width: 0; resize: none; border: 0; outline: none; background: none; color: var(--ink);
-  font: 400 15px/1.4 'Inter', system-ui, sans-serif; padding: 9px 0; max-height: 120px; }
+  font: 400 15px/1.4 var(--font-family-ui); padding: 9px 0; max-height: 120px; }
 .ms__ta::placeholder { color: #94a3b8; }
 .ms__send { flex: none; width: 40px; height: 40px; appearance: none; border: 0; border-radius: 50%; background: var(--brand); color: #fff;
   display: flex; align-items: center; justify-content: center; cursor: pointer; transition: transform 140ms ease, opacity 140ms ease, background-color 140ms ease; }
@@ -112,11 +112,11 @@ function dayLabel(d) {
 export default function Messages({
   messages = [],
   onSend = async () => {},
-  adminName = "Colin Size",
+  adminName = "Administrator",
   userName,
   logoSrc,
   tab = "messages",
-  onTab,
+  onTab, error, hasEarlier, onLoadEarlier,
 }) {
   const [draft, setDraft] = useState("");
   const [pending, setPending] = useState([]); // [{ id, text, createdAt, failed }]
@@ -129,7 +129,7 @@ export default function Messages({
 
   const all = [
     ...messages.map((m) => ({ ...m, wait: false })),
-    ...pending.map((p) => ({ id: p.id, from: "inspector", text: p.text, attachments: p.attachments, createdAt: p.createdAt, wait: !p.failed, failed: p.failed })),
+    ...pending.filter((p) => !messages.some((message) => message.clientId === p.id)).map((p) => ({ id: p.id, from: "inspector", text: p.text, attachments: p.attachments, createdAt: p.createdAt, wait: !p.failed, failed: p.failed })),
   ];
 
   // keep the newest message in view
@@ -147,7 +147,7 @@ export default function Messages({
 
   async function deliver(item) {
     try {
-      await onSend(item.text, item.files.map((f) => f.file));
+      await onSend(item.text, item.files.map((f) => f.file), item.id);
       setPending((ps) => ps.filter((p) => p.id !== item.id));
       item.files.forEach((f) => URL.revokeObjectURL(f.url));
     } catch {
@@ -159,7 +159,7 @@ export default function Messages({
     const text = draft.trim();
     if ((!text && !files.length) || text.length > MAX) return;
     const item = {
-      id: `tmp-${Date.now()}`, text, files, createdAt: new Date().toISOString(), failed: false,
+      id: crypto.randomUUID(), text, files, createdAt: new Date().toISOString(), failed: false,
       attachments: files.map((f) => ({ id: f.id, type: f.type, url: f.url, name: f.file.name })),
     };
     setPending((ps) => [...ps, item]);
@@ -272,6 +272,8 @@ export default function Messages({
         </div>
       </div>
 
+      {error && <p role="alert" className="ms__ferr">{error}</p>}
+      {hasEarlier && <button type="button" onClick={onLoadEarlier}>Load earlier messages</button>}
       {items.length === 0 ? (
         <div className="ms__empty">
           <div className="ms__empty-i"><Svg size={26}><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z" /></Svg></div>

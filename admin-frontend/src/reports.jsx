@@ -1,3 +1,4 @@
+import { UpdateBadge } from './updates';
 import LogoutButton from './LogoutButton';
 import { useRef, useState } from 'react';
 import { FaFilter } from 'react-icons/fa';
@@ -38,7 +39,7 @@ export default function Reports() {
                 <div className="nav_links">
                     {['Bids', 'History', 'Inspector', 'Clients', 'Reports', 'Messaging'].map((label) => (
                         <div key={label} className={label === 'Reports' ? 'bids_box_selected' : ''}>
-                            <a className="nav_bar_text" href={label === 'Bids' ? '/Homepage' : `/${label}`} aria-current={label === 'Reports' ? 'page' : undefined}>{label}</a>
+                            <a className="nav_bar_text" href={label === 'Bids' ? '/Homepage' : `/${label}`} aria-current={label === 'Reports' ? 'page' : undefined}>{label}<UpdateBadge kind={label === 'Messaging' ? 'message' : label === 'Bids' ? 'work' : label === 'Inspector' ? 'inspector' : label === 'Clients' ? 'client' : null} /></a>
                         </div>
                     ))}
                 </div>

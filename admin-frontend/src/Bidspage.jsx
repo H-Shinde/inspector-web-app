@@ -1,3 +1,6 @@
+import { useRecordSeen } from './updates';
+import { UpdateBadge } from './updates';
+import StateSelect from './StateSelect';
 import ValidatedForm from './ValidatedForm';
 import { CALCULATION_VALUATION, appraisalTypeLabel } from './appraisalTypes';
 import LogoutButton from './LogoutButton';
@@ -49,6 +52,7 @@ function Bidspage({ onChange }) {
         } finally { setDownloadingAgreement(false); }
     };
     const [bid, setBid] = useState(null);
+    useRecordSeen('bid', bid?.id);
     const [loading, setLoading] = useState(true);
     const [loadError, setLoadError] = useState('');
     const [busy, setBusy] = useState(false);
@@ -139,7 +143,7 @@ function Bidspage({ onChange }) {
         <div className="nav_bar">
             <img className="bison_logo_nav" src={navLogo} alt="Bison" />
             <div className="nav_links">
-                <div className="bids_box_selected"><a className="nav_bar_text" href="/Homepage" style={{ textDecoration: 'none' }}>Bids</a></div>
+                <div className="bids_box_selected"><a className="nav_bar_text" href="/Homepage" style={{ textDecoration: 'none' }}>Bids <UpdateBadge kind="work" /></a></div>
                 {['History', 'Inspector', 'Clients', 'Reports', 'Messaging'].map((page) => <div key={page}><a className="nav_bar_text" href={`/${page}`} style={{ textDecoration: 'none' }}>{page}</a></div>)}
             </div>
             <button type="button" className="burger_icon_position" aria-label="Account menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>
@@ -180,7 +184,7 @@ function Bidspage({ onChange }) {
             {fields.filter(([field]) => field !== 'reportFormat').map(([field, label, inputType = 'text']) => (
                 <div className="bid_detail_field" key={field}>
                     <label htmlFor={`view-${field}`}>{label}</label>
-                    {inputType === 'tier' ? <select id={`view-${field}`} disabled={!editDraft || busy} value={(editDraft || bid)?.tier || 1} onChange={(event) => changeField(field, event.target.value)}>{[1,2,3,4,5].map((tier) => <option key={tier} value={tier}>Tier {tier}</option>)}</select>
+                    {['state', 'clientState'].includes(field) ? <StateSelect id={`view-${field}`} disabled={!editDraft || busy} value={(editDraft || bid)?.[field]} onChange={(event) => changeField(field, event.target.value)} /> : inputType === 'tier' ? <select id={`view-${field}`} disabled={!editDraft || busy} value={(editDraft || bid)?.tier || 1} onChange={(event) => changeField(field, event.target.value)}>{[1,2,3,4,5].map((tier) => <option key={tier} value={tier}>Tier {tier}</option>)}</select>
                     : inputType === 'appraisalType' ? <select id={`view-${field}`} disabled={!editDraft || busy} value={reportSelection(editDraft || bid)} onChange={(event) => setEditDraft({ ...editDraft, ...reportFields(event.target.value) })}>
                         <option value="">Select appraisal type</option>
                         {(editDraft || bid)?.appraisalType && ![BUSINESS_VALUATION, CALCULATION_VALUATION, MACHINERY_EQUIPMENT].includes((editDraft || bid).appraisalType) && <option>{(editDraft || bid).appraisalType}</option>}

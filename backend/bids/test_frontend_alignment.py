@@ -30,7 +30,8 @@ class FrontendAlignmentTests(TestCase):
     def test_defaults_and_explicit_values_survive_edits(self):
         bid = self.create(appraisalType=TYPES[0])
         self.assertEqual(bid['completionDays'], 5)
-        self.assertEqual(bid['valueDate'], timezone.localdate().isoformat())
+        self.assertIsNone(bid['valueDate'])
+        self.assertEqual(bid['date'], timezone.localdate().isoformat())
         bid = self.create(appraisalType=TYPES[0], completionDays=8, valueDate='2026-01-02')
         result = self.client.patch(f"/api/bids/{bid['id']}/", data=json.dumps({'businessName': 'Updated'}), content_type='application/json')
         self.assertEqual(result.status_code, 200, result.content)

@@ -23,7 +23,7 @@
 .inspector_view_page .bid_details_toolbar { width: min(960px, calc(100% - 48px)); }
 .inspector_profile_layout { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 24px; align-items: start; width: min(1224px, calc(100% - 48px)); margin: 0 auto 40px; }
 .inspector_profile_layout .fieldsframe { width: 100%; margin: 0; grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 28px; gap: 24px; }
-.inspector_profile_sidebar { padding: 16px 10px; border: 1px solid #C8D4E0; border-radius: 12px; background: white; font-family: Geist, sans-serif; }
+.inspector_profile_sidebar { padding: 16px 10px; border: 1px solid #C8D4E0; border-radius: 12px; background: white; font-family: var(--font-family-ui); }
 .inspector_profile_sidebar h2 { display: flex; justify-content: space-between; align-items: center; margin: 0 10px 12px; color: #005581; font-size: 18px; }
 .inspector_profile_sidebar h2 span { color: #526477; font-size: 14px; }
 .inspector_profile_sidebar ul { list-style: none; margin: 0; padding: 0; max-height: 65vh; overflow-y: auto; }

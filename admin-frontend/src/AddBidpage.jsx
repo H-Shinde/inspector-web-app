@@ -1,3 +1,5 @@
+import { UpdateBadge } from './updates';
+import StateSelect from './StateSelect';
 import { assetPercentageFields, calculationTerms, settingAmount } from './bidCalculation';
 import ClientTypeahead from './ClientTypeahead';
 import { usesNewBidTiers, newBidSubtotals } from './newBidPricing';
@@ -35,12 +37,12 @@ function AddBidpage() {
     const [menuOpen, setMenuOpen] = useState(false);
     const [draft, setDraft] = useState(() => {
         const today = new Date();
-        const valueDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+        const requestDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
         return {
-            date: '',
             ...Object.fromEntries(sections.flatMap(([, fields]) => fields.map(([field, , type]) => [field, field === 'status' ? 'Pending' : type === 'checkbox' ? false : '']))),
             completionDays: '5',
-            valueDate,
+            date: requestDate,
+            valueDate: '',
         };
     });
     const [error, setError] = useState('');
@@ -129,7 +131,7 @@ function AddBidpage() {
             const values = {
                 ...Object.fromEntries(Object.entries(submissionDraft).map(([field, value]) => [field, typeof value === 'string' ? value.trim() : value])),
                 referenceNumber: createdBid?.referenceNumber || '',
-                date: isMachinery && submissionDraft.date ? submissionDraft.date : new Date().toLocaleDateString('en-US'),
+                date: submissionDraft.date || new Date().toLocaleDateString('en-US'),
             };
             const blob = await generateEngagementAgreement(values);
             if (request !== previewRequest.current) return;
@@ -230,16 +232,16 @@ function AddBidpage() {
                   <a className='nav_bar_text' href='/History' style={{ textDecoration: 'none' }}>History</a>
                 </div>
                 <div className='inspector_box'>
-                  <a className='nav_bar_text' href='/Inspector' style={{ textDecoration: 'none' }}>Inspector</a>
+                  <a className='nav_bar_text' href='/Inspector' style={{ textDecoration: 'none' }}>Inspector <UpdateBadge kind="inspector" /></a>
                 </div>
                 <div className='clients_box'>
-                  <a className='nav_bar_text' href='/Clients' style={{ textDecoration: 'none' }}>Clients</a>
+                  <a className='nav_bar_text' href='/Clients' style={{ textDecoration: 'none' }}>Clients <UpdateBadge kind="client" /></a>
                 </div>
                 <div className='reports_box'>
                   <a className='nav_bar_text' href='/Reports' style={{ textDecoration: 'none' }}>Reports</a>
                 </div>
                 <div className='messaging'>
-                  <a className='nav_bar_text' href='/Messaging' style={{ textDecoration: 'none' }}>Messaging</a>
+                  <a className='nav_bar_text' href='/Messaging' style={{ textDecoration: 'none' }}>Messaging <UpdateBadge kind="message" /></a>
                 </div>
             </div>
             <button type="button" className='burger_icon_position' aria-label="Account menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>
@@ -290,7 +292,7 @@ function AddBidpage() {
                                 field === 'reportFormat' ? null :
                                 <div className={`bid_detail_field add_bid_${field}${type === 'checkbox' ? ' add_bid_checkbox' : ''}`} key={field}>
                                     <label htmlFor={`add-${field}`}>{label}{type === 'checkbox' && assetPercentageFields.includes(field) && (() => { const rule = calculationTerms(submissionDraft).find((term) => term.field === field && term.mode === 'percentage'); return rule ? ` (+${rule.multiplier}%)` : ''; })()}</label>
-                                    {type === 'tier' ? (
+                                    {['state', 'clientState'].includes(field) ? <StateSelect id={`add-${field}`} name={field} value={draft[field]} onChange={(event) => setDraft({ ...draft, [field]: event.target.value })} /> : type === 'tier' ? (
                                         <select id={`add-${field}`} name={field} value={draft.tier || '1'} onChange={(event) => setDraft({ ...draft, tier: event.target.value })}>{[1,2,3,4,5].map((tier) => <option key={tier} value={tier}>Tier {tier}</option>)}</select>
                                     ) : usesTiers && ['inspectionRate', 'appraisalRate', 'nonAppraisedInspectionRate'].includes(field) ? (
                                         <input id={`add-${field}`} readOnly value={subtotals[field].toFixed(2)} />

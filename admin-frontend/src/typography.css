@@ -1,0 +1,42 @@
+/* Inter is bundled with each app; see public/fonts/Inter-LICENSE.txt. */
+@font-face {
+  font-family: 'Inter';
+  src: url('./assets/fonts/InterVariable.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+:root {
+  --font-family-ui: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-family-mono: ui-monospace, 'Cascadia Code', 'SFMono-Regular', Consolas, monospace;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: var(--font-family-ui);
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.5;
+  letter-spacing: normal;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-family-ui);
+  font-weight: 600;
+  line-height: 1.25;
+}
+h1 { font-size: clamp(24px, 2.5vw, 32px); }
+h2 { font-size: 20px; }
+h3 { font-size: 16px; }
+
+button, input, select, textarea, table, dialog {
+  font-family: var(--font-family-ui);
+}
+input, select, textarea { line-height: 1.5; }
+input::placeholder, textarea::placeholder { font-family: inherit; }
+table, input[type='number'], input[type='date'], time { font-variant-numeric: tabular-nums; }
+code, pre, kbd, samp { font-family: var(--font-family-mono); }

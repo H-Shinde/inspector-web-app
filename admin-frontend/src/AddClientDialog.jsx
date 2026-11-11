@@ -1,3 +1,4 @@
+import StateSelect from './StateSelect';
 import { useEffect, useRef, useState } from 'react';
 import ValidatedForm from './ValidatedForm';
 import { createClient, updateClient } from './bidsApi';
@@ -39,10 +40,10 @@ export default function AddClientDialog({ onCreated, onClose, client: existing }
             <div className="bid_form_body bid_form_grid">
                 {detailFields.map(([field, label, type, maxLength]) => <div className="bid_form_field" key={field}>
                     <label htmlFor={`add-client-${field}`}>{label}</label>
-                    <input id={`add-client-${field}`} name={field} type={type} maxLength={maxLength}
+                    {field === 'state' ? <StateSelect id={`add-client-${field}`} name={field} disabled={busy} value={draft[field]} onChange={(event) => setDraft({ ...draft, [field]: event.target.value })} /> : <input id={`add-client-${field}`} name={field} type={type} maxLength={maxLength}
                         required={field === 'name'} disabled={busy} value={draft[field]}
                         placeholder={field === 'state' ? 'NY' : field === 'zipCode' ? '10001' : undefined}
-                        onChange={(event) => setDraft({ ...draft, [field]: field === 'state' ? event.target.value.toUpperCase() : event.target.value })} />
+                        onChange={(event) => setDraft({ ...draft, [field]: field === 'state' ? event.target.value.toUpperCase() : event.target.value })} />}
                 </div>)}
             </div>
             <div className="actions">

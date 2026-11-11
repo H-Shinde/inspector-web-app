@@ -6,7 +6,8 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
-from .models import Job, Bid, Inspector, initial_job_section_details
+from .models import initial_job_items, bid_item_count, Job, Bid, Inspector, initial_job_section_details
+from .inspection_items import merge_inspection_items, parts_from_items, current_job_items, inspection_quantity
 
 RATES = ['count', 'inspectionRate', 'customInspectionRate', 'additionalInspectionCharge', 'appraisalRate', 'customAppraisalRate', 'additionalAppraisalCharge']
 SECTIONS = {
@@ -14,12 +15,13 @@ SECTIONS = {
     'Asset Valuation': ['fmvContinuedUse', 'fairMarketValueRemoved', 'orderlyLiquidationValue', 'forcedLiquidationValue', 'other', 'additionalLocations'],
     'Inspection Fees': ['totalInspectedItems', 'totalNonInspectedItems', 'totalAppraisal', 'rush', 'pdfDiscount', 'total', 'nonRushTotal', 'meNote'],
 }
-ITEM_FIELDS = ['name', 'type', 'make', 'model', 'serialNumber', 'year', 'hoursMiles', 'photoNumber', 'referenceNumber', 'comments']
+ITEM_FIELDS = ['name', 'qty', 'condition', 'type', 'make', 'model', 'serialNumber', 'year', 'hoursMiles', 'photoNumber', 'referenceNumber', 'comments']
 
 
 def serialize_job(job):
     from .views import serialize_bid
     result = serialize_bid(job.source_bid, include_job=False)
+    current_items = current_job_items(job)
     result.update({
         'id': job.pk, 'jobId': job.pk, 'referenceNumber': f'JOB-{job.pk:06d}', 'sourceBidId': job.source_bid_id,
         'sourceBidReference': job.source_bid.referenceNumber, 'sourceBidBackend': 'django', 'recordType': 'Job',
@@ -27,8 +29,9 @@ def serialize_job(job):
         'inspectorId': job.inspector_id, 'inspector': job.inspector.name if job.inspector else '',
         'inspectorEmail': job.inspector.email if job.inspector else '',
         'inspectorEmailFor': job.inspector.name if job.inspector else '',
-        'items': job.items, 'sectionDetails': job.sectionDetails, 'valuationHistory': job.valuationHistory,
-        'inspectionParts': job.inspectionParts,
+        'items': current_items, 'sectionDetails': job.sectionDetails, 'valuationHistory': job.valuationHistory,
+        'expectedItemCount': bid_item_count(job.source_bid),
+        'inspectionParts': parts_from_items(current_items, job.inspectionParts), 'reviewNotes': job.reviewNotes,
         'createdAt': job.createdAt, 'completedAt': job.completedAt, 'deletedAt': job.deletedAt,
         'pdf': result.get('engagementAgreement', ''),
     })
@@ -59,7 +62,9 @@ def clean_items(items):
             cleaned[field] = str(value).strip()
         if not cleaned['name']:
             raise ValueError('Each item needs a name.')
-        if cleaned['year'] and (not cleaned['year'].isascii() or not cleaned['year'].isdigit() or len(cleaned['year']) != 4 or int(cleaned['year']) < 1000):
+        if cleaned['condition'] and cleaned['condition'] not in ['Very Good', 'Good', 'Fair', 'Poor', 'Scrap']:
+            raise ValueError('Choose Very Good, Good, Fair, Poor or Scrap for condition.')
+        if cleaned['year'] and cleaned['year'].upper() != 'N/A' and (not cleaned['year'].isascii() or not cleaned['year'].isdigit() or len(cleaned['year']) != 4 or int(cleaned['year']) < 1000):
             raise ValueError('Enter a four-digit item year.')
         item_id = item.get('itemId') or str(uuid.uuid4())
         if not isinstance(item_id, str) or len(item_id) > 100 or item_id in seen:
@@ -111,7 +116,7 @@ def jobs(request):
             return JsonResponse({'error': 'Only accepted bids can become jobs.'}, status=409)
         job, created = Job.objects.get_or_create(source_bid=bid, defaults={
             'owner': request.user,
-            'sectionDetails': initial_job_section_details(bid),
+            'sectionDetails': initial_job_section_details(bid), 'items': initial_job_items(bid),
         })
         return JsonResponse(serialize_job(job), status=201 if created else 200)
     records = Job.objects.filter(owner=request.user).select_related('source_bid', 'inspector').order_by('-createdAt', '-id')
@@ -129,16 +134,39 @@ def job_detail(request, pk):
         return JsonResponse(serialize_job(job))
     try:
         data = body(request) if request.method == 'PATCH' else {'status': 'Deleted'}
-        if set(data) - {'inspectorId', 'items', 'sectionDetails', 'status', 'revision'}:
+        if set(data) - {'inspectorId', 'items', 'sectionDetails', 'status', 'revision', 'reviewNotes'}:
             raise ValueError('Only job assignment, items, sections and status can be changed.')
         if 'revision' in data and (type(data['revision']) is not int or data['revision'] != job.revision):
             return JsonResponse({'error': 'This job changed elsewhere. Reload before saving.'}, status=409)
         if job.status in ['Complete', 'Deleted']:
             return JsonResponse({'error': 'Archived jobs are read-only.'}, status=409)
+        review_status = data.get('status')
+        if review_status in ['Complete', 'Needs Changes']:
+            if job.status != 'Pending Review':
+                return JsonResponse({'error': 'Only an inspection pending review can be approved or returned for changes.'}, status=409)
+            if 'revision' not in data:
+                raise ValueError('Provide the job revision when reviewing an inspection.')
+            if 'inspectorId' in data:
+                raise ValueError('Review the inspection separately from assignment changes.')
+        if 'reviewNotes' in data:
+            if review_status != 'Needs Changes':
+                raise ValueError('Provide review feedback when requesting changes.')
+            notes = data['reviewNotes']
+            if not isinstance(notes, str) or not notes.strip() or len(notes) > 4000:
+                raise ValueError('Describe the changes needed (up to 4000 characters).')
+            job.reviewNotes = notes.strip()
+        if review_status == 'Needs Changes' and 'reviewNotes' not in data:
+            raise ValueError('Describe the changes the inspector needs to make.')
+        if review_status == 'Pending Review' and job.status != 'Pending Review':
+            return JsonResponse({'error': 'The inspector must submit the inspection for review.'}, status=409)
         if 'items' in data:
             if 'revision' not in data:
                 raise ValueError('Provide the job revision when updating items.')
             job.items = clean_items(data['items'])
+            expected = bid_item_count(job.source_bid)
+            if expected and inspection_quantity([{**item, 'qty': item.get('qty') or '1'} for item in job.items]) > expected:
+                raise ValueError(f'The bid contains {expected} items. Edit the existing rows instead of adding extra items.')
+            job.inspectionParts = parts_from_items(job.items, job.inspectionParts, only_saved=True)
         if 'sectionDetails' in data:
             for section, changes in clean_sections(data['sectionDetails']).items():
                 job.sectionDetails[section] = {**job.sectionDetails.get(section, {}), **changes}
@@ -159,15 +187,16 @@ def job_detail(request, pk):
                 job.status = 'Assigned'
         if 'status' in data:
             status = data['status']
-            if status not in ['Unassigned', 'Assigned', 'In-Progress', 'Pending Review', 'Complete', 'Deleted']:
+            if status not in ['Unassigned', 'Assigned', 'In-Progress', 'Pending Review', 'Needs Changes', 'Complete', 'Deleted']:
                 raise ValueError('Choose a valid job status.')
-            if status in ['Assigned', 'In-Progress', 'Pending Review'] and job.inspector is None:
+            if status in ['Assigned', 'In-Progress', 'Pending Review', 'Needs Changes'] and job.inspector is None:
                 raise ValueError('Assign an inspector before advancing the job.')
             if status == 'Unassigned' and job.inspector is not None:
                 raise ValueError('Remove the inspector to mark a job unassigned.')
             job.previousStatus = job.status
             job.status = status
             if status == 'Complete': job.completedAt = timezone.now()
+            if status == 'Needs Changes': job.completedAt = None
             if status == 'Deleted': job.deletedAt = timezone.now()
         job.revision += 1
         job.save()

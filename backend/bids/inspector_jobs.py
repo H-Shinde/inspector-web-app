@@ -2,23 +2,15 @@ import json
 from django.db import transaction
 from django.http import JsonResponse, FileResponse
 from django.shortcuts import get_object_or_404
-from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 from .models import Inspector, Job
 from .job_views import serialize_job
 
 
 def parts_for_job(job):
-    if job.inspectionParts:
-        return job.inspectionParts
-    return [{
-        'id': str(item.get('itemId') or f'item-{index}'), 'name': str(item.get('name') or ''),
-        'qty': str(item.get('qty') or ''), 'type': str(item.get('type') or ''),
-        'make': str(item.get('make') or ''), 'model': str(item.get('model') or ''),
-        'serial': str(item.get('serialNumber') or ''), 'condition': '',
-        'year': str(item.get('year') or ''), 'mileage': str(item.get('hoursMiles') or ''),
-        'comments': str(item.get('comments') or ''), 'photos': [],
-    } for index, item in enumerate(job.items)]
+    from .inspection_items import current_job_items, parts_from_items
+    items = current_job_items(job)
+    return parts_from_items(items, job.inspectionParts)
 
 
 @require_http_methods(['GET'])
@@ -59,7 +51,7 @@ def inspector_jobs(request, pk=None):
     action = data['action']
     if action in ['accept', 'decline'] and job.status != 'Assigned':
         return JsonResponse({'error': 'Only a new assigned job can be accepted or declined.'}, status=409)
-    if action == 'complete' and job.status != 'In-Progress':
+    if action == 'complete' and job.status not in ['In-Progress', 'Needs Changes']:
         return JsonResponse({'error': 'Accept the job before completing it.'}, status=409)
     if action == 'complete':
         from .inspector_data import clean_part, REQUIRED_PART_FIELDS
@@ -70,6 +62,11 @@ def inspector_jobs(request, pk=None):
             issues = [f'{part["name"]}: {field} is required.' for part in parts for field in REQUIRED_PART_FIELDS if not part[field]]
             if issues:
                 return JsonResponse({'error': ' '.join(issues)}, status=400)
+            from .models import bid_item_count
+            from .inspection_items import inspection_quantity
+            expected = bid_item_count(job.source_bid)
+            if expected and inspection_quantity(parts) != expected:
+                raise ValueError(f'This bid requires {expected} items. Completed item quantities must match before submission.')
             job.inspectionParts = parts
         except ValueError as error:
             return JsonResponse({'error': str(error)}, status=400)
@@ -79,8 +76,8 @@ def inspector_jobs(request, pk=None):
         job.inspector = None
         job.status = 'Unassigned'
     else:
-        job.status = 'Complete'
-        job.completedAt = timezone.now()
+        job.status = 'Pending Review'
+        job.completedAt = None
     job.revision += 1
     job.save()
     return JsonResponse(serialize_job(job))

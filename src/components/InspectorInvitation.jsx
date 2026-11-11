@@ -10,8 +10,6 @@ import React, { useState } from "react";
  *  - onLogin:      optional; if provided, shows an "Already registered? Log in" link
  */
 const CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@600&family=Inter:wght@400;500;600;700&display=swap');
-
 .inv {
   --brand: #005581; --brand-press: #00456a; --brand-tint: #e8f1f6;
   --ink: #0f172a; --muted: #5b6b7b; --line: #e5e9ee;
@@ -21,7 +19,7 @@ const CSS = `
   all: initial;
   display: flex; flex-direction: column; min-height: 100dvh; width: 100%;
   background: #00364f; color: var(--ink); color-scheme: light; text-align: left;
-  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-family: var(--font-family-ui);
   -webkit-font-smoothing: antialiased; box-sizing: border-box;
 }
 .inv *, .inv *::before, .inv *::after { box-sizing: border-box; }
@@ -63,9 +61,9 @@ const CSS = `
   box-shadow: 0 18px 40px -12px rgba(0,20,40,.55), 0 0 0 6px rgba(255,255,255,.14);
 }
 .inv__logo { width: 100%; height: 100%; object-fit: contain; display: block; transform: scale(var(--logo-zoom)); }
-.inv__wordmark { font-family: 'Source Serif 4', Georgia, serif; font-weight: 600; font-size: 24px; color: var(--brand); letter-spacing: .04em; }
+.inv__wordmark { font-family: var(--font-family-ui); font-weight: 600; font-size: 24px; color: var(--brand); letter-spacing: .04em; }
 
-.inv__brand { position: relative; z-index: 1; margin-top: 24px; font-family: 'Source Serif 4', Georgia, serif;
+.inv__brand { position: relative; z-index: 1; margin-top: 24px; font-family: var(--font-family-ui);
   font-weight: 600; font-size: 14px; line-height: 1; letter-spacing: .16em; text-transform: uppercase; color: rgba(255,255,255,.8); }
 .inv__title { position: relative; z-index: 1; margin-top: 12px; font-size: 32px; line-height: 1.1; font-weight: 700; letter-spacing: -0.03em; }
 .inv__lead { position: relative; z-index: 1; margin-top: 14px; max-width: 30ch; font-size: 15px; line-height: 1.55; color: rgba(255,255,255,.82); }
@@ -113,7 +111,7 @@ const CSS = `
 .inv__cta:hover svg { transform: translateX(3px); }
 
 .inv__login { margin-top: 14px; text-align: center; font-size: 14px; line-height: 1.4; color: var(--muted); }
-.inv__login button { appearance: none; border: 0; background: none; padding: 4px; font: 600 14px 'Inter', system-ui, sans-serif;
+.inv__login button { appearance: none; border: 0; background: none; padding: 4px; font: 600 14px var(--font-family-ui);
   color: var(--brand); cursor: pointer; }
 .inv__login button:hover { text-decoration: underline; }
 .inv__login button:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; border-radius: 4px; }

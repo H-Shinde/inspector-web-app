@@ -1,3 +1,4 @@
+import { RecordUpdateBadge } from '../updates';
 import React from "react";
 import InspectorShell from "./InspectorShell";
 
@@ -87,7 +88,9 @@ const Svg = ({ children, size = 20, sw = 1.8 }) => (
 
 const STATUS = {
   "in-progress": { label: "In progress", cls: "db__pill--progress" },
-  submitted: { label: "Submitted", cls: "db__pill--submitted" },
+  "pending-review": { label: "Pending review", cls: "db__pill--submitted" },
+  "needs-changes": { label: "Needs changes", cls: "db__pill--progress" },
+  completed: { label: "Completed", cls: "db__pill--submitted" },
 };
 
 function greeting() {
@@ -107,7 +110,7 @@ function JobCard({ job, index, onOpen }) {
         {isNew && <span className="db__dot" />}
       </span>
       <span className="db__txt">
-        <span className="db__t">{job.title}</span>
+        <span className="db__t"><RecordUpdateBadge kind="job" id={job.id} /> {job.title}</span>
         <span className="db__a">
           <Svg size={13} sw={2}><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21z" /><circle cx="12" cy="9.5" r="2.3" /></Svg>
           <span>{job.address}</span>
@@ -160,15 +163,16 @@ export default function InspectorDashboard({
   onOpenCurrent = () => {},
 }) {
   const fresh = jobs.filter((j) => j.status === "new");
-  const active = jobs.filter((j) => j.status === "in-progress");
-  const done = jobs.filter((j) => j.status === "submitted");
+  const active = jobs.filter((j) => ["in-progress", "needs-changes"].includes(j.status));
+  const done = jobs.filter((j) => j.status === "pending-review");
   const current = [...active, ...done];
+  const completed = jobs.filter((j) => j.status === "completed");
   const first = userName.split(" ")[0];
 
   const stats = [
     { n: fresh.length, l: "New", hero: true },
     { n: active.length, l: "In progress" },
-    { n: done.length, l: "Submitted" },
+    { n: done.length, l: "Pending review" },
   ];
 
   return (
@@ -191,6 +195,7 @@ export default function InspectorDashboard({
                  empty="No new requests. They'll show up here when an administrator assigns one." />
         <Section title="Current jobs" jobs={current} onOpen={onOpenCurrent} offset={5 + Math.max(fresh.length, 1) + 1}
                  empty="Nothing in progress. Accept a new request to get started." />
+        {completed.length > 0 && <Section title="Completed jobs" jobs={completed} onOpen={onOpenCurrent} offset={current.length + fresh.length + 7} />}
       </div>
     </InspectorShell>
   );

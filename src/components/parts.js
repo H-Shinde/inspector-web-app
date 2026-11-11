@@ -1,8 +1,9 @@
 // Shared part helpers. A part is "completed" when every field below is filled
 // (people can type N/A for fields that don't apply). Change the rule here and the whole app follows.
+export const CONDITIONS = ["Very Good", "Good", "Fair", "Poor", "Scrap"];
 export const FIELDS = [
   ["qty", "QTY"], ["type", "Type"], ["make", "Make"], ["model", "Model"],
-  ["serial", "Serial #"], ["condition", "Condition"], ["year", "Year"], ["mileage", "Mileage"],
+  ["serial", "Serial #"], ["condition", "Condition"], ["year", "Year"], ["mileage", "Mileage/Hours"],
 ];
 
 export const emptyPart = () => ({
@@ -11,7 +12,7 @@ export const emptyPart = () => ({
 });
 
 export function partStatus(p) {
-  const filled = FIELDS.filter(([k]) => String(p[k] ?? "").trim()).length;
+  const filled = FIELDS.filter(([k]) => k === "condition" ? CONDITIONS.includes(p[k]) : String(p[k] ?? "").trim()).length;
   if (filled === 0) return "todo";
   return filled === FIELDS.length ? "completed" : "in-progress";
 }

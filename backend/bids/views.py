@@ -9,7 +9,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_GET, require_http_methods
 
 from .forms import BidForm
-from .models import Bid, Inspector, Job, initial_job_section_details
+from .models import initial_job_items, bid_item_count, Bid, Inspector, Job, initial_job_section_details
 
 
 def serialize_bid(bid, include_job=True):
@@ -136,7 +136,7 @@ def bid_detail(request, pk):
         if bid.status == 'Accepted' and data == {'status': 'Accepted'}:
             job, _ = Job.objects.get_or_create(source_bid=bid, defaults={
                 'owner': request.user,
-                'sectionDetails': initial_job_section_details(bid),
+                'sectionDetails': initial_job_section_details(bid), 'items': initial_job_items(bid),
             })
             bid.job = job
             return JsonResponse(serialize_bid(bid))
@@ -150,7 +150,7 @@ def bid_detail(request, pk):
         if status == "Accepted":
             job, _ = Job.objects.get_or_create(source_bid=bid, defaults={
                 "owner": request.user,
-                "sectionDetails": initial_job_section_details(bid),
+                "sectionDetails": initial_job_section_details(bid), "items": initial_job_items(bid),
             })
             bid.job = job
         return JsonResponse(serialize_bid(bid))

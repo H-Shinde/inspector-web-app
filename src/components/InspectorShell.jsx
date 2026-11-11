@@ -1,3 +1,4 @@
+import { UpdateBadge } from '../updates';
 import React, { useState } from "react";
 
 /**
@@ -6,8 +7,6 @@ import React, { useState } from "react";
  * Props: logoSrc, onBack, tab ("jobs" | "messages" | "profile"), onTab, userName, footer, children.
  */
 const CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@600&family=Inter:wght@400;500;600;700&display=swap');
-
 .ix {
   --brand: #005581; --brand-press: #00456a; --brand-tint: #e8f1f6;
   --ink: #0f172a; --muted: #5b6b7b; --line: #e5e9ee; --field: #f5f7fa;
@@ -15,7 +14,7 @@ const CSS = `
   all: initial;
   display: flex; flex-direction: column; min-height: 100dvh; width: 100%;
   background: var(--page); color: var(--ink); color-scheme: light; text-align: left;
-  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-family: var(--font-family-ui);
   -webkit-font-smoothing: antialiased; box-sizing: border-box;
 }
 .ix *, .ix *::before, .ix *::after { box-sizing: border-box; }
@@ -28,7 +27,7 @@ const CSS = `
 .ix__bar-in { position: relative; max-width: 480px; margin: 0 auto; height: 56px; padding: 0 20px;
   display: flex; align-items: center; justify-content: center; gap: 10px; }
 .ix__logo { height: 28px; width: auto; flex: none; }
-.ix__brand { font-family: 'Source Serif 4', Georgia, serif; font-weight: 600; font-size: 18px;
+.ix__brand { font-family: var(--font-family-ui); font-weight: 600; font-size: 18px;
   letter-spacing: -0.01em; color: var(--ink); white-space: nowrap; }
 .ix__back { position: absolute; left: 8px; top: 8px; width: 40px; height: 40px; appearance: none;
   border: 0; background: none; color: var(--ink); display: flex; align-items: center;
@@ -124,7 +123,7 @@ export default function InspectorShell({
                       aria-current={tab === t.id ? "page" : undefined}
                       onClick={() => onTab(t.id)}>
                 <span className="ix__tab-ico">{ICONS[t.id]}</span>
-                <span className="ix__tab-label">{t.label}</span>
+                <span className="ix__tab-label">{t.label}<UpdateBadge kind={t.id === "messages" ? "message" : t.id === "jobs" ? "job" : "profile"} /></span>
               </button>
             ))}
           </div>

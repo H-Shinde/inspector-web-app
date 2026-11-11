@@ -13,14 +13,14 @@ export const passwordPageCss = `
 .fp__card { padding: 16px; margin-top: 20px; display: flex; flex-direction: column; gap: 8px; }
 .fp__input { width: 100%; height: 48px; padding: 0 14px; border: 1px solid var(--line);
   border-radius: 10px; background: var(--field); color: var(--ink);
-  font: 500 15px/1 'Inter', system-ui, sans-serif; outline: none; appearance: none; }
+  font: 500 15px/1 var(--font-family-ui); outline: none; appearance: none; }
 .fp__input:focus { border-color: var(--brand); background: #fff; box-shadow: 0 0 0 3px rgba(0,85,129,.14); }
 .fp__input[aria-invalid="true"] { border-color: var(--danger); }
 .fp__err { font-size: 12px; color: var(--danger); }
 .fp__banner { margin-top: 12px; padding: 10px 12px; border-radius: 10px; font-size: 13px;
   color: var(--danger); background: #fef3f2; border: 1px solid #fecdca; }
 .fp__link { margin-top: 16px; display: block; width: 100%; text-align: center; appearance: none; border: 0; background: none;
-  padding: 8px; font: 600 14px 'Inter', system-ui, sans-serif; color: var(--brand); cursor: pointer; }
+  padding: 8px; font: 600 14px var(--font-family-ui); color: var(--brand); cursor: pointer; }
 .fp__link:hover { text-decoration: underline; }
 .fp__link:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; border-radius: 6px; }
 

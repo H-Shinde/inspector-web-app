@@ -1,12 +1,10 @@
-@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap');
-
 * {
   box-sizing: border-box;
 }
 
 body {
   margin: 0;
-  font-family: "Geist", sans-serif;
+  font-family: var(--font-family-ui);
   background: #fff;
 }
 
@@ -184,7 +182,7 @@ body {
     radial-gradient(ellipse at 12% 15%, rgba(56, 163, 204, 0.5), transparent 50%),
     radial-gradient(ellipse at 88% 85%, rgba(0, 117, 158, 0.65), transparent 55%),
     linear-gradient(135deg, #003550 0%, #005581 50%, #004469 100%);
-  font-family: Geist, sans-serif;
+  font-family: var(--font-family-ui);
   color: #1F2937;
 }
 

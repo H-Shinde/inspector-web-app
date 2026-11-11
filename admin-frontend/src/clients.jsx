@@ -1,3 +1,6 @@
+import { useUpdatesRefresh } from './updates';
+import { RecordUpdateBadge } from './updates';
+import { UpdateBadge } from './updates';
 import LogoutButton from './LogoutButton';
 import { useEffect, useRef, useState } from 'react';
 import DataTable from 'datatables.net-react';
@@ -29,6 +32,7 @@ export default function Clients() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [attempt, setAttempt] = useState(0);
+    useUpdatesRefresh('client', () => setAttempt((value) => value + 1));
     const table = useRef(null);
     useEffect(() => {
         const controller = new AbortController();
@@ -55,7 +59,7 @@ export default function Clients() {
                 <div className="nav_links">
                     {['Bids', 'History', 'Inspector', 'Clients', 'Reports', 'Messaging'].map((label) => (
                         <div key={label} className={label === 'Clients' ? 'bids_box_selected' : ''}>
-                            <a className="nav_bar_text" href={label === 'Bids' ? '/Homepage' : `/${label}`} aria-current={label === 'Clients' ? 'page' : undefined}>{label}</a>
+                            <a className="nav_bar_text" href={label === 'Bids' ? '/Homepage' : `/${label}`} aria-current={label === 'Clients' ? 'page' : undefined}>{label}<UpdateBadge kind={label === 'Messaging' ? 'message' : label === 'Bids' ? 'work' : label === 'Inspector' ? 'inspector' : label === 'Clients' ? 'client' : null} /></a>
                         </div>
                     ))}
                 </div>
@@ -73,7 +77,7 @@ export default function Clients() {
                 <div className="table_top_header"><button type="button" className="add_bid_button" disabled={loading || !!error} onClick={() => setAdding(true)}>+ Add Client</button></div>
                 <div className="bids_table_container" onClick={handleRowClick} onKeyDown={handleRowKeyDown}>
                     <DataTable ref={table} data={rows} columns={columns} className="bids_table"
-                        slots={{ [fields.length]: (data, type, row) => <div className="action_buttons">
+                        slots={{ 1: (data, type, row) => <span>{row.name}<RecordUpdateBadge kind="client" id={row.id} /></span>, [fields.length]: (data, type, row) => <div className="action_buttons">
                             <button type="button" title="Edit client" aria-label={`Edit ${row.name}`} onClick={() => setEditing(row)}><FaEdit /></button>
                             <button type="button" title="Delete client" aria-label={`Delete ${row.name}`} onClick={() => { setDeleteError(''); setDeleting(row); }}><FaTrash /></button>
                         </div> }}

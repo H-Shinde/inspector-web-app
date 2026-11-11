@@ -10,7 +10,7 @@
     display: grid;
     grid-template-columns: 280px minmax(0, 1fr);
     gap: 24px;
-    font-family: Geist, sans-serif;
+    font-family: var(--font-family-ui);
 }
 
 .messaging_sidebar,
@@ -115,3 +115,5 @@
     .messaging_layout { grid-template-columns: 1fr; gap: 16px; }
     .messaging_recipients { max-height: 240px; overflow-y: auto; }
 }
+
+.message_attachment { display: block; max-width: min(320px, 100%); max-height: 260px; border-radius: 8px; margin: 8px 0; }

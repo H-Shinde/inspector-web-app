@@ -38,7 +38,7 @@
     align-items: start;
     gap: 24px;
     margin: 0 auto 40px;
-    font-family: Geist, sans-serif;
+    font-family: var(--font-family-ui);
 }
 
 .job_sidebar {
@@ -295,3 +295,12 @@
     width: 100%;
     padding: 24px 0;
 }
+
+.job_inspection_review { margin: 24px 28px; padding: 24px; border: 1px solid #c8d4e0; border-radius: 12px; background: white; }
+.job_inspection_review h2 { margin: 0 0 12px; font-size: 18px; color: #005581; }
+.job_review_table_scroll { width: 100%; overflow-x: auto; }
+.job_review_table_scroll th, .job_review_table_scroll td { padding: 10px; text-align: left; vertical-align: top; white-space: pre-wrap; min-width: 100px; }
+.job_review_feedback { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; margin-top: 0; }
+.job_review_feedback textarea { width: 100%; box-sizing: border-box; padding: 12px; border: 1px solid #c8d4e0; border-radius: 8px; font: inherit; resize: vertical; }
+.job_review_note { white-space: pre-wrap; }
+.job_complete_actions button:disabled, .job_complete_button:disabled { opacity: .5; cursor: not-allowed; }

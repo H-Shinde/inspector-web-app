@@ -1,3 +1,4 @@
+import { UpdateBadge } from './updates';
 import { listJobs } from './jobsApi';
 import { appraisalTypeLabel } from './appraisalTypes';
 import { listBids } from './bidsApi';
@@ -70,10 +71,10 @@ export default function History() {
                 <nav className="nav_bar" aria-label="Main navigation">
                     <a href="/Homepage"><img className="bison_logo_nav" src={navLogo} alt="Bison home" /></a>
                     <div className="nav_links">
-                        <div><a className="nav_bar_text" href="/Homepage">Bids</a></div>
+                        <div><a className="nav_bar_text" href="/Homepage">Bids <UpdateBadge kind="work" /></a></div>
                         <div className="bids_box_selected"><a className="nav_bar_text" href="/History" aria-current="page">History</a></div>
                         {['Inspector', 'Clients', 'Reports', 'Messaging'].map((label) => (
-                            <div key={label}><a className="nav_bar_text" href={`/${label}`}>{label}</a></div>
+                            <div key={label}><a className="nav_bar_text" href={`/${label}`}>{label}<UpdateBadge kind={label === 'Messaging' ? 'message' : label === 'Bids' ? 'work' : label === 'Inspector' ? 'inspector' : label === 'Clients' ? 'client' : null} /></a></div>
                         ))}
                     </div>
                     <button type="button" className="burger_icon_position" aria-label="Account menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>

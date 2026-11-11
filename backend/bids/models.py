@@ -178,8 +178,9 @@ class Job(models.Model):
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     source_bid = models.OneToOneField(Bid, on_delete=models.PROTECT, related_name='job')
     inspector = models.ForeignKey(Inspector, on_delete=models.PROTECT, null=True, blank=True)
-    status = models.CharField(max_length=30, default='Unassigned', choices=[(value, value) for value in ['Unassigned', 'Assigned', 'In-Progress', 'Pending Review', 'Complete', 'Deleted']])
+    status = models.CharField(max_length=30, default='Unassigned', choices=[(value, value) for value in ['Unassigned', 'Assigned', 'In-Progress', 'Pending Review', 'Needs Changes', 'Complete', 'Deleted']])
     previousStatus = models.CharField(max_length=30, blank=True)
+    reviewNotes = models.TextField(blank=True)
     items = models.JSONField(default=list, blank=True)
     sectionDetails = models.JSONField(default=dict, blank=True)
     valuationHistory = models.JSONField(default=list, blank=True)
@@ -222,3 +223,49 @@ def initial_job_section_details(bid):
             'meNote': value('meNote'),
         },
     }
+
+
+def bid_item_count(bid):
+    return (bid.totalInspectedItems or 0) + (bid.totalNonInspectedItems or 0)
+
+
+def initial_job_items(bid):
+    return [{'itemId': f'bid-{bid.pk}-item-{index + 1}', 'name': f'Item {index + 1}', 'qty': '1'}
+            for index in range(bid_item_count(bid))]
+
+
+class Message(models.Model):
+    inspector = models.ForeignKey(Inspector, on_delete=models.CASCADE, related_name='messages')
+    sender = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    text = models.TextField(blank=True)
+    clientId = models.UUIDField()
+    createdAt = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['inspector', 'sender', 'clientId'], name='unique_message_delivery')]
+        ordering = ['id']
+
+
+class MessageAttachment(models.Model):
+    message = models.ForeignKey(Message, on_delete=models.CASCADE, related_name='attachments')
+    file = models.FileField(upload_to='message-attachments/')
+    name = models.CharField(max_length=255)
+    contentType = models.CharField(max_length=100)
+
+
+class Notification(models.Model):
+    recipient = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    realm = models.CharField(max_length=12, choices=[('admin', 'Admin'), ('inspector', 'Inspector')])
+    kind = models.CharField(max_length=20)
+    objectId = models.PositiveBigIntegerField()
+    conversationId = models.PositiveBigIntegerField(null=True, blank=True)
+    version = models.PositiveIntegerField(default=0)
+    isNew = models.BooleanField(default=False)
+    title = models.CharField(max_length=300)
+    target = models.CharField(max_length=300)
+    createdAt = models.DateTimeField(auto_now_add=True)
+    readAt = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        indexes = [models.Index(fields=['recipient', 'realm', 'readAt'], name='notification_unread_idx')]
+        ordering = ['-id']

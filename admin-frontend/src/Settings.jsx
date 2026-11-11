@@ -1,3 +1,4 @@
+import { UpdateBadge } from './updates';
 import { useEffect, useRef, useState } from 'react';
 import useBidSettings from './useBidSettings';
 import { saveBidSettings } from './bidSettingsApi';
@@ -87,7 +88,7 @@ export default function Settings() {
         <nav className="nav_bar" aria-label="Main navigation">
             <a href="/Homepage"><img className="bison_logo_nav" src={navLogo} alt="Bison home" /></a>
             <div className="nav_links">{['Bids', 'History', 'Inspector', 'Clients', 'Reports', 'Messaging'].map((label) => <div key={label}>
-                <a className="nav_bar_text" href={label === 'Bids' ? '/Homepage' : `/${label}`}>{label}</a>
+                <a className="nav_bar_text" href={label === 'Bids' ? '/Homepage' : `/${label}`}>{label}<UpdateBadge kind={label === 'Messaging' ? 'message' : label === 'Bids' ? 'work' : label === 'Inspector' ? 'inspector' : label === 'Clients' ? 'client' : null} /></a>
             </div>)}</div>
             <button type="button" className="burger_icon_position" aria-label="Account menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>
                 <div className="burger_icon_frame"><div className="top_bun" /><div className="patty" /><div className="bottom_bun" /></div>

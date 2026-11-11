@@ -1,3 +1,5 @@
+import { useRecordSeen } from './updates';
+import { UpdateBadge } from './updates';
 import LogoutButton from './LogoutButton';
 import { useEffect, useState } from 'react';
 import navLogo from './bison_logo_nav.png';
@@ -10,6 +12,7 @@ export default function Clientspage() {
     const [clientId, setClientId] = useState(() => new URLSearchParams(window.location.search).get('clientId'));
     const [rows, setRows] = useState([]);
     const client = rows.find((row) => String(row.id) === clientId);
+    useRecordSeen('client', client?.id);
     const [menuOpen, setMenuOpen] = useState(false);
     const [adding, setAdding] = useState(false);
     const [notice, setNotice] = useState('');
@@ -31,7 +34,7 @@ export default function Clientspage() {
                 <div className="nav_links">
                     {['Bids', 'History', 'Inspector', 'Clients', 'Reports', 'Messaging'].map((label) => (
                         <div key={label} className={label === 'Clients' ? 'bids_box_selected' : ''}>
-                            <a className="nav_bar_text" href={label === 'Bids' ? '/Homepage' : `/${label}`} aria-current={label === 'Clients' ? 'page' : undefined}>{label}</a>
+                            <a className="nav_bar_text" href={label === 'Bids' ? '/Homepage' : `/${label}`} aria-current={label === 'Clients' ? 'page' : undefined}>{label}<UpdateBadge kind={label === 'Messaging' ? 'message' : label === 'Bids' ? 'work' : label === 'Inspector' ? 'inspector' : label === 'Clients' ? 'client' : null} /></a>
                         </div>
                     ))}
                 </div>

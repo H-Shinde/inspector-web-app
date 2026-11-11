@@ -1,3 +1,5 @@
+import { useRecordSeen } from './updates';
+import { UpdateBadge } from './updates';
 import LogoutButton from './LogoutButton';
 import { useState } from 'react';
 import navLogo from './bison_logo_nav.png';
@@ -9,6 +11,7 @@ export default function InspectorView() {
     const [selectedId, setSelectedId] = useState(() => new URLSearchParams(window.location.search).get('inspectorId'));
     const { inspectors, loading, error, reload } = useInspectorDirectory(true);
     const inspector = inspectors.find((row) => String(row.id) === selectedId);
+    useRecordSeen('inspector', inspector?.id);
     const [menuOpen, setMenuOpen] = useState(false);
     const [adding, setAdding] = useState(false);
     const [editing, setEditing] = useState(false);
@@ -18,7 +21,7 @@ export default function InspectorView() {
                 <div className="nav_links">
                     {['Bids', 'History', 'Inspector', 'Clients', 'Reports', 'Messaging'].map((label) => (
                         <div key={label} className={label === 'Inspector' ? 'bids_box_selected' : ''}>
-                            <a className="nav_bar_text" href={label === 'Bids' ? '/Homepage' : `/${label}`} aria-current={label === 'Inspector' ? 'page' : undefined}>{label}</a>
+                            <a className="nav_bar_text" href={label === 'Bids' ? '/Homepage' : `/${label}`} aria-current={label === 'Inspector' ? 'page' : undefined}>{label}<UpdateBadge kind={label === 'Messaging' ? 'message' : label === 'Bids' ? 'work' : label === 'Inspector' ? 'inspector' : label === 'Clients' ? 'client' : null} /></a>
                         </div>
                     ))}
                 </div>

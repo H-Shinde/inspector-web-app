@@ -50,7 +50,7 @@ const css = `
 /* Logout */
 .pf__foot { display: flex; flex-direction: column; align-items: center; gap: 14px; }
 .pf__out { width: 100%; height: 52px; appearance: none; border-radius: 12px; border: 1px solid #fecdca; background: #fef3f2;
-  color: var(--danger); font: 600 16px 'Inter', system-ui, sans-serif; cursor: pointer;
+  color: var(--danger); font: 600 16px var(--font-family-ui); cursor: pointer;
   display: flex; align-items: center; justify-content: center; gap: 8px;
   transition: background-color 140ms ease, transform 140ms ease; -webkit-tap-highlight-color: transparent; }
 .pf__out:hover { background: #fee4e2; }
@@ -65,7 +65,7 @@ const css = `
 .pf__sheet-t { font-size: 18px; line-height: 1.3; font-weight: 700; letter-spacing: -0.01em; }
 .pf__sheet-d { font-size: 14px; line-height: 1.5; color: var(--muted); }
 .pf__btns { margin-top: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.pf__btn { height: 48px; appearance: none; border: 1px solid var(--line); border-radius: 12px; background: #fff; color: var(--ink); font: 600 15px 'Inter', system-ui, sans-serif; cursor: pointer; }
+.pf__btn { height: 48px; appearance: none; border: 1px solid var(--line); border-radius: 12px; background: #fff; color: var(--ink); font: 600 15px var(--font-family-ui); cursor: pointer; }
 .pf__btn--out { background: var(--danger); border-color: var(--danger); color: #fff; }
 
 @media (prefers-reduced-motion: reduce) { .pf__rise, .pf__ov, .pf__sheet { animation: none; } .pf__out { transition: none; } }

@@ -1,3 +1,6 @@
+import { useUpdatesRefresh } from './updates';
+import { RecordUpdateBadge } from './updates';
+import { UpdateBadge } from './updates';
 import LogoutButton from './LogoutButton';
 import { apiWrite } from './authApi';
 import { csvToBids } from './bidCsv';
@@ -80,6 +83,7 @@ function Homepage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [attempt, setAttempt] = useState(0);
+    useUpdatesRefresh('bid', () => setAttempt((value) => value + 1));
     useEffect(() => {
         const controller = new AbortController();
         setLoading(true); setError('');
@@ -178,16 +182,16 @@ function Homepage() {
                   <a className='nav_bar_text' href='/History' style={{ textDecoration: 'none' }}>History</a>
                 </div>
                 <div className='inspector_box'>
-                  <a className='nav_bar_text' href='/Inspector' style={{ textDecoration: 'none' }}>Inspector</a>
+                  <a className='nav_bar_text' href='/Inspector' style={{ textDecoration: 'none' }}>Inspector <UpdateBadge kind="inspector" /></a>
                 </div>
                 <div className='clients_box'>
-                  <a className='nav_bar_text' href='/Clients' style={{ textDecoration: 'none' }}>Clients</a>
+                  <a className='nav_bar_text' href='/Clients' style={{ textDecoration: 'none' }}>Clients <UpdateBadge kind="client" /></a>
                 </div>
                 <div className='reports_box'>
                   <a className='nav_bar_text' href='/Reports' style={{ textDecoration: 'none' }}>Reports</a>
                 </div>
                 <div className='messaging'>
-                  <a className='nav_bar_text' href='/Messaging' style={{ textDecoration: 'none' }}>Messaging</a>
+                  <a className='nav_bar_text' href='/Messaging' style={{ textDecoration: 'none' }}>Messaging <UpdateBadge kind="message" /></a>
                 </div>
             </div>
             <button type="button" className='burger_icon_position' aria-label="Account menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>
@@ -215,10 +219,10 @@ function Homepage() {
             </div>
             <div className='bidsjobsbox'>
                 <div className= "bidsbox">
-                    Bids
+                    Bids <UpdateBadge kind="bid" />
                 </div>
                 <button type="button" onClick={handleJobsClick} className='jobsbox'>
-                    Jobs
+                    Jobs <UpdateBadge kind="job" />
                 </button>
             </div>
         {loading && <p role="status">Loading bids…</p>}
@@ -242,7 +246,7 @@ function Homepage() {
             className="bids_table"
             slots={{
                 4: (data, type, row) => (
-                    <span className={`bid_status bid_status_${row.status.toLowerCase()}`}>{row.status}</span>
+                    <span className={`bid_status bid_status_${row.status.toLowerCase()}`}>{row.status}<RecordUpdateBadge kind="bid" id={row.id} /></span>
                 ),
                 6: (data, type, row) => (
                     <div className="action_buttons">

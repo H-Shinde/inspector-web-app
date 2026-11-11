@@ -42,3 +42,9 @@ test('handles network failures and malformed successful session responses', asyn
   fetch.mockResolvedValueOnce(response(200, {}));
   await expect(getCurrentUser()).rejects.toThrow('unexpected response');
 });
+
+
+test('shows admin sign-in when an old inspector cookie cannot access the admin session', async () => {
+  fetch.mockResolvedValue(response(403, { error: 'Admin access required.' }));
+  await expect(getCurrentUser()).resolves.toBeNull();
+});

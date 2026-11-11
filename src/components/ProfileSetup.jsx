@@ -1,3 +1,4 @@
+import StateSelect from '../StateSelect';
 import React, { useState } from "react";
 import AppShell from "./AppShell";
 
@@ -15,7 +16,7 @@ const css = `
 .ps__wrap { position: relative; }
 .ps__input { width: 100%; height: 48px; padding: 0 14px; border: 1px solid var(--line);
   border-radius: 10px; background: var(--field); color: var(--ink);
-  font: 500 15px/1 'Inter', system-ui, sans-serif; outline: none; appearance: none; }
+  font: 500 15px/1 var(--font-family-ui); outline: none; appearance: none; }
 .ps__input:focus { border-color: var(--brand); background: #fff; box-shadow: 0 0 0 3px rgba(0,85,129,.14); }
 .ps__input--pw { padding-right: 48px; }
 .ps__eye { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 40px; height: 40px;
@@ -142,7 +143,7 @@ export default function ProfileSetup({
               <option value="">Select {label.toLowerCase()}</option>
               {(field === 'focus' ? ['Inspection', 'Appraisal', 'Appraisal, Inspection'] : ['Active', 'Inactive']).map((value) => <option key={value} value={value}>{value}</option>)}
             </select> : field === 'notes' ? <textarea id={`ps-${field}`} className="ps__input" required value={profile[field]} aria-invalid={!!show(field)} onChange={(event) => setProfile({ ...profile, [field]: event.target.value })} style={{ height: 96, paddingTop: 12 }} /> :
-              <input id={`ps-${field}`} className="ps__input" type={field === 'phone' ? 'tel' : 'text'} required maxLength={field === 'state' ? 2 : field === 'zipCode' ? 10 : field === 'address' ? 300 : field === 'phone' ? 50 : field === 'city' ? 150 : 200} value={profile[field]} aria-invalid={!!show(field)} onChange={(event) => setProfile({ ...profile, [field]: event.target.value })} />}
+              field === 'state' ? <StateSelect id={`ps-${field}`} className="ps__input" required value={profile.state} onChange={(event) => setProfile({ ...profile, state: event.target.value })} /> : <input id={`ps-${field}`} className="ps__input" type={field === 'phone' ? 'tel' : 'text'} required maxLength={field === 'state' ? 2 : field === 'zipCode' ? 10 : field === 'address' ? 300 : field === 'phone' ? 50 : field === 'city' ? 150 : 200} value={profile[field]} aria-invalid={!!show(field)} onChange={(event) => setProfile({ ...profile, [field]: event.target.value })} />}
             {show(field) && <span className="ps__err">{errors[field]}</span>}
           </div>)}
           <div className="ps__hr" />

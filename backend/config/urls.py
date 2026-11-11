@@ -7,7 +7,23 @@ from bids.inspector_data import save_part, inspector_profile
 from django.urls import include, path
 from bids.client_views import clients, client_detail
 from bids.settings_views import bid_settings
+from bids.live_updates import job_events
+from bids.message_views import messages, attachment
+from bids.live_updates import message_events
+from bids.notification_views import notifications, notification_events
 urlpatterns = [
+    path('api/notifications/', notifications),
+    path('api/notification-events/', notification_events),
+    path('api/inspector/notifications/', notifications),
+    path('api/inspector/notification-events/', notification_events),
+    path('api/messages/', messages),
+    path('api/messages/attachments/<int:pk>/', attachment),
+    path('api/message-events/', message_events),
+    path('api/inspector/messages/', messages),
+    path('api/inspector/messages/attachments/<int:pk>/', attachment),
+    path('api/inspector/message-events/', message_events),
+    path('api/job-events/', job_events),
+    path('api/inspector/events/', job_events),
     path('api/inspector/profile/', inspector_profile),
     path('api/inspector/jobs/<int:pk>/parts/', save_part),
     path('api/inspector/jobs/<int:pk>/agreement/', inspector_agreement),

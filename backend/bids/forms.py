@@ -51,8 +51,8 @@ class BidForm(forms.ModelForm):
             if instance is None or instance._state.adding:
                 if data.get('completionDays') in [None, '']:
                     data['completionDays'] = 5
-                if data.get('valueDate') in [None, '']:
-                    data['valueDate'] = timezone.localdate().isoformat()
+                if data.get('date') in [None, '']:
+                    data['date'] = timezone.localdate().isoformat()
             for field in ['fmvContinuedUse', 'fairMarketValueRemoved', 'orderlyLiquidationValue', 'forcedLiquidationValue', 'other']:
                 if isinstance(data.get(field), bool):
                     data[field] = '1' if data[field] else '0'
@@ -82,6 +82,8 @@ class BidForm(forms.ModelForm):
 
     def clean(self):
         data = super().clean()
+        if (data.get('totalInspectedItems') or 0) + (data.get('totalNonInspectedItems') or 0) > 5000:
+            self.add_error('totalInspectedItems', 'A job supports up to 5000 items in total.')
         if data.get('tier') is None:
             data['tier'] = 1
         for field in ['clientPhone', 'subjectContactPhone', 'state', 'clientState', 'zipCode', 'clientZipCode', 'city', 'clientCity']:

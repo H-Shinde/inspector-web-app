@@ -1,3 +1,5 @@
+import { useRecordSeen } from './updates';
+import { UpdateBadge } from './updates';
 import { getJob, listJobs, updateJob } from './jobsApi';
 import useInspectorDirectory from './useInspectorDirectory';
 import { validateInput } from './fieldValidation';
@@ -5,6 +7,7 @@ import ValidatedForm from './ValidatedForm';
 import { appraisalTypeLabel } from './appraisalTypes';
 import LogoutButton from './LogoutButton';
 import ItemImage from './ItemImage';
+import InspectionReview from './InspectionReview';
 import SendJobToInspector from './SendJobToInspector';
 import { useEffect, useRef, useState } from 'react';
 import './Jobspage.css';
@@ -24,13 +27,15 @@ const itemColumns = [
     { data: 'make', title: 'Make', defaultContent: '' },
     { data: 'model', title: 'Model', defaultContent: '' },
     { data: 'year', title: 'Year', defaultContent: '' },
-    { data: 'hoursMiles', title: 'Hours/Miles', defaultContent: '' },
+    { data: 'hoursMiles', title: 'Mileage/Hours', defaultContent: '' },
     { data: null, title: 'Actions', orderable: false, searchable: false },
 ];
 
+const itemConditions = ['Very Good', 'Good', 'Fair', 'Poor', 'Scrap'];
+
 const itemDetailFields = [
-    ['name', 'Name'], ['make', 'Make'], ['model', 'Model'],
-    ['serialNumber', 'Serial number'], ['year', 'Year'], ['hoursMiles', 'Mileage/hours'],
+    ['name', 'Name'], ['qty', 'Quantity'], ['condition', 'Condition'], ['type', 'Type'], ['make', 'Make'], ['model', 'Model'],
+    ['serialNumber', 'Serial number'], ['year', 'Year'], ['hoursMiles', 'Mileage/Hours'],
     ['photoNumber', 'Photo#'], ['referenceNumber', 'Ref#'], ['comments', 'Comments'],
 ];
 
@@ -180,7 +185,25 @@ function Jobspage() {
         return () => controller.abort();
     }, [selectedId, attempt]);
     const job = jobs.find((item) => String(item.id) === selectedId);
+    useRecordSeen('job', job?.id, job?.revision);
     const archived = ['Complete', 'Deleted'].includes(job?.status);
+    useEffect(() => {
+        if (!selectedId || saveCount > 0 || itemEditor || typeof EventSource === 'undefined') return;
+        const controller = new AbortController();
+        const updates = new EventSource('/api/job-events/', { withCredentials: true });
+        const refresh = () => {
+            void getJob(selectedId, controller.signal).then((record) => {
+                if (!controller.signal.aborted && record.revision !== currentJob.current?.revision) {
+                    currentJob.current = record;
+                    setJobs([record]);
+                    setDetails({ [record.id]: record.sectionDetails || {} });
+                }
+            }).catch((error) => { if (!controller.signal.aborted) setJobError(error.message); });
+        };
+        updates.addEventListener('jobs-changed', refresh);
+        return () => { updates.close(); controller.abort(); };
+    }, [selectedId, saveCount, itemEditor]);
+
     const saveJob = (changes) => {
         setSaveCount((value) => value + 1); setJobError('');
         const result = saveQueue.current.catch(() => {}).then(async () => {
@@ -233,7 +256,9 @@ function Jobspage() {
             try {
                 const { items: imported, skipped, ignoredColumns } = csvToItems(String(reader.result));
                 if (!imported.length) throw new Error('No items were found in the CSV. Each row needs a name.');
-                await persistItems([...items, ...imported.map((item) => ({ ...item, itemId: crypto.randomUUID() }))]);
+                const emptyRows = items.filter((item) => item.itemId.startsWith(`bid-${job.sourceBidId}-item-`) && !item.make && !item.model && !item.serialNumber && !item.condition);
+                const replaced = new Set(emptyRows.slice(0, imported.length).map((item) => item.itemId));
+                await persistItems([...items.filter((item) => !replaced.has(item.itemId)), ...imported.map((item, index) => ({ ...item, qty: item.qty || '1', itemId: emptyRows[index]?.itemId || crypto.randomUUID() }))]);
                 setViewedItemId(null);
                 setItemAdded(false);
                 const parts = [`Imported ${imported.length} ${imported.length === 1 ? 'item' : 'items'} from ${file.name}.`];
@@ -284,16 +309,16 @@ function Jobspage() {
                   <a className='nav_bar_text' href='/History' style={{ textDecoration: 'none' }}>History</a>
                 </div>
                 <div className='inspector_box'>
-                  <a className='nav_bar_text' href='/Inspector' style={{ textDecoration: 'none' }}>Inspector</a>
+                  <a className='nav_bar_text' href='/Inspector' style={{ textDecoration: 'none' }}>Inspector <UpdateBadge kind="inspector" /></a>
                 </div>
                 <div className='clients_box'>
-                  <a className='nav_bar_text' href='/Clients' style={{ textDecoration: 'none' }}>Clients</a>
+                  <a className='nav_bar_text' href='/Clients' style={{ textDecoration: 'none' }}>Clients <UpdateBadge kind="client" /></a>
                 </div>
                 <div className='reports_box'>
                   <a className='nav_bar_text' href='/Reports' style={{ textDecoration: 'none' }}>Reports</a>
                 </div>
                 <div className='messaging'>
-                  <a className='nav_bar_text' href='/Messaging' style={{ textDecoration: 'none' }}>Messaging</a>
+                  <a className='nav_bar_text' href='/Messaging' style={{ textDecoration: 'none' }}>Messaging <UpdateBadge kind="message" /></a>
                 </div>
             </div>
             <button type="button" className='burger_icon_position' aria-label="Account menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>
@@ -404,7 +429,7 @@ function Jobspage() {
                 ) : activeSection === 'Items' ? (
                     <div className="job_items_section">
                         <div className="job_items_header">
-                            <h2>Items</h2>
+                            <h2>Items{job.expectedItemCount > 0 ? ` (${job.expectedItemCount} in bid)` : ''}</h2>
                             <div className="job_items_actions">
                                 <button type="button" className="add_bid_button" disabled={archived || saveCount > 0} onClick={() => csvInput.current?.click()}>Upload CSV</button>
                                 <input ref={csvInput} type="file" accept=".csv,text/csv" hidden aria-label="Upload items CSV" onChange={importCsv} />
@@ -455,8 +480,9 @@ function Jobspage() {
                 )}
             </section>
         </main>
+        {job && <InspectionReview job={job} busy={saveCount > 0} onRequestChanges={(reviewNotes) => saveJob({ status: 'Needs Changes', reviewNotes })} />}
         {job && <div className="job_complete_actions">
-            <button type="button" className="bid_add_button" disabled={archived || saveCount > 0} onClick={() => setCompleteConfirmOpen(true)}>Mark Complete</button>
+            <button type="button" className="bid_add_button" disabled={job.status !== 'Pending Review' || saveCount > 0} onClick={() => setCompleteConfirmOpen(true)}>Approve & complete</button>
         </div>}
         <dialog ref={itemDialog} className="popup" aria-labelledby="item-dialog-title" onCancel={(event) => { event.preventDefault(); closeItem(); }}>
             {itemEditor && (
@@ -468,12 +494,15 @@ function Jobspage() {
                     <div className="bid_form_body bid_form_grid">
                         {itemSaveError && <p className="add_bid_error" role="alert">{itemSaveError}</p>}
                         {itemEditor.mode !== 'add' && <ItemImage item={itemEditor.item} />}
-                        {[...itemDetailFields, ['type', 'Type']].map(([field, title]) => (
+                        {itemDetailFields.map(([field, title]) => (
                             <div className="bid_form_field" key={field}>
                                 <label htmlFor={`item-${field}`}>{title}</label>
-                                <input id={`item-${field}`} type="text" value={itemEditor.item[field] ?? ''}
+                                {field === 'condition' ? <select id={`item-${field}`} value={itemConditions.includes(itemEditor.item.condition) ? itemEditor.item.condition : ''} disabled={savingItem || itemEditor.mode === 'view'} onChange={(event) => editItemField(field, event.target.value)}>
+                                    <option value="">Select condition</option>
+                                    {itemConditions.map((condition) => <option key={condition}>{condition}</option>)}
+                                </select> : <input id={`item-${field}`} type="text" value={itemEditor.item[field] ?? ''}
                                     required={field === 'name'}
-                                    disabled={savingItem} readOnly={itemEditor.mode === 'view'} onChange={(event) => editItemField(field, event.target.value)} />
+                                    disabled={savingItem} readOnly={itemEditor.mode === 'view'} onChange={(event) => editItemField(field, event.target.value)} />}
                             </div>
                         ))}
                     </div>

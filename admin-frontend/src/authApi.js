@@ -41,7 +41,7 @@ export async function getCurrentUser(signal) {
     if (result.id == null || typeof result.email !== 'string') throw new AuthError('The sign-in service returned an unexpected response.');
     return result;
   } catch (error) {
-    if (error.status === 401) return null;
+    if (error.status === 401 || error.status === 403) return null;
     throw error;
   }
 }
