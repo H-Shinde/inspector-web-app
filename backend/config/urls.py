@@ -12,7 +12,10 @@ from bids.message_views import messages, attachment
 from bids.live_updates import message_events
 from bids.notification_views import notifications, notification_events
 from bids.inspector_views import resend_invitation
+from bids.photo_views import inspection_photo
 urlpatterns = [
+    path('api/item-photos/<int:pk>/', inspection_photo),
+    path('api/inspector/item-photos/<int:pk>/', inspection_photo),
     path('api/inspectors/<int:pk>/invite/', resend_invitation),
     path('api/notifications/', notifications),
     path('api/notification-events/', notification_events),

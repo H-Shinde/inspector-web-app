@@ -14,7 +14,7 @@ import './Jobspage.css';
 import { sortInspectorsByDistance } from './inspectorDistance';
 import { csvToItems } from './itemCsv';
 import navLogo from './bison_logo_nav.png';
-import { FaEye, FaEdit, FaTrash } from 'react-icons/fa';
+import { FaTrash } from 'react-icons/fa';
 import DataTable from 'datatables.net-react';
 import DT from 'datatables.net-dt';
 import 'datatables.net-dt/css/dataTables.dataTables.css';
@@ -151,14 +151,6 @@ function Jobspage() {
     }, [itemEditor]);
     const closeItem = async () => {
         if (savingItem) return;
-        if (itemEditor?.mode === 'edit') {
-            for (const input of itemDialog.current.querySelectorAll('input')) validateInput(input);
-            if (!itemDialog.current.querySelector('form').reportValidity()) return;
-            setSavingItem(true);
-            try { await persistItems(items.map((item) => item.itemId === itemEditor.item.itemId ? itemEditor.item : item)); }
-            catch (error) { setItemSaveError(error.message); setSavingItem(false); return; }
-            setSavingItem(false);
-        }
         itemDialog.current.close(); setItemEditor(null); setItemSaveError('');
     };
     const [activeSection, setActiveSection] = useState('Job Information');
@@ -232,17 +224,21 @@ function Jobspage() {
     const editItemField = (field, value) => setItemEditor((previous) => ({ ...previous, item: { ...previous.item, [field]: value } }));
     const addItem = async (event) => {
         event.preventDefault();
-        if (itemEditor.mode !== 'add' || savingItem) return;
+        if (savingItem) return;
         const name = itemEditor.item.name?.trim();
         if (!name) return;
         setItemSaveError('');
         const itemId = crypto.randomUUID();
         setSavingItem(true);
         try {
-            await persistItems([...items, { ...itemEditor.item, name, itemId }]);
-            setViewedItemId(null);
+            if (itemEditor.mode === 'edit') {
+                await persistItems(items.map(item => item.itemId === itemEditor.item.itemId ? { ...itemEditor.item, name } : item));
+            } else {
+                await persistItems([...items, { ...itemEditor.item, name, itemId }]);
+                setViewedItemId(null);
+            }
             itemDialog.current.close(); setItemEditor(null); setItemSaveError('');
-            setItemAdded(true);
+            setItemAdded(itemEditor.mode === 'add');
         } catch {
             setItemSaveError('Unable to save the item. Please try again.');
         } finally { setSavingItem(false); }
@@ -430,18 +426,19 @@ function Jobspage() {
                     <div className="job_items_section">
                         <div className="job_items_header">
                             <h2>Items{job.expectedItemCount > 0 ? ` (${job.expectedItemCount} in bid)` : ''}</h2>
-                            <div className="job_items_actions">
+                            {!viewedItem && <div className="job_items_actions">
                                 <button type="button" className="add_bid_button" disabled={archived || saveCount > 0} onClick={() => csvInput.current?.click()}>Upload CSV</button>
                                 <input ref={csvInput} type="file" accept=".csv,text/csv" hidden aria-label="Upload items CSV" onChange={importCsv} />
                                 <button type="button" className="add_bid_button" disabled={archived || saveCount > 0} onClick={() => setItemEditor({ mode: 'add', item: {} })}>+ Add item</button>
-                            </div>
+                            </div>}
                         </div>
-                        <p className="job_csv_hint">CSV columns: Name (required), Type, Make, Model, Serial number, Year, Hours/Miles, Photo#, Ref#, Comments. Rows are added to the existing items.</p>
+                        {!viewedItem && <p className="job_csv_hint">CSV columns: Name (required), Type, Make, Model, Serial number, Year, Hours/Miles, Photo#, Ref#, Comments. Rows are added to the existing items.</p>}
                         {csvMessage && <p className={csvMessage.error ? 'job_csv_error' : 'job_acceptance_message'} role={csvMessage.error ? 'alert' : 'status'}>{csvMessage.text}</p>}
                         {itemAdded && <p className="job_acceptance_message" role="status">Item has been added.</p>}
                         {viewedItem ? (
                             <div>
                                 <button type="button" className="bid_back_button" onClick={() => setViewedItemId(null)}>← Back to Items</button>
+                                <button type="button" className="bid_back_button" disabled={archived || saveCount > 0} onClick={() => setItemEditor({ mode: 'edit', item: { ...viewedItem } })}>Edit item</button>
                                 <ItemImage item={viewedItem} />
                                 <div className="fieldsframe">
                                     {itemDetailFields.map(([field, label]) => (
@@ -457,17 +454,26 @@ function Jobspage() {
                                 </div>
                             </div>
                         ) : (
-                        <div className="bids_table_container">
+                        <div className="bids_table_container job_clickable_items"
+                            onClick={(event) => {
+                                if (event.target.closest('button, a, input, select, textarea')) return;
+                                const row = event.target.closest('tr[data-item-id]');
+                                if (row) setViewedItemId(row.dataset.itemId);
+                            }}
+                            onKeyDown={(event) => {
+                                if (event.target.matches('tr[data-item-id]') && ['Enter', ' '].includes(event.key)) {
+                                    event.preventDefault(); setViewedItemId(event.target.dataset.itemId);
+                                }
+                            }}>
                             <DataTable key={selectedId} data={items}
                                 columns={itemColumns} className="bids_table"
                                 slots={{ 6: (data, type, row) => (
                                     <div className="action_buttons">
-                                        <button type="button" className="view" title="View item" aria-label={`View ${row.name}`} onClick={() => setViewedItemId(row.itemId)}><FaEye /></button>
-                                        <button type="button" className="edit" disabled={archived || saveCount > 0} title="Edit item" aria-label={`Edit ${row.name}`} onClick={() => setItemEditor({ mode: 'edit', item: { ...row } })}><FaEdit /></button>
                                         <button type="button" className="delete_icon" disabled={archived || saveCount > 0} title="Delete item" aria-label={`Delete ${row.name}`} onClick={() => { void persistItems(items.filter((item) => item.itemId !== row.itemId)).catch(() => {}); }}><FaTrash /></button>
                                     </div>
                                 ) }}
                                 options={{ paging: true, searching: true, ordering: true, info: true, pageLength: 10,
+                                    createdRow: (row, data) => { row.dataset.itemId = data.itemId; row.tabIndex = 0; row.setAttribute('aria-label', `Open item ${data.name}`); },
                                     language: { emptyTable: 'No items have been recorded for this job.' } }} />
                         </div>
                         )}
@@ -507,8 +513,8 @@ function Jobspage() {
                         ))}
                     </div>
                     <div className="actions">
-                        <button type="button" className="bid_form_cancel" disabled={savingItem} onClick={closeItem}>{itemEditor.mode === 'add' ? 'Cancel' : 'Done'}</button>
-                        {itemEditor.mode === 'add' && <button type="submit" className="bid_form_save" disabled={!itemEditor.item.name?.trim() || savingItem}>{savingItem ? 'Saving…' : 'Add item'}</button>}
+                        <button type="button" className="bid_form_cancel" disabled={savingItem} onClick={closeItem}>Cancel</button>
+                        <button type="submit" className="bid_form_save" disabled={!itemEditor.item.name?.trim() || savingItem}>{savingItem ? "Saving..." : itemEditor.mode === "add" ? "Add item" : "Save changes"}</button>
                     </div>
                 </ValidatedForm>
             )}

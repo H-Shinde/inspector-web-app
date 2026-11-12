@@ -13,8 +13,13 @@ const css = `
 .app-update-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 19px; height: 19px; padding: 0 5px; margin-left: 5px; border-radius: 99px; background: #b42318; color: white; font: 600 11px/1 var(--font-family-ui); vertical-align: middle; }
 .app-record-update { display: inline-block; padding: 3px 7px; margin-left: 7px; border-radius: 99px; background: #dceefe; color: #075581; font: 600 11px/1.3 var(--font-family-ui); white-space: nowrap; }
 .app-updates { position: fixed; right: 20px; bottom: 20px; z-index: 1200; font: 14px/1.5 var(--font-family-ui); color: #1f2937; }
-.app-updates--inspector { right: max(16px, calc((100vw - 480px) / 2 + 16px)); bottom: 86px; }
+ .app-updates--inspector { right: max(0px, calc((100vw - 480px) / 2)); top: auto; bottom: env(safe-area-inset-bottom, 0px); width: min(120px, 25vw); }
+.app-updates--inspector .app-updates-panel { top: auto; bottom: 70px; right: 8px; max-height: min(60dvh, 600px); }
 .app-updates-toggle { border: 1px solid #b7cfde; border-radius: 99px; padding: 10px 14px; background: white; color: #005581; font: inherit; font-weight: 600; box-shadow: 0 4px 18px #00284124; cursor: pointer; }
+.app-updates--inspector .app-updates-toggle { width: 100%; height: 64px; border: 0; border-radius: 0; box-shadow: none; background: white; padding: 8px 4px 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 12px; color: #5b6b7b; position: relative; }
+.app-updates--inspector .app-updates-toggle[aria-expanded="true"] { color: #005581; background: #e8f1f6; }
+.app-updates--inspector .app-updates-toggle > .app-update-badge { position: absolute; top: 2px; left: 52%; margin: 0; }
+.app-updates--inspector .app-updates-toggle:focus-visible { outline: 2px solid #005581; outline-offset: -3px; }
 .app-updates-panel { position: absolute; bottom: 52px; right: 0; width: min(360px, calc(100vw - 32px)); max-height: min(65vh, 600px); overflow-y: auto; padding: 16px; border: 1px solid #c8d4e0; border-radius: 14px; background: white; box-shadow: 0 12px 40px #00284130; }
 .app-updates-panel header { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
 .app-updates-panel h2 { margin: 0; font: 700 17px/1.4 var(--font-family-ui); color: #005581; }
@@ -121,7 +126,7 @@ export function UpdatesProvider({ children }) {
     return <Updates.Provider value={{ ...data, loaded, visible, read }}>
         <style>{css}</style>{children}
         {enabled && <aside className={`app-updates${inspector ? ' app-updates--inspector' : ''}`} aria-label="Updates">
-            <button type="button" className="app-updates-toggle" aria-expanded={open} aria-controls="app-updates-panel" onClick={() => setOpen(!open)}>Updates {data.total > 0 && <span className="app-update-badge" aria-label={`${data.total} unread updates`}>{data.total > 99 ? '99+' : data.total}</span>}</button>
+            <button type="button" className="app-updates-toggle" aria-expanded={open} aria-controls="app-updates-panel" onClick={() => setOpen(!open)}>{inspector && <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" /></svg>}<span>Updates</span> {data.total > 0 && <span className="app-update-badge" aria-label={`${data.total} unread updates`}>{data.total > 99 ? '99+' : data.total}</span>}</button>
             <span className="app-update-announcement" role="status">{data.total} unread updates</span>
             {open && <section id="app-updates-panel" className="app-updates-panel" aria-label="Unread updates">
                 <header><h2>Updates</h2><button type="button" onClick={() => setOpen(false)}>Close</button></header>

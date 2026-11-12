@@ -36,8 +36,8 @@ def inspector_jobs(request, pk=None):
         return JsonResponse({'error': 'Sign in required.'}, status=401)
     inspector = get_object_or_404(Inspector, user=request.user, is_active=True)
     if request.method == 'GET':
-        jobs = Job.objects.filter(inspector=inspector).exclude(status='Deleted').select_related('source_bid', 'inspector')
-        return JsonResponse({'inspectorId': inspector.pk, 'name': inspector.name, 'email': inspector.email, 'jobs': [serialize_job(job) for job in jobs]})
+        jobs = Job.objects.filter(inspector=inspector).exclude(status='Deleted').select_related('source_bid', 'inspector').prefetch_related('inspection_photos')
+        return JsonResponse({'inspectorId': inspector.pk, 'name': inspector.name, 'email': inspector.email, 'jobs': [serialize_job(job, inspector_app=True) for job in jobs]})
     job = get_object_or_404(Job.objects.select_for_update().select_related('source_bid', 'inspector'), pk=pk, inspector=inspector)
     try:
         data = json.loads(request.body)
@@ -80,4 +80,4 @@ def inspector_jobs(request, pk=None):
         job.completedAt = None
     job.revision += 1
     job.save()
-    return JsonResponse(serialize_job(job))
+    return JsonResponse(serialize_job(job, inspector_app=True))

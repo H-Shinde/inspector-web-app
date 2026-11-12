@@ -9,3 +9,38 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+/* Match inspector status dots and their 1.8-second pulse. */
+.frame_home .bid_status,
+.bid_status,
+.history_status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  gap: 10px;
+}
+.bid_status::before,
+.history_status::before {
+  content: "";
+  display: inline-block;
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  position: relative;
+}
+.bid_status_in-progress::before,
+.bid_status_needs-changes::before {
+  animation: admin-status-ping 1.8s ease-out infinite;
+  box-shadow: 0 0 0 0 currentColor;
+}
+@keyframes admin-status-ping {
+  0% { box-shadow: 0 0 0 0 currentColor; opacity: 1; }
+  80%, 100% { box-shadow: 0 0 0 4px transparent; opacity: .65; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bid_status_in-progress::before,
+  .bid_status_needs-changes::before { animation: none; }
+}

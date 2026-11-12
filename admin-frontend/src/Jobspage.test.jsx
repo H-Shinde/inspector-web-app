@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import Jobspage from './Jobspage';
 import { getJob, updateJob } from './jobsApi';
 jest.mock('./jobsApi', () => ({ getJob: jest.fn(), listJobs: jest.fn(), updateJob: jest.fn() }));
@@ -6,7 +6,7 @@ jest.mock('./useInspectorDirectory', () => () => ({ inspectors: [{ id: 7, name: 
 jest.mock('./SendJobToInspector', () => () => null);
 jest.mock('./ItemImage', () => () => null);
 jest.mock('datatables.net-react', () => {
-    const Table = ({ data, slots }) => <div>{data.map((item) => <div key={item.itemId}>{item.name}{slots?.[6]?.(null, null, item)}</div>)}</div>;
+    const Table = ({ data, slots }) => <table><tbody>{data.map((item) => <tr key={item.itemId} data-item-id={item.itemId} tabIndex={0} aria-label={`Open item ${item.name}`}><td>{item.name}</td><td>{slots?.[6]?.(null, null, item)}</td></tr>)}</tbody></table>;
     Table.use = () => {}; return Table;
 });
 jest.mock('datatables.net-dt', () => ({}));
@@ -96,11 +96,14 @@ test('shows load errors and retries', async () => {
 test('edits and deletes items through the job API', async () => {
     saved.items = [{ itemId: 'item-1', name: 'Old item' }];
     await open(); fireEvent.click(screen.getByRole('button', { name: 'Items' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Edit Old item' }));
-    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Updated item' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    fireEvent.click(screen.getByText('Old item'));
+    expect(screen.queryByRole('button', { name: 'View Old item' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit item' }));
+    fireEvent.change(within(screen.getByRole('dialog')).getByLabelText('Name'), { target: { value: 'Updated item' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(saved.items[0].name).toBe('Updated item');
+    fireEvent.click(screen.getByRole('button', { name: /Back to Items/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Delete Updated item' }));
     await waitFor(() => expect(screen.queryByText('Updated item')).not.toBeInTheDocument());
     expect(saved.items).toEqual([]);
@@ -115,7 +118,19 @@ test('imports CSV items into Django', async () => {
 test('completed jobs display read-only item controls', async () => {
     saved.status = 'Complete';
     await open();
-    expect(screen.getByRole('button', { name: 'Mark Complete' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Approve & complete' })).toBeDisabled();
     fireEvent.click(screen.getByRole('button', { name: 'Items' }));
     expect(screen.getByRole('button', { name: '+ Add item' })).toBeDisabled();
+});
+
+
+test('opens items by keyboard and cancels edits without saving', async () => {
+    saved.items = [{ itemId: 'item-1', name: 'Old item' }];
+    await open(); fireEvent.click(screen.getByRole('button', { name: 'Items' }));
+    fireEvent.keyDown(screen.getByRole('row', { name: 'Open item Old item' }), { key: 'Enter' });
+    fireEvent.click(screen.getByRole('button', { name: 'Edit item' }));
+    fireEvent.change(within(screen.getByRole('dialog')).getByLabelText('Name'), { target: { value: 'Unsaved' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(updateJob).not.toHaveBeenCalled();
+    expect(screen.getByDisplayValue('Old item')).toBeInTheDocument();
 });

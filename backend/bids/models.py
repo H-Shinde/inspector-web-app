@@ -228,7 +228,7 @@ def initial_job_section_details(bid):
 
 
 def bid_item_count(bid):
-    return (bid.totalInspectedItems or 0) + (bid.totalNonInspectedItems or 0)
+    return bid.totalInspectedItems or 0
 
 
 def initial_job_items(bid):
@@ -271,3 +271,12 @@ class Notification(models.Model):
     class Meta:
         indexes = [models.Index(fields=['recipient', 'realm', 'readAt'], name='notification_unread_idx')]
         ordering = ['-id']
+
+
+class InspectionPhoto(models.Model):
+    job = models.ForeignKey(Job, on_delete=models.CASCADE, related_name='inspection_photos')
+    partId = models.CharField(max_length=100)
+    file = models.FileField(upload_to='inspection-photos/')
+    name = models.CharField(max_length=255)
+    contentType = models.CharField(max_length=50)
+    createdAt = models.DateTimeField(auto_now_add=True)

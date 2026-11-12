@@ -37,6 +37,11 @@ const css = `
 /* sections */
 .db__sec { margin-top: 30px; }
 .db__h { display: flex; align-items: center; gap: 8px; }
+summary.db__h { cursor: pointer; list-style: none; }
+summary.db__h::-webkit-details-marker { display: none; }
+summary.db__h:focus-visible { outline: 2px solid var(--brand); outline-offset: 5px; border-radius: 4px; }
+.db__expand { margin-left: auto; display: flex; color: var(--brand); }
+details[open] > summary .db__expand { transform: rotate(180deg); }
 .db__h h1 { font-size: 18px; line-height: 1.2; font-weight: 700; letter-spacing: -0.02em; }
 .db__chip { min-width: 22px; height: 22px; padding: 0 7px; border-radius: 11px; background: var(--brand-tint); color: var(--brand);
   font-size: 12px; font-weight: 700; line-height: 22px; text-align: center; }
@@ -135,13 +140,16 @@ function JobCard({ job, index, onOpen }) {
   );
 }
 
-function Section({ title, jobs, empty, onOpen, offset }) {
+function Section({ title, jobs, empty, onOpen, offset, collapsible = false }) {
+  const Container = collapsible ? "details" : "section";
+  const Heading = collapsible ? "summary" : "div";
   return (
-    <section className="db__sec" aria-label={title}>
-      <div className="db__h db__rise" style={{ "--i": offset }}>
+    <Container className="db__sec" aria-label={title}>
+      <Heading className="db__h db__rise" style={{ "--i": offset }}>
         <h1>{title}</h1>
         {jobs.length > 0 && <span className="db__chip">{jobs.length}</span>}
-      </div>
+        {collapsible && <span className="db__expand"><Svg><path d="m6 9 6 6 6-6" /></Svg></span>}
+      </Heading>
       {jobs.length ? (
         <ul className="db__list">
           {jobs.map((j, i) => <JobCard key={j.id} job={j} index={offset + 1 + i} onOpen={onOpen} />)}
@@ -149,7 +157,7 @@ function Section({ title, jobs, empty, onOpen, offset }) {
       ) : (
         <p className="db__empty db__rise" style={{ "--i": offset + 1 }}>{empty}</p>
       )}
-    </section>
+    </Container>
   );
 }
 
@@ -167,7 +175,7 @@ export default function InspectorDashboard({
   const done = jobs.filter((j) => j.status === "pending-review");
   const current = [...active, ...done];
   const completed = jobs.filter((j) => j.status === "completed");
-  const first = userName.split(" ")[0];
+  const first = userName.includes("@") ? userName.split("@")[0] : userName.split(" ")[0];
 
   const stats = [
     { n: fresh.length, l: "New", hero: true },
@@ -195,7 +203,7 @@ export default function InspectorDashboard({
                  empty="No new requests. They'll show up here when an administrator assigns one." />
         <Section title="Current jobs" jobs={current} onOpen={onOpenCurrent} offset={5 + Math.max(fresh.length, 1) + 1}
                  empty="Nothing in progress. Accept a new request to get started." />
-        {completed.length > 0 && <Section title="Completed jobs" jobs={completed} onOpen={onOpenCurrent} offset={current.length + fresh.length + 7} />}
+        {completed.length > 0 && <Section collapsible title="Completed jobs" jobs={completed} onOpen={onOpenCurrent} offset={current.length + fresh.length + 7} />}
       </div>
     </InspectorShell>
   );

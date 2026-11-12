@@ -18,10 +18,16 @@ SECTIONS = {
 ITEM_FIELDS = ['name', 'qty', 'condition', 'type', 'make', 'model', 'serialNumber', 'year', 'hoursMiles', 'photoNumber', 'referenceNumber', 'comments']
 
 
-def serialize_job(job):
+def serialize_job(job, inspector_app=False):
     from .views import serialize_bid
     result = serialize_bid(job.source_bid, include_job=False)
     current_items = current_job_items(job)
+    photo_groups = {}
+    prefix = '/api/inspector/item-photos/' if inspector_app else '/api/item-photos/'
+    for photo in job.inspection_photos.all():
+        photo_groups.setdefault(photo.partId, []).append({'id': photo.pk, 'name': photo.name, 'url': f'{prefix}{photo.pk}/'})
+    current_items = [{**item, 'photos': photo_groups.get(item['itemId'], [])} for item in current_items]
+    current_parts = [{**part, 'photos': photo_groups.get(part['id'], [])} for part in parts_from_items(current_items, job.inspectionParts)]
     result.update({
         'id': job.pk, 'jobId': job.pk, 'referenceNumber': f'JOB-{job.pk:06d}', 'sourceBidId': job.source_bid_id,
         'sourceBidReference': job.source_bid.referenceNumber, 'sourceBidBackend': 'django', 'recordType': 'Job',
@@ -31,7 +37,7 @@ def serialize_job(job):
         'inspectorEmailFor': job.inspector.name if job.inspector else '',
         'items': current_items, 'sectionDetails': job.sectionDetails, 'valuationHistory': job.valuationHistory,
         'expectedItemCount': bid_item_count(job.source_bid),
-        'inspectionParts': parts_from_items(current_items, job.inspectionParts), 'reviewNotes': job.reviewNotes,
+        'inspectionParts': current_parts, 'reviewNotes': job.reviewNotes,
         'createdAt': job.createdAt, 'completedAt': job.completedAt, 'deletedAt': job.deletedAt,
         'pdf': result.get('engagementAgreement', ''),
     })
@@ -52,7 +58,7 @@ def clean_items(items):
         raise ValueError('Provide up to 5000 items.')
     result, seen = [], set()
     for item in items:
-        if not isinstance(item, dict) or set(item) - set(ITEM_FIELDS + ['itemId']):
+        if not isinstance(item, dict) or set(item) - set(ITEM_FIELDS + ['itemId', 'photos']):
             raise ValueError('Invalid item fields.')
         cleaned = {}
         for field in ITEM_FIELDS:
@@ -119,7 +125,7 @@ def jobs(request):
             'sectionDetails': initial_job_section_details(bid), 'items': initial_job_items(bid),
         })
         return JsonResponse(serialize_job(job), status=201 if created else 200)
-    records = Job.objects.filter(owner=request.user).select_related('source_bid', 'inspector').order_by('-createdAt', '-id')
+    records = Job.objects.filter(owner=request.user).select_related('source_bid', 'inspector').prefetch_related('inspection_photos').order_by('-createdAt', '-id')
     records = records.filter(status__in=['Complete', 'Deleted']) if request.GET.get('history') == '1' else records.exclude(status__in=['Complete', 'Deleted'])
     return JsonResponse({'jobs': [serialize_job(job) for job in records]})
 

@@ -18,12 +18,12 @@ class BidJobCountTests(TestCase):
         response = self.client.patch(f'/api/bids/{self.bid.pk}/', data=json.dumps({'status': 'Accepted'}), content_type='application/json')
         self.assertEqual(response.status_code, 200, response.content)
         job = Job.objects.get(source_bid=self.bid)
-        self.assertEqual(len(job.items), 5)
+        self.assertEqual(len(job.items), 3)
         data = self.client.get(f'/api/jobs/{job.pk}/').json()
-        self.assertEqual(data['expectedItemCount'], 5)
-        self.assertEqual(len(data['items']), 5)
+        self.assertEqual(data['expectedItemCount'], 3)
+        self.assertEqual(len(data['items']), 3)
         job.items = []; job.save()
-        self.assertEqual(len(self.client.get(f'/api/jobs/{job.pk}/').json()['items']), 5)
+        self.assertEqual(len(self.client.get(f'/api/jobs/{job.pk}/').json()['items']), 3)
 
     def test_inspector_submission_quantities_must_match_bid(self):
         job = Job.objects.create(owner=self.admin, source_bid=self.bid, inspector=self.inspector, status='In-Progress', items=initial_job_items(self.bid))
@@ -32,7 +32,7 @@ class BidJobCountTests(TestCase):
         url = f'/api/inspector/jobs/{job.pk}/'
         response = self.client.post(url, data=json.dumps({'action': 'complete', 'revision': 0}), content_type='application/json')
         self.assertEqual(response.status_code, 400, response.content)
-        self.assertIn('requires 5 items', response.json()['error'])
+        self.assertIn('requires 3 items', response.json()['error'])
         for part in job.inspectionParts: part['qty'] = '1'
         job.save()
         response = self.client.post(url, data=json.dumps({'action': 'complete', 'revision': 0}), content_type='application/json')

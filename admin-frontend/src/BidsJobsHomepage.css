@@ -343,7 +343,11 @@
 }
 
 .frame_home .bid_status {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    vertical-align: middle;
     padding: 4px 10px;
     border-radius: 20px;
     font-size: 12px;

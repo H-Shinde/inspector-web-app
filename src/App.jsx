@@ -278,7 +278,16 @@ function AppContent() {
         onTab={goTab}
         onBack={() => setStep("parts")}
         onSave={async (p) => {
-          const result = await inspectorRequest(`/api/inspector/jobs/${job.id}/parts/`, { part: p, revision: job.revision });
+          const files = (p.photos || []).filter(photo => photo.file);
+          const part = { ...p, photos: (p.photos || []).filter(photo => !photo.file).map(photo => ({ id: photo.id })) };
+          let payload = { part, revision: job.revision };
+          if (files.length) {
+            payload = new FormData();
+            payload.append('part', JSON.stringify(part));
+            payload.append('revision', String(job.revision));
+            files.forEach(photo => payload.append('files', photo.file));
+          }
+          const result = await inspectorRequest(`/api/inspector/jobs/${job.id}/parts/`, payload);
           setJobs((previous) => previous.map((entry) => entry.id === result.id ? inspectorJob(result) : entry));
           setStep("parts");
         }}

@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import InspectorShell from "./InspectorShell";
 import { FIELDS, CONDITIONS, emptyPart, partStatus } from "./parts";
 
@@ -66,12 +66,14 @@ export default function InspectionSheet({
 }) {
   const readOnly = ["pending-review", "completed", "submitted"].includes(job.status);
   const adding = !part;
-  const initial = useRef(part || emptyPart()).current;
+  const initial = useRef({ ...(part || emptyPart()), photos: part?.photos || [] }).current;
   const [form, setForm] = useState(initial);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [tried, setTried] = useState(false);
-  const camRef = useRef(null);
+  const galleryRef = useRef(null);
+  const previews = useRef(new Set());
+  useEffect(() => () => previews.current.forEach(url => URL.revokeObjectURL(url)), []);
 
   const dirty = JSON.stringify(form) !== JSON.stringify(initial);
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
@@ -86,11 +88,24 @@ export default function InspectionSheet({
   }
 
   function addPhoto(e) {
-    const file = e.target.files?.[0];
+    const files = Array.from(e.target.files || []);
     e.target.value = "";
-    if (!file) return;
-    // TODO: upload `file` to storage and keep the returned URL instead of this local preview URL.
-    setForm((f) => ({ ...f, photos: [...f.photos, { id: `ph${Date.now()}`, name: file.name, url: URL.createObjectURL(file), file }] }));
+    if (readOnly || busy || !files.length) return;
+    if (form.photos.length + files.length > 10) { setErr("Attach up to 10 photos per item."); return; }
+    if (files.some(file => !['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(file.type) || file.size > 10 * 1024 * 1024)) {
+      setErr("Choose JPEG, PNG, GIF or WebP photos up to 10 MB each."); return;
+    }
+    const photos = files.map(file => {
+      const url = URL.createObjectURL(file); previews.current.add(url);
+      return { id: crypto.randomUUID(), name: file.name, url, file };
+    });
+    setErr("");
+    setForm(f => ({ ...f, photos: [...f.photos, ...photos] }));
+  }
+
+  function removePhoto(photo) {
+    if (previews.current.delete(photo.url)) URL.revokeObjectURL(photo.url);
+    setForm(f => ({ ...f, photos: f.photos.filter(value => value.id !== photo.id) }));
   }
 
   async function save() {
@@ -109,13 +124,7 @@ export default function InspectionSheet({
           <button type="button" className="sh__save" disabled={busy || readOnly} onClick={save}>
             {busy ? "Saving…" : adding ? "Add Part" : "Update"}
           </button>
-          <input ref={camRef} type="file" accept="image/*" capture="environment" hidden onChange={addPhoto} />
-          <button type="button" className="sh__cam" disabled={readOnly} onClick={() => camRef.current?.click()} aria-label="Take or attach a photo">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z" /><circle cx="12" cy="13.5" r="3.5" />
-            </svg>
-            {form.photos.length > 0 && <span className="sh__n">{form.photos.length}</span>}
-          </button>
+
         </div>
       }
     >
@@ -136,22 +145,25 @@ export default function InspectionSheet({
         {FIELDS.map(([k, label]) => (
           <div className="sh__f" key={k}>
             <label htmlFor={`sh-${k}`}>{label}</label>
-            {k === 'condition' ? <select id={`sh-${k}`} className="sh__in" value={CONDITIONS.includes(form[k]) ? form[k] : ''} disabled={readOnly} onChange={set(k)}>
+            {k === 'condition' ? <select id={`sh-${k}`} className="sh__in" value={CONDITIONS.includes(form[k]) ? form[k] : ''} disabled={readOnly || busy} onChange={set(k)}>
                 <option value="">Select condition</option>
                 {CONDITIONS.map((condition) => <option key={condition}>{condition}</option>)}
-            </select> : <input id={`sh-${k}`} className="sh__in" readOnly={readOnly} value={form[k]} onChange={set(k)} inputMode={MODE[k]}
+            </select> : <input id={`sh-${k}`} className="sh__in" readOnly={readOnly || busy} value={form[k]} onChange={set(k)} inputMode={MODE[k]}
                    autoCapitalize={k === "serial" ? "characters" : undefined} autoComplete="off" />}
           </div>
         ))}
-        <textarea className="sh__ta" readOnly={readOnly} placeholder="Type comments here…" aria-label="Comments" value={form.comments} onChange={set("comments")} />
+        <textarea className="sh__ta" readOnly={readOnly || busy} placeholder="Type comments here…" aria-label="Comments" value={form.comments} onChange={set("comments")} />
 
+        <input ref={galleryRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp" multiple hidden onChange={addPhoto} />
+        {!readOnly && <button type="button" className="sh__in" style={{ marginTop: 16 }} disabled={busy} onClick={() => galleryRef.current?.click()}>Attach photos</button>}
+        <p className="sh__hint">Photos ({form.photos.length}/10). Up to 10 MB each. Tap a photo to view it full size.</p>
         {form.photos.length > 0 && (
           <div className="sh__ph">
             {form.photos.map((p) => (
               <div className="sh__th" key={p.id}>
-                <img src={p.url} alt={p.name || "Part photo"} />
+                <a href={p.url} target="_blank" rel="noreferrer"><img src={p.url} alt={p.name || "Part photo"} /></a>
                 <button type="button" className="sh__x" aria-label="Remove photo"
-                        onClick={() => setForm((f) => ({ ...f, photos: f.photos.filter((x) => x.id !== p.id) }))}>
+                        disabled={readOnly || busy} hidden={readOnly} onClick={() => removePhoto(p)}>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
                 </button>
               </div>

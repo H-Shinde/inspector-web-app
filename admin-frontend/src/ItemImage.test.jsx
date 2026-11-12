@@ -4,6 +4,7 @@ import { readItemImage } from './itemImages';
 jest.mock('./itemImages', () => ({ readItemImage: jest.fn() }));
 
 beforeEach(() => {
+    jest.clearAllMocks();
     URL.createObjectURL = jest.fn(() => 'blob:stored-photo');
     URL.revokeObjectURL = jest.fn();
 });
@@ -21,4 +22,14 @@ test('shows a useful message when the stored image is unavailable', async () => 
     readItemImage.mockResolvedValue(undefined);
     render(<ItemImage item={{ name: 'Forklift', imageId: 'missing' }} />);
     expect(await screen.findByText('Unable to load the saved item image.')).toBeInTheDocument();
+});
+
+test('renders server photos without needing a browser-local image', () => {
+    render(<ItemImage item={{ name: 'Machine', photos: [
+        { id: 1, name: 'Front.png', url: '/api/item-photos/1/' },
+        { id: 2, name: 'Side.png', url: '/api/item-photos/2/' },
+    ] }} />);
+    expect(screen.getAllByRole('img')).toHaveLength(2);
+    expect(screen.getAllByRole('link')[0].getAttribute('href')).toBe('/api/item-photos/1/');
+    expect(readItemImage).not.toHaveBeenCalled();
 });

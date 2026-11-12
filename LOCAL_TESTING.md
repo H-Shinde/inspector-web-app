@@ -57,3 +57,10 @@ For delivery to real inboxes, copy backend/email_config.example.json to backend/
 ### Gmail setup
 
 Enable 2-Step Verification on the sending Google account and create an app password at https://myaccount.google.com/apppasswords. From the project root run `.venv\Scripts\python.exe backend\configure_gmail.py`. It prompts for the sender address, a hidden app password, and the inspector app URL; it verifies SMTP authentication over TLS before saving the gitignored configuration. It sends no test email. Restart Django and use Resend invite.
+
+
+### Item photos
+
+Inspectors can use the camera button on an item to take a photo on supported mobile devices, or Attach photos to select existing images. Save the item to upload its photos. Each item supports up to 10 JPEG, PNG, GIF or WebP images, up to 10 MB each. The admin can open the same item in Items to view the gallery and open full-size images. Photos remain available after submission and completion; submitted items are read-only until changes are requested.
+
+Photo files are stored under the backend MEDIA_ROOT and served through authenticated, role-specific endpoints. Include this storage in deployment persistence and backups. Apply migrations with `.venv/Scripts/python.exe backend/manage.py migrate` on other checkouts.

@@ -1,9 +1,10 @@
 import json
+import uuid
 from django.db import transaction
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.views.decorators.http import require_http_methods
-from .models import Inspector, Job
+from .models import Inspector, Job, InspectionPhoto
 from .inspector_views import InspectorForm, serialize_inspector
 from .job_views import serialize_job
 
@@ -21,6 +22,8 @@ def clean_part(value):
         if not isinstance(text, str) or len(text) > 4000:
             raise ValueError(f'Invalid {field}.')
         result[field] = text.strip()
+    if len(result['id']) > 100:
+        raise ValueError('Part ID must be at most 100 characters.')
     if not result['id'] or not result['name']:
         raise ValueError('Part ID and name are required.')
     for field in ['qty', 'year', 'mileage']:
@@ -30,9 +33,12 @@ def clean_part(value):
                 raise ValueError(f'Enter a valid {field} or N/A.')
     if result['condition'] and result['condition'] not in CONDITIONS:
         raise ValueError('Choose Very Good, Good, Fair, Poor or Scrap for condition.')
-    if value.get('photos'):
-        raise ValueError('Photo uploads are not available yet. Remove photos before saving.')
-    result['photos'] = []
+    photos = value.get('photos', [])
+    if not isinstance(photos, list) or len(photos) > 10 or any(not isinstance(photo, dict) or type(photo.get('id')) is not int for photo in photos):
+        raise ValueError('Keep up to 10 saved photos per item.')
+    if len({photo['id'] for photo in photos}) != len(photos):
+        raise ValueError('Photo IDs must be unique.')
+    result['photos'] = [{'id': photo['id']} for photo in photos]
     return result
 
 
@@ -46,12 +52,36 @@ def save_part(request, pk):
     if job.status not in ['In-Progress', 'Needs Changes']:
         return JsonResponse({'error': 'Only in-progress jobs or jobs needing changes can be edited.'}, status=409)
     try:
-        data = json.loads(request.body)
+        uploads = []
+        if request.content_type == 'multipart/form-data':
+            if set(request.POST) != {'part', 'revision'} or set(request.FILES) - {'files'}:
+                raise ValueError('Provide item details, revision and photo files.')
+            revision = request.POST['revision']
+            if not revision.isascii() or not revision.isdigit():
+                raise ValueError('Provide the job revision.')
+            data = {'part': json.loads(request.POST['part']), 'revision': int(revision)}
+            uploads = request.FILES.getlist('files')
+        else:
+            data = json.loads(request.body)
         if not isinstance(data, dict) or set(data) != {'part', 'revision'}:
             raise ValueError('Provide a part and job revision.')
         if type(data['revision']) is not int or data['revision'] != job.revision:
             return JsonResponse({'error': 'Job changed elsewhere. Reload before saving.'}, status=409)
         part = clean_part(data['part'])
+        retained = [photo['id'] for photo in part['photos']]
+        if InspectionPhoto.objects.filter(job=job, partId=part['id'], pk__in=retained).count() != len(retained):
+            raise ValueError('A saved photo does not belong to this item.')
+        if len(retained) + len(uploads) > 10:
+            raise ValueError('Attach up to 10 photos per item.')
+        from .message_views import file_type
+        kinds = []
+        for upload in uploads:
+            if upload.size > 10 * 1024 * 1024:
+                raise ValueError('Each item photo must be at most 10 MB.')
+            kind = file_type(upload)
+            if not kind.startswith('image/'):
+                raise ValueError('Item photos must be JPEG, PNG, GIF or WebP images.')
+            kinds.append(kind)
         from .inspector_jobs import parts_for_job
         parts = parts_for_job(job)
         existing = any(entry['id'] == part['id'] for entry in parts)
@@ -65,11 +95,34 @@ def save_part(request, pk):
             raise ValueError(f'The bid contains {expected} items. Update its existing parts instead of adding extra quantities.')
         from .inspection_items import merge_inspection_items, current_job_items
         job.items = merge_inspection_items(current_job_items(job), [part])
-        job.revision += 1
-        job.save(update_fields=['inspectionParts', 'items', 'revision'])
-        return JsonResponse(serialize_job(job))
+        created = []
+        try:
+            with transaction.atomic():
+                for upload, kind in zip(uploads, kinds):
+                    photo = InspectionPhoto(job=job, partId=part['id'], name=upload.name[:255], contentType=kind)
+                    photo.file.save(uuid.uuid4().hex, upload, save=False)
+                    created.append(photo)
+                    photo.save()
+                    part['photos'].append({'id': photo.pk})
+                # Only remove explicitly omitted photos from this item.
+                removed = InspectionPhoto.objects.filter(job=job, partId=part['id']).exclude(pk__in=[photo['id'] for photo in part['photos']])
+                old_files = [(photo.file.storage, photo.file.name) for photo in removed]
+                removed.delete()
+                for storage, name in old_files:
+                    transaction.on_commit(lambda storage=storage, name=name: storage.delete(name))
+                job.revision += 1
+                job.save(update_fields=['inspectionParts', 'items', 'revision'])
+                result = serialize_job(job, inspector_app=True)
+        except Exception:
+            for photo in created:
+                if photo.file.name:
+                    photo.file.storage.delete(photo.file.name)
+            raise
+        return JsonResponse(result)
     except (ValueError, UnicodeDecodeError) as error:
         return JsonResponse({'error': str(error)}, status=400)
+    except OSError:
+        return JsonResponse({'error': 'Unable to save the photos. Please try again.'}, status=503)
 
 
 @require_http_methods(['GET', 'POST'])

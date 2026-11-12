@@ -1,5 +1,5 @@
 import { UpdateBadge } from '../updates';
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 /**
  * Frame for the signed-in inspector screens: app bar (+ optional back button),
@@ -12,7 +12,7 @@ const CSS = `
   --ink: #0f172a; --muted: #5b6b7b; --line: #e5e9ee; --field: #f5f7fa;
   --danger: #b42318; --ok: #1aa971; --page: #f7f8fa;
   all: initial;
-  display: flex; flex-direction: column; min-height: 100dvh; width: 100%;
+  display: flex; flex-direction: column; height: 100dvh; min-height: 0; width: 100%; overflow: hidden;
   background: var(--page); color: var(--ink); color-scheme: light; text-align: left;
   font-family: var(--font-family-ui);
   -webkit-font-smoothing: antialiased; box-sizing: border-box;
@@ -22,7 +22,7 @@ const CSS = `
 .ix h1, .ix h3 { color: var(--ink); font-family: inherit; }
 .ix button { font-family: inherit; }
 
-.ix__bar { position: sticky; top: 0; z-index: 2; background: #fff;
+.ix__bar { flex: none; position: sticky; top: 0; z-index: 2; background: #fff;
   border-bottom: 1px solid var(--line); padding-top: env(safe-area-inset-top, 0px); }
 .ix__bar-in { position: relative; max-width: 480px; margin: 0 auto; height: 56px; padding: 0 20px;
   display: flex; align-items: center; justify-content: center; gap: 10px; }
@@ -35,18 +35,29 @@ const CSS = `
 .ix__back:hover { background: var(--field); }
 .ix__back:focus-visible, .ix__tab:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 
-.ix__main { flex: 1; width: 100%; max-width: 480px; margin: 0 auto; padding: 24px 20px 20px; }
+.ix__main { flex: 1; min-height: 0; width: 100%; max-width: 480px; margin: 0 auto; padding: 24px 20px 20px;
+  overflow-y: scroll; scrollbar-gutter: stable; scrollbar-width: auto; scrollbar-color: #66869a #e8eef3;
+  overscroll-behavior-y: contain; }
+.ix__main::-webkit-scrollbar { width: 12px; }
+.ix__main::-webkit-scrollbar-track { background: #e8eef3; border-radius: 8px; }
+.ix__main::-webkit-scrollbar-thumb { background: #66869a; border: 3px solid #e8eef3; border-radius: 8px; min-height: 40px; }
+.ix__main::-webkit-scrollbar-thumb:hover { background: #005581; }
+.ix__more { flex: none; align-self: center; display: flex; align-items: center; justify-content: center; gap: 6px;
+  margin: 0; padding: 7px 18px; border: 1px solid #b8d0df; border-radius: 20px; background: #e8f1f6;
+  color: #005581; font: 600 13px var(--font-family-ui); cursor: pointer; box-shadow: 0 -6px 18px #f7f8fa; }
+.ix__more:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.ix__main:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
 .ix--chat { height: 100dvh; min-height: 0; }
-.ix--chat .ix__main { padding: 0; display: flex; flex-direction: column; overflow-y: auto; min-height: 0; overscroll-behavior: contain; }
+.ix--chat .ix__main { padding: 0; display: flex; flex-direction: column; overflow-y: scroll; min-height: 0; overscroll-behavior: contain; }
 .ix--chat .ix__foot { flex: none; }
-.ix__foot { width: 100%; max-width: 480px; margin: 0 auto; padding: 8px 20px 16px; }
+.ix__foot { flex: none; width: 100%; max-width: 480px; margin: 0 auto; padding: 8px 20px 16px; }
 
 .ix__title { font-size: 24px; line-height: 1.2; font-weight: 700; letter-spacing: -0.02em; }
 .ix__card { border: 1px solid var(--line); border-radius: 14px; background: #fff; }
 
-.ix__nav { position: sticky; bottom: 0; z-index: 2; background: #fff; border-top: 1px solid var(--line);
+.ix__nav { flex: none; position: sticky; bottom: 0; z-index: 2; background: #fff; border-top: 1px solid var(--line);
   padding-bottom: env(safe-area-inset-bottom, 0px); }
-.ix__nav-in { max-width: 480px; margin: 0 auto; display: grid; grid-template-columns: repeat(3, 1fr); }
+.ix__nav-in { max-width: 480px; margin: 0 auto; display: grid; grid-template-columns: repeat(3, 1fr); padding-right: min(120px, 25vw); }
 .ix__tab { appearance: none; border: 0; background: none; padding: 8px 4px 10px; display: flex;
   flex-direction: column; align-items: center; gap: 4px; font-size: 12px; font-weight: 600;
   color: var(--muted); cursor: pointer; -webkit-tap-highlight-color: transparent; min-width: 0; }
@@ -88,10 +99,22 @@ export default function InspectorShell({
   children,
 }) {
   const [failed, setFailed] = useState(false);
+  const mainRef = useRef(null);
+  const [moreBelow, setMoreBelow] = useState(false);
+  useEffect(() => {
+    const main = mainRef.current;
+    const update = () => setMoreBelow(main.scrollHeight - main.clientHeight - main.scrollTop > 12);
+    main.addEventListener('scroll', update, { passive: true });
+    const observer = new ResizeObserver(update);
+    observer.observe(main);
+    Array.from(main.children).forEach(child => observer.observe(child));
+    update();
+    return () => { main.removeEventListener('scroll', update); observer.disconnect(); };
+  }, [children]);
   const tabs = [
     { id: "jobs", label: "Jobs" },
     { id: "messages", label: "Messages" },
-    { id: "profile", label: userName },
+    { id: "profile", label: userName.includes("@") ? userName.split("@")[0] : userName },
   ];
 
   return (
@@ -113,7 +136,10 @@ export default function InspectorShell({
           </div>
         </header>
 
-        <main className="ix__main">{children}</main>
+        <main ref={mainRef} className="ix__main" tabIndex={0} aria-label="Screen content">{children}</main>
+        {moreBelow && !chat && <button type="button" className="ix__more" onClick={() => mainRef.current?.scrollBy({ top: mainRef.current.clientHeight * 0.7, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })}>
+          More below <Svg size={16}><path d="M12 4v16M6 14l6 6 6-6" /></Svg>
+        </button>}
         {footer && <div className="ix__foot">{footer}</div>}
 
         <nav className="ix__nav" aria-label="Primary">

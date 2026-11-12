@@ -17,8 +17,8 @@ export async function inspectorRequest(path, data) {
 }
 export function inspectorJob(row) {
     const parts = row.inspectionParts?.length ? row.inspectionParts : (row.items || []).map((item, index) => ({
-        id: String(item.itemId || `item-${index}`), name: item.name || '', qty: item.qty || '', type: item.type || '', make: item.make || '', model: item.model || '', serial: item.serialNumber || '', condition: item.condition || '', year: item.year || '', mileage: item.hoursMiles || '', comments: item.comments || '', photos: [],
+        id: String(item.itemId || `item-${index}`), name: item.name || '', qty: item.qty || '', type: item.type || '', make: item.make || '', model: item.model || '', serial: item.serialNumber || '', condition: item.condition || '', year: item.year || '', mileage: item.hoursMiles || '', comments: item.comments || '', photos: item.photos || [],
     }));
-    return { ...row, title: row.businessName, address: row.businessAddress, contactName: row.name, email: row.subjectContactEmail,
+    return { ...row, title: row.businessName, address: row.businessAddress, contactName: row.name, email: row.subjectContactEmail, requestDate: row.date || '',
         status: ({ Complete: 'completed', 'Pending Review': 'pending-review', 'Needs Changes': 'needs-changes', Assigned: 'new', 'In-Progress': 'in-progress', Unassigned: 'new' })[row.status] || 'pending-review', parts };
 }
