@@ -148,3 +148,36 @@ Run `python manage.py migrate` and `python manage.py test bids.test_jobs --noinp
 The four Asset Valuation checkboxes (FMV in Continued Use, Fair Market Value Removed, Orderly Liquidation Value and Forced Liquidation Value) add editable percentage surcharges. Each defaults to 5% for new bids. Change **Percentage (%)** in Settings for each bid type. The base is the subtotal after fixed contributions and discounts, before any percentage surcharges. All selected percentages use that same base, with each surcharge rounded to cents; they do not compound. A nonpositive subtotal contributes no percentage surcharge. Rates are validated between 0% and 100% with up to two decimal places.
 
 Percentage terms use `"mode": "percentage"`; legacy terms without a mode retain fixed-value semantics. Migration `0009_asset_valuation_percentages` adds percentage terms to account settings and freezes legacy bids without snapshots to their original formulas. Saved bid snapshots are not repriced.
+
+
+## Inspector invitation emails
+
+The admin Inspector directory includes **Invite Inspector** and **Resend invite**.
+Creating an inspector sends a registration email; resending replaces the previous
+link. Links expire after seven days and can only be used once. Delivery failures
+return an error and preserve the previous invitation.
+
+Without SMTP configuration, invitations are printed in the backend terminal and
+are not delivered to an inbox. This copy does not include private credentials.
+For Gmail or Google Workspace, activate your backend Python environment and run
+from the repository root:
+
+```bash
+python backend/configure_gmail.py
+```
+
+The setup asks for your sending address, Google app password, and inspector app
+URL, then verifies SMTP login without sending an email. It saves credentials to
+`backend/email_config.json`, which is gitignored. Restart Django after setup,
+then use **Resend invite** for a pending inspector. For another SMTP provider,
+copy `backend/email_config.example.json` to `backend/email_config.json` and fill
+in that provider's settings. Environment variables override values in this file.
+
+Use `http://localhost:5173` only for local testing. Invitations to inspectors on
+other computers need the deployed inspector app URL in `INSPECTOR_FRONTEND_URL`.
+
+Run the invitation and registration checks without sending real email:
+
+```bash
+python backend/manage.py test bids.test_invitation_delivery bids.test_registration bids.test_inspectors --noinput
+```

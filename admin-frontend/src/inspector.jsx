@@ -30,7 +30,7 @@ const columns = [
 ];
 const ACTIONS_COLUMN = fields.length + 1;
 
-function InspectorActions({ row, onMessage, onRate, busy }) {
+function InspectorActions({ row, onInvite, onMessage, onRate, busy }) {
     return <div className="action_buttons">
         {!row.isRegistered && <button type="button" disabled={busy || !row.is_active} title="Resend invitation" aria-label={`Resend invitation to ${row.email}`} onClick={() => onInvite(row)}>Resend invite</button>}
         <button type="button" title="Message inspector" aria-label={`Message ${row.name}`} onClick={() => onMessage(row)}><FaEnvelope /></button>

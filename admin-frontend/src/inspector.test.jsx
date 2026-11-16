@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import Inspector from './inspector';
-import { listInspectors, createInspector, updateInspector } from './inspectorApi';
-jest.mock('./inspectorApi', () => ({ listInspectors: jest.fn(), createInspector: jest.fn(), updateInspector: jest.fn() }));
+import { listInspectors, createInspector, updateInspector, resendInspectorInvitation } from './inspectorApi';
+jest.mock('./inspectorApi', () => ({ listInspectors: jest.fn(), createInspector: jest.fn(), updateInspector: jest.fn(), resendInspectorInvitation: jest.fn() }));
 jest.mock('datatables.net-react', () => {
     const React = require('react');
     const Table = React.forwardRef(({ data, slots, columns }, ref) => {
@@ -27,7 +27,7 @@ test('loads real inspectors and their ZIP-based location', async () => {
 });
 test('creates an inspector using only an email', async () => {
     render(<Inspector />); await screen.findByText('Database Inspector');
-    fireEvent.click(screen.getByRole('button', { name: '+ Add Inspector' }));
+    fireEvent.click(screen.getByRole('button', { name: '+ Invite Inspector' }));
     expect(screen.queryByLabelText('Company')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Inspector')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('ZIP')).not.toBeInTheDocument();
@@ -40,7 +40,7 @@ test('creates an inspector using only an email', async () => {
 test('preserves entered fields on failure', async () => {
     createInspector.mockRejectedValueOnce(new Error('Unable to save.'));
     render(<Inspector />); await screen.findByText('Database Inspector');
-    fireEvent.click(screen.getByRole('button', { name: '+ Add Inspector' }));
+    fireEvent.click(screen.getByRole('button', { name: '+ Invite Inspector' }));
     fireEvent.change(screen.getByLabelText('E-mail'), { target: { value: 'new@example.com' } });
     fireEvent.click(screen.getByRole('button', { name: 'Send Invite' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Unable to save.');
@@ -53,4 +53,20 @@ test('edits an existing inspector location', async () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save Inspector' }));
     await waitFor(() => expect(screen.queryByRole('form', { name: 'Edit inspector' })).not.toBeInTheDocument());
     expect(updateInspector).toHaveBeenCalledWith(42, expect.objectContaining({ zipCode: '11201' }));
+});
+
+test('resends an invitation and confirms email delivery', async () => {
+    resendInspectorInvitation.mockResolvedValueOnce({ ...inspector, invitationDelivery: 'email' });
+    render(<Inspector />);
+    fireEvent.click(await screen.findByRole('button', { name: `Resend invitation to ${inspector.email}` }));
+    expect(resendInspectorInvitation).toHaveBeenCalledWith(inspector.id);
+    expect(await screen.findByText(`Invitation emailed to ${inspector.email}. The registration link expires in 7 days.`)).toBeInTheDocument();
+});
+
+test('shows resend failures and lets the administrator retry', async () => {
+    resendInspectorInvitation.mockRejectedValueOnce(new Error('Unable to email the invitation.'));
+    render(<Inspector />);
+    fireEvent.click(await screen.findByRole('button', { name: `Resend invitation to ${inspector.email}` }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Unable to email the invitation.');
+    expect(screen.getByRole('button', { name: `Resend invitation to ${inspector.email}` })).toBeEnabled();
 });

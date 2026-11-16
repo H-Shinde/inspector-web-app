@@ -44,6 +44,8 @@ class InvitationDeliveryTests(TestCase):
         self.assertEqual(data['fullName'], '')
         self.assertNotIn('invitationNonce', result.json())
         self.assertIn('7 days', mail.outbox[-1].body)
+        self.assertIn('registration link:\nhttps://', mail.outbox[-1].body)
+        self.assertNotIn(r'\n', mail.outbox[-1].body)
 
     def test_registration_is_invite_only_bound_to_email_and_single_use(self):
         result = self.invite()

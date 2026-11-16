@@ -4,8 +4,8 @@
   "EMAIL_PORT": "587",
   "EMAIL_USE_TLS": "true",
   "EMAIL_USE_SSL": "false",
-  "EMAIL_HOST_USER": "your-smtp-account",
-  "EMAIL_HOST_PASSWORD": "your-smtp-app-password",
-  "DEFAULT_FROM_EMAIL": "Bison Valuation <invitations@your-domain.com>",
+  "EMAIL_HOST_USER": "",
+  "EMAIL_HOST_PASSWORD": "",
+  "DEFAULT_FROM_EMAIL": "",
   "INSPECTOR_FRONTEND_URL": "https://inspectors.your-domain.com"
 }
