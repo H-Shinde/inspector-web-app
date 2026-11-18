@@ -107,11 +107,17 @@ export default function PartAnalysis({
 
   const readOnly = ["pending-review", "completed", "submitted"].includes(job.status);
   const parts = job.parts || [];
-  const done = parts.filter((p) => partStatus(p) === "completed").length;
+  const completedParts = parts.filter((part) => partStatus(part) === "completed");
   const allocated = parts.reduce((total, part) => total + (Number(part.qty) || 1), 0);
+  const completedQuantity = completedParts.reduce((total, part) => {
+    const quantity = Number(part.qty);
+    return Number.isInteger(quantity) && quantity > 0 ? total + quantity : total;
+  }, 0);
+  const totalQuantity = job.expectedItemCount || allocated;
+  const progressQuantity = Math.min(completedQuantity, totalQuantity);
   const canAdd = !job.expectedItemCount || allocated < job.expectedItemCount;
   const quantitiesMatch = !job.expectedItemCount || (parts.every((part) => /^[1-9][0-9]*$/.test(String(part.qty || ''))) && parts.reduce((total, part) => total + Number(part.qty), 0) === job.expectedItemCount);
-  const allDone = parts.length > 0 && done === parts.length && quantitiesMatch;
+  const allDone = parts.length > 0 && completedParts.length === parts.length && quantitiesMatch;
   const shown = parts.filter((p) =>
     (filter === "all" || partStatus(p) === filter) && p.name.toLowerCase().includes(query.trim().toLowerCase()));
 
@@ -127,10 +133,10 @@ export default function PartAnalysis({
       {job.status === "needs-changes" && <div role="status" className="pa__lock"><strong>Needs changes</strong><p>{job.reviewNotes}</p></div>}
       <div className="pa__top pa__rise">
         <h1>{job.businessName || job.title}</h1>
-        <span className="pa__prog">Progress: <b>{done}/{parts.length}</b>{job.expectedItemCount > 0 && <> ? {job.expectedItemCount} items in bid</>}</span>
+        <span className="pa__prog">Progress: <b>{completedQuantity}/{totalQuantity}</b> items complete</span>
       </div>
-      <div className="pa__bar pa__rise" style={{ "--i": 1 }} role="progressbar" aria-valuemin={0} aria-valuemax={parts.length} aria-valuenow={done}>
-        <i style={{ "--w": parts.length ? `${(done / parts.length) * 100}%` : "0%" }} />
+      <div className="pa__bar pa__rise" style={{ "--i": 1 }} role="progressbar" aria-label="Items complete" aria-valuemin={0} aria-valuemax={totalQuantity} aria-valuenow={progressQuantity}>
+        <i style={{ "--w": totalQuantity ? `${(progressQuantity / totalQuantity) * 100}%` : "0%" }} />
       </div>
 
       <div className={`pa__tools pa__rise${menu ? " pa__tools--open" : ""}`} style={{ "--i": 2 }}>
