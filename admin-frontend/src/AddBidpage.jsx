@@ -58,6 +58,7 @@ function AddBidpage() {
         return {
             ...Object.fromEntries(sections.flatMap(([, fields]) => fields.map(([field, , type]) => [field, field === 'status' ? 'Pending' : type === 'checkbox' ? false : '']))),
             completionDays,
+            nonAppraisalRate: '0.00',
             date: requestDate,
             valueDate: calculateValueDate(requestDate, completionDays),
         };
