@@ -108,7 +108,7 @@ function App() {
   }
   return <UpdatesProvider>{Page === JobHomepage ? <JobHomepage navigate={navigate} jobListCache={jobListCache} />
     : Page === Jobspage ? <Jobspage key={location} navigate={navigate} />
-    : Page ? <Page /> : <Homepage />}</UpdatesProvider>;
+    : !Page || Page === Homepage ? <Homepage navigate={navigate} /> : <Page />}</UpdatesProvider>;
 }
 
 export default App;

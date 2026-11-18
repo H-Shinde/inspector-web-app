@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import JobHomepage from './Jobspagehomepage';
-import { listJobs, finishJob, deleteJob } from './jobsApi';
-jest.mock('./jobsApi', () => ({ listJobs: jest.fn(), finishJob: jest.fn(), deleteJob: jest.fn() }));
+import { listJobs, finishJob, deleteJob, importJobs } from './jobsApi';
+jest.mock('./jobsApi', () => ({ listJobs: jest.fn(), finishJob: jest.fn(), deleteJob: jest.fn(), importJobs: jest.fn() }));
 jest.mock('datatables.net-react', () => {
     const React = require('react');
     const Table = React.forwardRef(({ data, slots }, ref) => {
@@ -24,6 +24,23 @@ test('loads database jobs without inserting sample jobs', async () => {
     render(<JobHomepage />);
     await screen.findByText('Database Job'); expect(screen.queryByText('John Doe')).not.toBeInTheDocument();
     expect(sessionStorage.getItem('availableJobs')).toBeNull();
+});
+test('imports a jobs CSV directly from the toolbar and refreshes the list', async () => {
+    importJobs.mockImplementation(async () => {
+        listJobs.mockResolvedValue([job, { ...job, id: 43, name: 'Imported Job' }]);
+        return { imported: 1 };
+    });
+    render(<JobHomepage />);
+    await screen.findByText('Database Job');
+    expect(screen.queryByRole('button', { name: /add jobs/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Upload CSV' })).toBeEnabled();
+    fireEvent.change(screen.getByLabelText('Jobs CSV file'), { target: { files: [{
+        size: 200,
+        text: async () => 'Reference #,Appraisal Type,Client,Business Name,Client Name,Date,Client Email,Total Bid\nOLD-43,Business Valuation,Bank,Imported Job,Alex,2026-11-18,alex@example.com,1250.00',
+    }] } });
+    expect(await screen.findByText('Imported 1 job.')).toBeInTheDocument();
+    expect(await screen.findByText('Imported Job')).toBeInTheDocument();
+    expect(importJobs).toHaveBeenCalledWith([expect.objectContaining({ externalReference: 'OLD-43', businessName: 'Imported Job' })]);
 });
 test('confirms completion and persists before redirecting', async () => {
     const original = window.location; delete window.location; window.location = { href: '' };

@@ -45,6 +45,7 @@ const itemDetailFields = [
 ];
 
 const jobInformationFields = [
+    ['externalReference', 'Imported reference #'],
     ['sourceBidReference', 'Source bid'],
     ['status', 'Job status'],
     ['clientCompany', 'Client company'],
@@ -385,7 +386,7 @@ function Jobspage({ navigate = (url) => window.location.assign(url) }) {
                     <p className="job_empty">Open View from the Jobs table to load job information.</p>
                 ) : activeSection === 'Job Information' ? (
                     <div className="fieldsframe">
-                        {jobInformationFields.map(([field, label]) => (
+                        {jobInformationFields.filter(([field]) => field !== 'externalReference' || job.externalReference).map(([field, label]) => (
                             <div className="bid_detail_field" key={field}>
                                 <label htmlFor={`job-${field}`}>{label}</label>
                                 <input id={`job-${field}`} type="text" readOnly value={displayValue(field)} />

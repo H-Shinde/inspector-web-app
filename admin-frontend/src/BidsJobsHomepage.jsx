@@ -18,7 +18,7 @@ import TableFilter from './Tablefilter';
 import './TableFilter.css';
 
 DataTable.use(DT);
-function Homepage() {
+function Homepage({ navigate = (url) => window.location.assign(url) }) {
     const csvInput = useRef(null);
     const [importing, setImporting] = useState(false);
     const [importMessage, setImportMessage] = useState('');
@@ -234,7 +234,7 @@ function Homepage() {
             <TableFilter tableRef={table} columns={filterColumns} />
             <input ref={csvInput} type="file" accept=".csv,text/csv" hidden aria-label="Upload bids CSV" onChange={importCsv} />
             <button type="button" className="add_bid_button" disabled={importing} onClick={() => csvInput.current?.click()}>{importing ? 'Importing…' : 'Upload CSV'}</button>
-            <button className="add_bid_button" onClick={() => { window.location.href = '/AddBid?from=Homepage'; }}>
+            <button className="add_bid_button" onClick={() => navigate('/AddBid?from=Homepage')}>
                 + Add Bid
             </button>
         </div>

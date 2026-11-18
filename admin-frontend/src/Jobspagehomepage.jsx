@@ -1,6 +1,7 @@
 import { RecordUpdateBadge } from './updates';
 import { UpdateBadge } from './updates';
-import { listJobs, finishJob, deleteJob } from './jobsApi';
+import { listJobs, finishJob, deleteJob, importJobs } from './jobsApi';
+import { csvToJobs } from './jobCsv';
 import { appraisalTypeLabel } from './appraisalTypes';
 import LogoutButton from './LogoutButton';
 import { JOB_STATUSES } from './jobStatus';
@@ -21,6 +22,9 @@ DataTable.use(DT);
 const statusClass = (status) => status.toLowerCase().replace(/\s+/g, '-');
 
 function JobHomepage({ navigate = (url) => window.location.assign(url), jobListCache }) {
+    const csvInput = useRef(null);
+    const [importing, setImporting] = useState(false);
+    const [importMessage, setImportMessage] = useState(null);
     const [menuOpen, setMenuOpen] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [completeTarget, setCompleteTarget] = useState(null);
@@ -69,7 +73,6 @@ function JobHomepage({ navigate = (url) => window.location.assign(url), jobListC
     const handleView = (row) => {
         navigate(`/Jobspage?jobId=${encodeURIComponent(row.id)}`);
     };
-
     // Clicking anywhere on a row (except its buttons) opens that job.
     const handleRowClick = (event) => {
         if (event.target.closest('button, a, input, select')) return;
@@ -88,6 +91,23 @@ function JobHomepage({ navigate = (url) => window.location.assign(url), jobListC
     const [error, setError] = useState('');
     const [busy, setBusy] = useState(false);
     const [attempt, setAttempt] = useState(0);
+    const uploadCsv = async (event) => {
+        const file = event.target.files?.[0];
+        event.target.value = '';
+        if (!file || importing) return;
+        setImporting(true);
+        setImportMessage(null);
+        try {
+            if (file.size > 2 * 1024 * 1024) throw new Error('Choose a CSV file under 2 MB.');
+            const { imported } = await importJobs(csvToJobs(await file.text()));
+            setImportMessage({ text: `Imported ${imported} ${imported === 1 ? 'job' : 'jobs'}.` });
+            setAttempt((value) => value + 1);
+        } catch (error) {
+            setImportMessage({ error: true, text: error.message });
+        } finally {
+            setImporting(false);
+        }
+    };
     useEffect(() => {
         const controller = new AbortController(); setError('');
         const refresh = () => listJobs(controller.signal).then((rows) => {
@@ -115,7 +135,8 @@ function JobHomepage({ navigate = (url) => window.location.assign(url), jobListC
     },
     {
         data: "name",
-        title: "Name"
+        title: "Name",
+        render: (value, type, row) => value || row.clientName || ''
     },
     {
         data: "date",
@@ -256,9 +277,13 @@ function JobHomepage({ navigate = (url) => window.location.assign(url), jobListC
         {loading && <p role="status">Loading jobs…</p>}
         {error && <p role="alert" className="add_bid_error">{error} <button type="button" onClick={() => setAttempt((value) => value + 1)}>Reload jobs</button></p>}
         <section className="bids_panel" aria-label="Jobs">
-            <div className="table_filter_toolbar">
+            <div className="table_top_header">
                 <TableFilter tableRef={table} columns={filterColumns} />
+                <input ref={csvInput} type="file" accept=".csv,text/csv" hidden aria-label="Jobs CSV file" onChange={uploadCsv} />
+                <button type="button" className="add_bid_button" disabled={importing}
+                    onClick={() => csvInput.current?.click()}>{importing ? 'Importing…' : 'Upload CSV'}</button>
             </div>
+            {importMessage && <p role={importMessage.error ? 'alert' : 'status'} className={importMessage.error ? 'add_bid_error' : undefined}>{importMessage.text}</p>}
             <div className="bids_table_container" onClick={handleRowClick} onKeyDown={handleRowKeyDown}>
             <DataTable
             ref={table}
