@@ -14,6 +14,25 @@ class BidJobCountTests(TestCase):
         self.client.force_login(self.admin)
         force_inspector_login(self.client, self.user)
 
+    def test_import_jobs_preserves_references_and_rejects_bad_batches(self):
+        row = {'externalReference': 'LEGACY-42', 'appraisalType': 'Machinery & Equipment (M&E)',
+               'businessName': 'Example Equipment', 'clientCompany': 'Bank', 'clientName': 'Alex',
+               'date': '11/18/2026', 'clientEmail': 'alex@example.com', 'bidAmount': '1250.50'}
+        url = '/api/jobs/'
+        response = self.client.post(url, data={'jobs': [row, {**row, 'businessName': ''}]}, content_type='application/json')
+        self.assertEqual(response.status_code, 400, response.content)
+        self.assertFalse(Job.objects.exists())
+        response = self.client.post(url, data={'jobs': [row]}, content_type='application/json')
+        self.assertEqual(response.status_code, 201, response.content)
+        self.assertEqual(response.json(), {'imported': 1})
+        job = self.client.get(url).json()['jobs'][0]
+        self.assertEqual(job['externalReference'], 'LEGACY-42')
+        self.assertEqual(job['totalBid'], '1250.50')
+        self.assertEqual(job['date'], '2026-11-18')
+        response = self.client.post(url, data={'jobs': [row]}, content_type='application/json')
+        self.assertEqual(response.status_code, 400, response.content)
+        self.assertEqual(Job.objects.count(), 1)
+
     def test_accepting_bid_sets_quantity_limit_without_preloading_items(self):
         response = self.client.patch(f'/api/bids/{self.bid.pk}/', data=json.dumps({'status': 'Accepted'}), content_type='application/json')
         self.assertEqual(response.status_code, 200, response.content)

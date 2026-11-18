@@ -4,7 +4,7 @@ from django.db import close_old_connections, transaction
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from django.contrib.auth import get_user_model
-from django.http import JsonResponse, StreamingHttpResponse
+from django.http import HttpResponse, JsonResponse, StreamingHttpResponse
 from django.shortcuts import get_object_or_404
 from django.views.decorators.http import require_GET
 from .models import Inspector, Job, Message, Notification
@@ -42,6 +42,16 @@ def job_events(request):
 
 
 def stream_response(request, signature_for_request, event_name, inspector_id=None):
+    def session_active():
+        if not request.session.exists(request.session.session_key) or not get_user_model().objects.filter(pk=request.user.pk, is_active=True).exists():
+            return False
+        return not inspector_id or Inspector.objects.filter(pk=inspector_id, user_id=request.user.pk, is_active=True).exists()
+
+    def event(signature):
+        return 'event: ' + event_name + '\ndata: ' + json.dumps(signature) + '\n\n'
+
+    expired = 'event: session-expired\ndata: {}\n\n'
+
     def stream():
         previous = None
         heartbeat = 0
@@ -50,15 +60,12 @@ def stream_response(request, signature_for_request, event_name, inspector_id=Non
                 with _changes:
                     generation = _generation
                 close_old_connections()
-                if not request.session.exists(request.session.session_key) or not get_user_model().objects.filter(pk=request.user.pk, is_active=True).exists():
-                    yield 'event: session-expired\ndata: {}\n\n'
-                    return
-                if inspector_id and not Inspector.objects.filter(pk=inspector_id, user_id=request.user.pk, is_active=True).exists():
-                    yield 'event: session-expired\ndata: {}\n\n'
+                if not session_active():
+                    yield expired
                     return
                 signature = signature_for_request()
                 if signature != previous:
-                    yield 'event: ' + event_name + '\ndata: ' + json.dumps(signature) + '\n\n'
+                    yield event(signature)
                     previous = signature
                 elif heartbeat % 15 == 0:
                     yield ': keepalive\n\n'
@@ -68,7 +75,12 @@ def stream_response(request, signature_for_request, event_name, inspector_id=Non
                         _changes.wait(timeout=1)
         finally:
             close_old_connections()
-    response = StreamingHttpResponse(stream(), content_type='text/event-stream')
+    if request.get_host().partition(':')[0].lower().endswith('.pythonanywhere.com'):
+        # Release the synchronous worker after each snapshot. EventSource reconnects after the retry delay.
+        snapshot = event(signature_for_request()) if session_active() else expired
+        response = HttpResponse('retry: 10000\n' + snapshot, content_type='text/event-stream')
+    else:
+        response = StreamingHttpResponse(stream(), content_type='text/event-stream')
     response['Cache-Control'] = 'no-cache'
     response['X-Accel-Buffering'] = 'no'
     return response

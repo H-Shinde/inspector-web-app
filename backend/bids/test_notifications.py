@@ -1,6 +1,6 @@
 import json
 import uuid
-from django.test import TransactionTestCase
+from django.test import TransactionTestCase, override_settings
 from django.contrib.auth import get_user_model
 from accounts.test_helpers import force_inspector_login
 from .models import Notification, Bid, Job, Inspector
@@ -93,6 +93,21 @@ class NotificationTests(TransactionTestCase):
         self.read({'all': True, 'throughId': data['throughId']})
         self.assertNotEqual(changed, next(stream))
         response.close()
+
+    @override_settings(ALLOWED_HOSTS=['app.pythonanywhere.com'])
+    def test_pythonanywhere_updates_release_worker_after_snapshot(self):
+        host = 'app.pythonanywhere.com'
+        for path, event in [
+            ('/api/notification-events/', b'updates-changed'),
+            ('/api/inspector/events/', b'jobs-changed'),
+            ('/api/inspector/message-events/', b'messages-changed'),
+        ]:
+            response = self.client.get(path, HTTP_HOST=host)
+            self.assertEqual(response.status_code, 200)
+            self.assertFalse(response.streaming)
+            self.assertIn(b'retry: 10000\n', response.content)
+            self.assertIn(b'event: ' + event, response.content)
+        self.assertEqual(self.client.get('/api/bid-settings/', HTTP_HOST=host).status_code, 200)
 
     def test_new_assignment_and_profile_changes_are_indicated(self):
         response = self.client.patch(f'/api/jobs/{self.job.pk}/', data=json.dumps({'inspectorId': self.inspector.pk, 'revision': 0}), content_type='application/json')

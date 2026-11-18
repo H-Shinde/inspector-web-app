@@ -179,6 +179,7 @@ class Job(models.Model):
     inspectionParts = models.JSONField(default=list, blank=True)
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     source_bid = models.OneToOneField(Bid, on_delete=models.PROTECT, related_name='job')
+    externalReference = models.CharField(max_length=100, blank=True)
     inspector = models.ForeignKey(Inspector, on_delete=models.PROTECT, null=True, blank=True)
     status = models.CharField(max_length=30, default='Unassigned', choices=[(value, value) for value in ['Unassigned', 'Assigned', 'In-Progress', 'Pending Review', 'Needs Changes', 'Complete', 'Deleted']])
     previousStatus = models.CharField(max_length=30, blank=True)
@@ -190,6 +191,11 @@ class Job(models.Model):
     createdAt = models.DateTimeField(auto_now_add=True)
     completedAt = models.DateTimeField(null=True, blank=True)
     deletedAt = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['owner', 'externalReference'], condition=~models.Q(externalReference=''), name='unique_job_external_reference'),
+        ]
 
     def __str__(self):
         return f'JOB-{self.pk:06d} — {self.source_bid.businessName}'

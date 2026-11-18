@@ -118,6 +118,20 @@ class BidForm(forms.ModelForm):
 
         return data
 
+class JobImportForm(forms.ModelForm):
+    externalReference = forms.CharField(max_length=100, required=False)
+
+    class Meta:
+        model = Bid
+        fields = ['appraisalType', 'reportFormat', 'clientCompany', 'businessName', 'clientName', 'date', 'clientEmail', 'bidAmount']
+
+    def clean(self):
+        data = super().clean()
+        if data.get('appraisalType') == 'Machinery & Equipment (M&E)' and data.get('reportFormat') not in ('', 'Onsite', 'Desktop'):
+            self.add_error('reportFormat', 'Choose Onsite or Desktop.')
+        return data
+
+
 class ClientForm(forms.ModelForm):
     class Meta:
         model = Client

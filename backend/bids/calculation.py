@@ -83,7 +83,10 @@ def validate_rules(rules):
 
 
 def calculate_total(bid):
-    if getattr(bid, 'calculationVersion', 'legacy') in ['rates-v1', 'tiers-v1']:
+    version = getattr(bid, 'calculationVersion', 'legacy')
+    if version == 'manual-job':
+        return bid.bidAmount
+    if version in ['rates-v1', 'tiers-v1']:
         inspected = Decimal(bid.totalInspectedItems or 0)
         non_appraised = Decimal(bid.totalNonInspectedItems or 0)
         inspection = Decimal('0') if bid.reportFormat == 'Desktop' else (bid.inspectionRate or 0) * inspected

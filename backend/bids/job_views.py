@@ -1,12 +1,13 @@
 import json
 import uuid
 from decimal import Decimal, InvalidOperation
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 from .models import bid_item_count, Job, Bid, Inspector, initial_job_section_details
+from .forms import JobImportForm
 from .inspection_items import merge_inspection_items, parts_from_items, current_job_items, inspection_quantity, validate_unique_serial_numbers
 
 RATES = ['count', 'inspectionRate', 'customInspectionRate', 'additionalInspectionCharge', 'appraisalRate', 'customAppraisalRate', 'additionalAppraisalCharge']
@@ -34,6 +35,7 @@ def serialize_job(job, inspector_app=False):
         section_details[section] = {**bid_sections[section], **section_details.get(section, {})}
     result.update({
         'id': job.pk, 'jobId': job.pk, 'referenceNumber': f'JOB-{job.pk:06d}', 'sourceBidId': job.source_bid_id,
+        'externalReference': job.externalReference,
         'sourceBidReference': job.source_bid.referenceNumber, 'sourceBidBackend': 'django', 'recordType': 'Job',
         'status': job.status, 'previousStatus': job.previousStatus, 'revision': job.revision,
         'inspectorId': job.inspector_id, 'inspector': job.inspector.name if job.inspector else '',
@@ -118,6 +120,49 @@ def clean_sections(sections):
     return result
 
 
+def create_imported_job(owner, form):
+    bid = form.save(commit=False)
+    bid.owner = owner
+    bid.status = 'Accepted'
+    bid.calculationVersion = 'manual-job'
+    bid.save()
+    return Job.objects.create(owner=owner, source_bid=bid, sectionDetails=initial_job_section_details(bid),
+                              externalReference=form.cleaned_data['externalReference'])
+
+
+def import_jobs(owner, rows):
+    if not isinstance(rows, list) or not 1 <= len(rows) <= 200:
+        return JsonResponse({'error': 'Upload between 1 and 200 jobs at a time.'}, status=400)
+    existing = set(Job.objects.filter(owner=owner, externalReference__in=[
+        row['externalReference'].strip() for row in rows
+        if isinstance(row, dict) and isinstance(row.get('externalReference'), str) and row['externalReference'].strip()
+    ]).values_list('externalReference', flat=True))
+    forms_to_save, errors = [], []
+    for index, row in enumerate(rows, start=2):
+        if not isinstance(row, dict):
+            errors.append(f'Row {index}: Invalid job data.')
+            continue
+        form = JobImportForm(row)
+        if not form.is_valid():
+            errors.extend(f'Row {index}, {field}: {message}' for field, messages in form.errors.items() for message in messages)
+            continue
+        reference = form.cleaned_data['externalReference']
+        if reference and reference in existing:
+            errors.append(f'Row {index}: Reference number "{reference}" is already in use.')
+        if reference:
+            existing.add(reference)
+        forms_to_save.append(form)
+    if errors:
+        return JsonResponse({'error': 'No jobs were imported. ' + ' '.join(errors)}, status=400)
+    try:
+        with transaction.atomic():
+            for form in forms_to_save:
+                create_imported_job(owner, form)
+    except IntegrityError:
+        return JsonResponse({'error': 'No jobs were imported. A reference number may already be in use.'}, status=409)
+    return JsonResponse({'imported': len(forms_to_save)}, status=201)
+
+
 @require_http_methods(['GET', 'POST'])
 @transaction.atomic
 def jobs(request):
@@ -126,6 +171,8 @@ def jobs(request):
     if request.method == 'POST':
         try:
             data = body(request)
+            if set(data) == {'jobs'}:
+                return import_jobs(request.user, data['jobs'])
             if set(data) != {'bidId'} or not isinstance(data['bidId'], int) or isinstance(data['bidId'], bool):
                 raise ValueError('Provide a bid ID.')
         except (ValueError, UnicodeDecodeError) as error:
