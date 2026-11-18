@@ -32,6 +32,11 @@ const itemColumns = [
 ];
 
 const itemConditions = ['Very Good', 'Good', 'Fair', 'Poor', 'Scrap'];
+const itemQuantity = (item) => {
+    const quantity = String(item.qty ?? '').trim();
+    if (!quantity) return 1;
+    return /^[0-9]+$/.test(quantity) ? Number(quantity) : 0;
+};
 
 const itemDetailFields = [
     ['name', 'Name'], ['qty', 'Quantity'], ['condition', 'Condition'], ['type', 'Type'], ['make', 'Make'], ['model', 'Model'],
@@ -220,13 +225,25 @@ function Jobspage({ navigate = (url) => window.location.assign(url) }) {
     const sortedInspectors = job ? referenceZip ? inspectorList.map((inspector) => ({ inspector, distance: inspector.distanceMiles ?? null })) : sortInspectorsByDistance(inspectorList, job) : [];
     const jobLocation = job ? [job.city, job.state].filter(Boolean).join(', ') : '';
     const items = (Array.isArray(job?.items) ? job.items : []).map((item, index) => ({ ...item, itemId: item.itemId ?? `${job.id}-${index}` }));
+    const itemLimit = job?.expectedItemCount;
+    const totalQuantity = items.reduce((total, item) => total + itemQuantity(item), 0);
+    const originalItem = itemEditor?.mode === 'edit' ? items.find((item) => item.itemId === itemEditor.item.itemId) : null;
+    const proposedQuantity = itemEditor ? totalQuantity - (originalItem ? itemQuantity(originalItem) : 0) + itemQuantity(itemEditor.item) : totalQuantity;
+    const proposedExcess = itemLimit != null && proposedQuantity > itemLimit;
     const persistItems = (updatedItems) => saveJob({ items: updatedItems });
-    const editItemField = (field, value) => setItemEditor((previous) => ({ ...previous, item: { ...previous.item, [field]: value } }));
+    const editItemField = (field, value) => {
+        setItemSaveError('');
+        setItemEditor((previous) => ({ ...previous, item: { ...previous.item, [field]: value } }));
+    };
     const addItem = async (event) => {
         event.preventDefault();
         if (savingItem) return;
         const name = itemEditor.item.name?.trim();
         if (!name) return;
+        if (proposedExcess) {
+            setItemSaveError(`Item could not be saved. A total of ${proposedQuantity} exceeds the bid limit of ${itemLimit}.`);
+            return;
+        }
         setItemSaveError('');
         const itemId = crypto.randomUUID();
         setSavingItem(true);
@@ -432,6 +449,7 @@ function Jobspage({ navigate = (url) => window.location.assign(url) }) {
                                 <button type="button" className="add_bid_button" disabled={archived || saveCount > 0} onClick={() => setItemEditor({ mode: 'add', item: {} })}>+ Add item</button>
                             </div>}
                         </div>
+                        {itemLimit != null && totalQuantity > itemLimit && <p className="job_quantity_warning" role="status"><strong>Warning:</strong> This job has {totalQuantity} units against a bid limit of {itemLimit}.</p>}
                         {!viewedItem && <p className="job_csv_hint">CSV columns: Name (required), Type, Make, Model, Serial number, Year, Hours/Miles, Photo#, Ref#, Comments. Rows are added to the existing items.</p>}
                         {csvMessage && <p className={csvMessage.error ? 'job_csv_error' : 'job_acceptance_message'} role={csvMessage.error ? 'alert' : 'status'}>{csvMessage.text}</p>}
                         {itemAdded && <p className="job_acceptance_message" role="status">Item has been added.</p>}
@@ -499,6 +517,7 @@ function Jobspage({ navigate = (url) => window.location.assign(url) }) {
                     </div>
                     <div className="bid_form_body bid_form_grid">
                         {itemSaveError && <p className="add_bid_error" role="alert">{itemSaveError}</p>}
+                        {proposedExcess && !itemSaveError && <p className="job_quantity_warning" role="status"><strong>Warning:</strong> This change would bring the total to {proposedQuantity} units. The bid limit is {itemLimit}.</p>}
                         {itemEditor.mode !== 'add' && <ItemImage item={itemEditor.item} />}
                         {itemDetailFields.map(([field, title]) => (
                             <div className="bid_form_field" key={field}>

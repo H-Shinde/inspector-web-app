@@ -276,6 +276,15 @@
 }
 .job_items_actions { display: flex; flex-wrap: wrap; gap: 12px; }
 .job_csv_hint { margin: -8px 0 16px; color: #526477; font-size: 13px; }
+.job_quantity_warning {
+    grid-column: 1 / -1;
+    margin: 0 0 16px;
+    padding: 10px 12px;
+    border: 1px solid #e3ba64;
+    border-radius: 8px;
+    background: #fff7e5;
+    color: #754d00;
+}
 .job_csv_error {
     margin: 0 0 20px;
     padding: 12px 16px;

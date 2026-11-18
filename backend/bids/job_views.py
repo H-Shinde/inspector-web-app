@@ -175,8 +175,10 @@ def job_detail(request, pk):
             job.items = clean_items(data['items'])
             validate_unique_serial_numbers(job.items, 'serialNumber')
             expected = bid_item_count(job.source_bid)
-            if expected is not None and inspection_quantity([{**item, 'qty': item.get('qty') or '1'} for item in job.items]) > expected:
-                raise ValueError(f'Total item quantity cannot exceed the bid limit of {expected}.')
+            if expected is not None:
+                total_quantity = inspection_quantity([{**item, 'qty': item.get('qty') or '1'} for item in job.items])
+                if total_quantity > expected:
+                    raise ValueError(f'A total of {total_quantity} exceeds the bid limit of {expected}.')
             job.inspectionParts = parts_from_items(job.items, job.inspectionParts, only_saved=True)
         if 'sectionDetails' in data:
             for section, changes in clean_sections(data['sectionDetails']).items():

@@ -53,6 +53,24 @@ test('assigns a database inspector on the job', async () => {
     fireEvent.click(screen.getByRole('button', { name: 'Assign inspector' }));
     await waitFor(() => expect(updateJob).toHaveBeenCalledWith(42, { inspectorId: 7, revision: 0 }));
 });
+test('warns before saving an excess quantity and blocks the save with an error', async () => {
+    saved.expectedItemCount = 5;
+    saved.items = [{ itemId: 'existing', name: 'Desk', qty: '3' }];
+    await open();
+    fireEvent.click(screen.getByRole('button', { name: 'Items' }));
+    fireEvent.click(screen.getByRole('button', { name: '+ Add item' }));
+    const dialog = within(screen.getByRole('dialog'));
+    fireEvent.change(dialog.getByLabelText('Name'), { target: { value: 'Chair' } });
+    fireEvent.change(dialog.getByLabelText('Quantity'), { target: { value: '3' } });
+    expect(dialog.getByRole('status')).toHaveTextContent('The bid limit is 5');
+    fireEvent.click(dialog.getByRole('button', { name: 'Add item' }));
+    expect(dialog.getByRole('alert')).toHaveTextContent('A total of 6 exceeds the bid limit of 5');
+    expect(updateJob).not.toHaveBeenCalled();
+    fireEvent.change(dialog.getByLabelText('Quantity'), { target: { value: '2' } });
+    expect(dialog.queryByRole('alert')).not.toBeInTheDocument();
+    fireEvent.click(dialog.getByRole('button', { name: 'Add item' }));
+    await waitFor(() => expect(updateJob).toHaveBeenCalledTimes(1));
+});
 test('adds an item through Django and closes only after success', async () => {
     await open(); fireEvent.click(screen.getByRole('button', { name: 'Items' }));
     fireEvent.click(screen.getByRole('button', { name: '+ Add item' }));
