@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { PDFArray, PDFDocument, PDFName } from 'pdf-lib';
+import { decodePDFRawStream, PDFArray, PDFDocument, PDFName } from 'pdf-lib';
 import { agreementValues, generateEngagementAgreement, MACHINERY_EQUIPMENT, machineryAgreementValues } from './engagementAgreement';
 
 const bid = {
@@ -55,23 +55,40 @@ test('fills the original three-page agreement with editable missing details', as
     expect(form.getCheckBox('rushSelected').isChecked()).toBe(true);
     expect(form.getCheckBox('pdfOnlySelected').isChecked()).toBe(true);
     expect(form.getTextField('Company_Street').isReadOnly()).toBe(false);
+    const clientEmail = form.getTextField('Client_Email').acroField.getWidgets()[0].getRectangle();
+    const subjectEmail = form.getTextField('Contact_Email').acroField.getWidgets()[0].getRectangle();
+    expect(clientEmail.width).toBeGreaterThanOrEqual(220);
+    expect(subjectEmail.width).toBeGreaterThanOrEqual(220);
+    expect(clientEmail.x + clientEmail.width).toBeLessThan(subjectEmail.x);
+    expect(clientEmail.y).toBe(subjectEmail.y);
 });
 
-test.each(['business-valuation', 'machinery-equipment'])('preserves original page dimensions and content streams for %s', async (type) => {
+test.each(['business-valuation', 'machinery-equipment'])('preserves original page dimensions and expected content for %s', async (type) => {
     const load = (file) => PDFDocument.load(Uint8Array.from(fs.readFileSync(path.join(process.cwd(), file))));
     const original = await load(`scripts/templates/${type}-engagement-original.pdf`);
     const template = await load(`public/agreements/${type}-engagement.pdf`);
     const streams = (document, page) => {
         const contents = document.context.lookup(page.node.get(PDFName.of('Contents')));
         const entries = contents instanceof PDFArray ? contents.asArray() : [contents];
-        return entries.map((entry) => Array.from(document.context.lookup(entry).getContents()));
+        return entries.map((entry) => Buffer.from(decodePDFRawStream(document.context.lookup(entry)).decode()).toString('latin1'));
     };
     expect(template.getPageCount()).toBe(original.getPageCount());
     original.getPages().forEach((page, index) => {
         const mappedPage = template.getPages()[index];
         expect(mappedPage.getMediaBox()).toEqual(page.getMediaBox());
         expect(mappedPage.getCropBox()).toEqual(page.getCropBox());
-        for (const bytes of streams(original, page)) expect(streams(template, mappedPage)).toContainEqual(bytes);
+        const mappedStreams = streams(template, mappedPage);
+        for (const content of streams(original, page)) {
+            const expected = type === 'business-valuation' && index === 0
+                ? content.replace(/(\/TT6 1 Tf\s+)\(!\)(\s+Tj)/g, '$1<95>$2')
+                : content;
+            expect(mappedStreams).toContain(expected);
+        }
+        if (type === 'business-valuation' && index === 0) {
+            expect(mappedStreams.join('\n').match(/\/TT6 1 Tf\s+<95>\s+Tj/g)).toHaveLength(9);
+            const bulletFont = mappedPage.node.Resources().lookup(PDFName.of('Font')).lookup(PDFName.of('TT6'));
+            expect(bulletFont.get(PDFName.of('Encoding')).toString()).toBe('/WinAnsiEncoding');
+        }
     });
     const field = type === 'business-valuation' ? 'Client_Name' : 'MAE_Bid';
     expect(template.getForm().getTextField(field).acroField.getWidgets()[0].P()).toEqual(template.getPages()[2].ref);

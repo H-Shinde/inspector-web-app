@@ -206,6 +206,15 @@ def initial_job_section_details(bid):
         return str(current)
 
     return {
+        'Appraised Items': {
+            'count': value('totalInspectedItems'),
+            'inspectionRate': value('inspectionRate'),
+            'appraisalRate': value('appraisalRate'),
+        },
+        'Non Appraised Items': {
+            'count': value('totalNonInspectedItems'),
+            'appraisalRate': value('nonAppraisalRate'),
+        },
         'Asset Valuation': {
             field: value(field)
             for field in [
@@ -228,12 +237,11 @@ def initial_job_section_details(bid):
 
 
 def bid_item_count(bid):
-    return bid.totalInspectedItems or 0
-
-
-def initial_job_items(bid):
-    return [{'itemId': f'bid-{bid.pk}-item-{index + 1}', 'name': f'Item {index + 1}', 'qty': '1'}
-            for index in range(bid_item_count(bid))]
+    appraised = bid.totalInspectedItems
+    non_appraised = bid.totalNonInspectedItems
+    if appraised is None and non_appraised is None:
+        return None
+    return (appraised or 0) + (non_appraised or 0)
 
 
 class Message(models.Model):

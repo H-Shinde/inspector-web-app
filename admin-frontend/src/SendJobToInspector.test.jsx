@@ -42,8 +42,8 @@ test('previews the request, downloads it, and opens an edited draft to the assig
     } finally { window.location = location; }
 });
 
-test('opens the request when openRequest changes and can hide its own button', async () => {
-    const { rerender } = render(<SendJobToInspector job={job} hideButton openRequest={0} />);
+test('opens the request after the first inspector is assigned and can hide its own button', async () => {
+    const { rerender } = render(<SendJobToInspector job={{ ...job, inspector: '' }} hideButton openRequest={0} />);
     expect(screen.queryByRole('button', { name: 'Send Job to Inspector' })).not.toBeInTheDocument();
     expect(generateInspectionRequest).not.toHaveBeenCalled();
     rerender(<SendJobToInspector job={job} hideButton openRequest={1} />);

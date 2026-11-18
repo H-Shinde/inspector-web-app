@@ -57,6 +57,32 @@ class InspectionItemSyncTests(TestCase):
         self.assertEqual(len(items), 2)
         self.assertEqual(items[1]['comments'], 'Latest')
 
+    def test_serial_numbers_are_unique_across_admin_and_inspector_saves(self):
+        truck = {'name': 'Ford F-150', 'year': '2022'}
+        items = [
+            truck, truck,
+            {**truck, 'serialNumber': 'N/A'},
+            {**truck, 'serialNumber': 'n/a'},
+            {**truck, 'serialNumber': 'VIN-123'},
+        ]
+        url = f'/api/jobs/{self.job.pk}/'
+        response = self.client.patch(url, data={'revision': 0, 'items': items}, content_type='application/json')
+        self.assertEqual(response.status_code, 200, response.content)
+        saved = response.json()
+        self.assertEqual(len(saved['items']), 5)
+
+        duplicate = {**truck, 'serialNumber': ' vin-123 '}
+        response = self.client.patch(url, data={'revision': saved['revision'], 'items': [*saved['items'], duplicate]}, content_type='application/json')
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('already used by another item', response.json()['error'])
+
+        part = {**self.part, 'id': 'another-truck', 'serial': 'vin-123'}
+        response = self.save_part(part)
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('already used by another item', response.json()['error'])
+        part['id'] = saved['items'][-1]['itemId']
+        self.assertEqual(self.save_part(part).status_code, 200)
+
     def test_admin_edits_additions_and_deletions_round_trip_to_inspector(self):
         self.save_part()
         job = self.admin_job()

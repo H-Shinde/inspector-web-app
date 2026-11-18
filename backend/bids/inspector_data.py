@@ -7,6 +7,7 @@ from django.views.decorators.http import require_http_methods
 from .models import Inspector, Job, InspectionPhoto
 from .inspector_views import InspectorForm, serialize_inspector
 from .job_views import serialize_job
+from .inspection_items import validate_unique_serial_numbers
 
 PART_FIELDS = ['id', 'name', 'qty', 'type', 'make', 'model', 'serial', 'condition', 'year', 'mileage', 'comments']
 CONDITIONS = ['Very Good', 'Good', 'Fair', 'Poor', 'Scrap']
@@ -88,10 +89,11 @@ def save_part(request, pk):
         if not existing and len(parts) >= 5000:
             raise ValueError('A job can contain up to 5000 parts.')
         job.inspectionParts = [part if entry['id'] == part['id'] else entry for entry in parts] if existing else parts + [part]
+        validate_unique_serial_numbers(job.inspectionParts, 'serial')
         from .models import bid_item_count
         expected = bid_item_count(job.source_bid)
         allocated = sum(int(entry['qty']) if str(entry.get('qty') or '').isdigit() else 1 for entry in job.inspectionParts)
-        if expected and allocated > expected:
+        if expected is not None and allocated > expected:
             raise ValueError(f'The bid contains {expected} items. Update its existing parts instead of adding extra quantities.')
         from .inspection_items import merge_inspection_items, current_job_items
         job.items = merge_inspection_items(current_job_items(job), [part])

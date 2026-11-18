@@ -20,7 +20,7 @@ DataTable.use(DT);
 
 const statusClass = (status) => status.toLowerCase().replace(/\s+/g, '-');
 
-function JobHomepage() {
+function JobHomepage({ navigate = (url) => window.location.assign(url), jobListCache }) {
     const [menuOpen, setMenuOpen] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [completeTarget, setCompleteTarget] = useState(null);
@@ -67,7 +67,7 @@ function JobHomepage() {
     };
 
     const handleView = (row) => {
-        window.location.href = `/Jobspage?jobId=${encodeURIComponent(row.id)}`;
+        navigate(`/Jobspage?jobId=${encodeURIComponent(row.id)}`);
     };
 
     // Clicking anywhere on a row (except its buttons) opens that job.
@@ -83,15 +83,19 @@ function JobHomepage() {
         if (event.key === 'Enter' && event.target.tagName === 'TR') handleRowClick(event);
     };
 
-    const [tableData, setTableData] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const [tableData, setTableData] = useState(() => jobListCache?.current ?? []);
+    const [loading, setLoading] = useState(() => jobListCache?.current == null);
     const [error, setError] = useState('');
     const [busy, setBusy] = useState(false);
     const [attempt, setAttempt] = useState(0);
     useEffect(() => {
-        const controller = new AbortController(); setLoading(true); setError('');
+        const controller = new AbortController(); setError('');
         const refresh = () => listJobs(controller.signal).then((rows) => {
-            if (!controller.signal.aborted) { setTableData(rows); setError(''); }
+            if (!controller.signal.aborted) {
+                if (jobListCache) jobListCache.current = rows;
+                setTableData(rows);
+                setError('');
+            }
         }).catch((error) => { if (!controller.signal.aborted) setError(error.message); })
             .finally(() => { if (!controller.signal.aborted) setLoading(false); });
         void refresh();
@@ -100,7 +104,7 @@ function JobHomepage() {
         const timer = updates ? null : window.setInterval(refresh, 3000);
         window.addEventListener('focus', refresh);
         return () => { controller.abort(); updates?.close(); window.clearInterval(timer); window.removeEventListener('focus', refresh); };
-    }, [attempt]);
+    }, [attempt, jobListCache]);
 
     const columns = [
     {
@@ -269,7 +273,7 @@ function JobHomepage() {
                 7: (data, type, row) => (
                     <div className="action_buttons">
                         <button type="button" className="job_complete_button" title="Review inspection" disabled={row.status !== 'Pending Review'} aria-label={`Review inspection for ${row.name}`}
-                            onClick={(event) => { event.stopPropagation(); window.location.href = `/Jobspage?jobId=${row.id}`; }}><FaCheck aria-hidden="true" /></button>
+                            onClick={(event) => { event.stopPropagation(); handleView(row); }}><FaCheck aria-hidden="true" /></button>
                         <button
                             className="delete_icon" title="Delete job" aria-label={`Delete job for ${row.name}`}
                             onClick={(event) => { event.stopPropagation(); setDeleteTarget(row); }}

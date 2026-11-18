@@ -55,18 +55,19 @@ def inspector_jobs(request, pk=None):
         return JsonResponse({'error': 'Accept the job before completing it.'}, status=409)
     if action == 'complete':
         from .inspector_data import clean_part, REQUIRED_PART_FIELDS
+        from .models import bid_item_count
+        from .inspection_items import inspection_quantity, validate_unique_serial_numbers
+        expected = bid_item_count(job.source_bid)
         try:
             parts = [clean_part(part) for part in parts_for_job(job)]
-            if not parts:
+            if not parts and expected != 0:
                 raise ValueError('Add and save at least one inspection part before submitting.')
             issues = [f'{part["name"]}: {field} is required.' for part in parts for field in REQUIRED_PART_FIELDS if not part[field]]
             if issues:
                 return JsonResponse({'error': ' '.join(issues)}, status=400)
-            from .models import bid_item_count
-            from .inspection_items import inspection_quantity
-            expected = bid_item_count(job.source_bid)
-            if expected and inspection_quantity(parts) != expected:
-                raise ValueError(f'This bid requires {expected} items. Completed item quantities must match before submission.')
+            validate_unique_serial_numbers(parts, 'serial')
+            if expected is not None and inspection_quantity(parts) > expected:
+                raise ValueError(f'Total item quantity cannot exceed the bid limit of {expected}.')
             job.inspectionParts = parts
         except ValueError as error:
             return JsonResponse({'error': str(error)}, status=400)

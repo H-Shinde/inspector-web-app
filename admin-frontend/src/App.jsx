@@ -1,6 +1,6 @@
 import { UpdatesProvider } from './updates';
 import ValidatedForm from './ValidatedForm';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { authPost, getCurrentUser } from './authApi';
 import './App.css';
 import AuthLayout from './AuthLayout';
@@ -69,7 +69,19 @@ function Login({ destination }) {
 }
 
 function App() {
-  const path = window.location.pathname;
+  const [location, setLocation] = useState(() => window.location.pathname + window.location.search);
+  const path = location.split('?')[0];
+  const jobListCache = useRef(null);
+  useEffect(() => {
+    const syncLocation = () => setLocation(window.location.pathname + window.location.search);
+    window.addEventListener('popstate', syncLocation);
+    return () => window.removeEventListener('popstate', syncLocation);
+  }, []);
+  const navigate = (destination) => {
+    if (destination === location) return;
+    window.history.pushState(null, '', destination);
+    setLocation(destination);
+  };
   const passwordPage = path === '/ForgotPassword' || path === '/UpdatePass';
   const [session, setSession] = useState({ loading: !passwordPage, user: null, error: '' });
   const [attempt, setAttempt] = useState(0);
@@ -94,7 +106,9 @@ function App() {
     const next = Page ? `${path}${window.location.search}${window.location.hash}` : new URLSearchParams(window.location.search).get('next');
     return <Login destination={safeDestination(next)} />;
   }
-  return <UpdatesProvider>{Page ? <Page /> : <Homepage />}</UpdatesProvider>;
+  return <UpdatesProvider>{Page === JobHomepage ? <JobHomepage navigate={navigate} jobListCache={jobListCache} />
+    : Page === Jobspage ? <Jobspage key={location} navigate={navigate} />
+    : Page ? <Page /> : <Homepage />}</UpdatesProvider>;
 }
 
 export default App;

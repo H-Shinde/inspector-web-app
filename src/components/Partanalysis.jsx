@@ -108,16 +108,16 @@ export default function PartAnalysis({
   const readOnly = ["pending-review", "completed", "submitted"].includes(job.status);
   const parts = job.parts || [];
   const completedParts = parts.filter((part) => partStatus(part) === "completed");
-  const allocated = parts.reduce((total, part) => total + (Number(part.qty) || 1), 0);
+  const totalQuantity = parts.reduce((total, part) => total + (Number(part.qty) || 1), 0);
   const completedQuantity = completedParts.reduce((total, part) => {
     const quantity = Number(part.qty);
     return Number.isInteger(quantity) && quantity > 0 ? total + quantity : total;
   }, 0);
-  const totalQuantity = job.expectedItemCount || allocated;
   const progressQuantity = Math.min(completedQuantity, totalQuantity);
-  const canAdd = !job.expectedItemCount || allocated < job.expectedItemCount;
-  const quantitiesMatch = !job.expectedItemCount || (parts.every((part) => /^[1-9][0-9]*$/.test(String(part.qty || ''))) && parts.reduce((total, part) => total + Number(part.qty), 0) === job.expectedItemCount);
-  const allDone = parts.length > 0 && completedParts.length === parts.length && quantitiesMatch;
+  const hasBidCount = job.expectedItemCount != null;
+  const canAdd = !hasBidCount || totalQuantity < job.expectedItemCount;
+  const withinLimit = !hasBidCount || totalQuantity <= job.expectedItemCount;
+  const allDone = (parts.length > 0 || job.expectedItemCount === 0) && completedParts.length === parts.length && withinLimit;
   const shown = parts.filter((p) =>
     (filter === "all" || partStatus(p) === filter) && p.name.toLowerCase().includes(query.trim().toLowerCase()));
 
@@ -193,7 +193,7 @@ export default function PartAnalysis({
       ) : (
         <>
           <button type="button" className="pa__done" disabled={!allDone} onClick={() => setConfirm(true)}>Complete</button>
-          {!allDone && <p className="pa__hint">{parts.length ? !quantitiesMatch ? `Item quantities must total ${job.expectedItemCount}, matching the bid.` : "Finish every part to complete the inspection." : "Add parts to get started."}</p>}
+          {!allDone && <p className="pa__hint">{parts.length ? !withinLimit ? `Total item quantity cannot exceed the bid limit of ${job.expectedItemCount}.` : "Finish every part to complete the inspection." : "Add parts to get started."}</p>}
         </>
       )}
 

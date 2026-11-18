@@ -36,11 +36,19 @@ def parts_from_items(items, saved_parts, only_saved=False):
 
 
 def current_job_items(job):
-    from .models import initial_job_items
-    items = job.items
-    if not items and not job.inspectionParts:
-        items = initial_job_items(job.source_bid)
-    return merge_inspection_items(items, job.inspectionParts)
+    return merge_inspection_items(job.items, job.inspectionParts)
+
+
+def validate_unique_serial_numbers(items, serial_field):
+    seen = set()
+    for item in items:
+        serial = str(item.get(serial_field) or '').strip()
+        normalized = serial.casefold()
+        if normalized in ('', 'n/a'):
+            continue
+        if normalized in seen:
+            raise ValueError(f'Serial number "{serial}" is already used by another item in this job.')
+        seen.add(normalized)
 
 
 def inspection_quantity(parts):

@@ -1,6 +1,6 @@
-The immutable source at scripts/templates/business-valuation-engagement-original.pdf is the supplied “Bison Valuation Conclusion Engagement Agreement 2.pdf”. The runtime template at public/agreements/business-valuation-engagement.pdf preserves all three original pages, content streams, page sizes, artwork, typography, and rules. No Word/HTML conversion is used.
+The immutable source at scripts/templates/business-valuation-engagement-original.pdf is the supplied “Bison Valuation Conclusion Engagement Agreement 2.pdf”. The runtime template at public/agreements/business-valuation-engagement.pdf uses all three original pages and replaces the nine Apple-logo list markers on the first page with standard bullets.
 
-Only the original placeholder lettering is covered with small white masks; transparent AcroForm fields are placed at those locations. Existing checkbox outlines are retained. Original labels and layout, including clipped labels on the supplied client/subject page, are intentionally preserved. Some placeholders wrap in the source PDF; their visible prefixes identify the positions in scripts/agreementFields.json. Long entered values shrink to fit their original field areas.
+Transparent AcroForm fields sit over the original placeholders on the pricing page. The client and subject sections on page three use wider, aligned fields with full labels. Field bounds are recorded in scripts/agreementFields.json. Long entered values shrink to fit their fields.
 
 Regenerate with:
 

@@ -174,198 +174,133 @@
     "height": 7
   },
   {
-    "height": 12,
+    "height": 14,
     "name": "Company_Name",
     "page": 2,
-    "width": 73,
-    "x": 100.7068,
-    "y": 649.9453,
+    "width": 228,
+    "x": 60,
+    "y": 650,
     "checkbox": false,
-    "mask": {
-      "x": 100.7068,
-      "y": 649.9453,
-      "width": 65.3472,
-      "height": 12
-    }
+    "label": "Company"
   },
   {
-    "height": 12,
+    "height": 14,
     "name": "Subject_Business",
     "page": 2,
-    "width": 73,
-    "x": 229.572,
-    "y": 649.9453,
+    "width": 228,
+    "x": 324,
+    "y": 650,
     "checkbox": false,
-    "mask": {
-      "x": 229.572,
-      "y": 649.9453,
-      "width": 68.61599999999999,
-      "height": 12
-    }
+    "label": "Subject business"
   },
   {
-    "height": 13,
+    "height": 14,
     "name": "Client_Name",
     "page": 2,
-    "width": 73,
-    "x": 100.7068,
-    "y": 606.2422,
+    "width": 228,
+    "x": 60,
+    "y": 608,
     "checkbox": false,
-    "mask": {
-      "x": 100.7068,
-      "y": 606.2422,
-      "width": 63.122399999999985,
-      "height": 13
-    }
+    "label": "Client name"
   },
   {
-    "height": 12,
+    "height": 14,
     "name": "Contact_Name",
     "page": 2,
-    "width": 73,
-    "x": 229.572,
-    "y": 607.2422,
+    "width": 228,
+    "x": 324,
+    "y": 608,
     "checkbox": false,
-    "mask": {
-      "x": 229.572,
-      "y": 607.2422,
-      "width": 66.6936,
-      "height": 12
-    }
+    "label": "Contact name"
   },
   {
-    "height": 12,
+    "height": 14,
     "name": "Company_Street",
     "page": 2,
-    "width": 73,
-    "x": 100.7068,
-    "y": 564.5391000000001,
+    "width": 228,
+    "x": 60,
+    "y": 566,
     "checkbox": false,
-    "mask": {
-      "x": 100.7068,
-      "y": 564.5391000000001,
-      "width": 65.57519999999998,
-      "height": 12
-    }
+    "label": "Street address"
   },
   {
-    "height": 12,
+    "height": 14,
     "name": "Business_Address",
     "page": 2,
-    "width": 73,
-    "x": 229.572,
-    "y": 564.5391000000001,
+    "width": 228,
+    "x": 324,
+    "y": 566,
     "checkbox": false,
-    "mask": {
-      "x": 229.572,
-      "y": 564.5391000000001,
-      "width": 67.46519999999998,
-      "height": 12
-    }
+    "label": "Street address"
   },
   {
-    "height": 12,
+    "height": 14,
     "name": "Company_City",
     "page": 2,
-    "width": 73,
-    "x": 100.7068,
-    "y": 521.8359,
+    "width": 228,
+    "x": 60,
+    "y": 524,
     "checkbox": false,
-    "mask": {
-      "x": 100.7068,
-      "y": 521.8359,
-      "width": 65.02559999999998,
-      "height": 12
-    }
+    "label": "City, state, ZIP"
   },
   {
-    "height": 12,
+    "height": 14,
     "name": "Business_City",
     "page": 2,
-    "width": 73,
-    "x": 229.572,
-    "y": 520.8359,
+    "width": 228,
+    "x": 324,
+    "y": 524,
     "checkbox": false,
-    "mask": {
-      "x": 229.572,
-      "y": 520.8359,
-      "width": 66.52560000000005,
-      "height": 12
-    }
+    "label": "City, state, ZIP"
   },
   {
-    "height": 12,
+    "height": 14,
     "name": "Company_Phone",
     "page": 2,
-    "width": 73,
-    "x": 100.7068,
-    "y": 479.13280000000003,
+    "width": 228,
+    "x": 60,
+    "y": 482,
     "checkbox": false,
-    "mask": {
-      "x": 100.7068,
-      "y": 479.13280000000003,
-      "width": 64.35239999999997,
-      "height": 12
-    }
+    "label": "Phone"
   },
   {
-    "height": 12,
+    "height": 14,
     "name": "Contact_Phone",
     "page": 2,
-    "width": 73,
-    "x": 229.572,
-    "y": 479.13280000000003,
+    "width": 228,
+    "x": 324,
+    "y": 482,
     "checkbox": false,
-    "mask": {
-      "x": 229.572,
-      "y": 479.13280000000003,
-      "width": 68.7432,
-      "height": 12
-    }
+    "label": "Phone"
   },
   {
-    "height": 13,
+    "height": 14,
     "name": "Client_Email",
     "page": 2,
-    "width": 73,
-    "x": 100.7068,
-    "y": 435.4297,
+    "width": 228,
+    "x": 60,
+    "y": 440,
     "checkbox": false,
-    "mask": {
-      "x": 100.7068,
-      "y": 435.4297,
-      "width": 60.761999999999986,
-      "height": 13
-    }
+    "label": "Email"
   },
   {
-    "height": 13,
+    "height": 14,
     "name": "Contact_Email",
     "page": 2,
-    "width": 73,
-    "x": 229.572,
-    "y": 435.4297,
+    "width": 228,
+    "x": 324,
+    "y": 440,
     "checkbox": false,
-    "mask": {
-      "x": 229.572,
-      "y": 435.4297,
-      "width": 67.55279999999999,
-      "height": 13
-    }
+    "label": "Email"
   },
   {
-    "height": 13,
+    "height": 14,
     "name": "Reference_Number",
     "page": 2,
-    "width": 73,
-    "x": 229.572,
-    "y": 414,
+    "width": 228,
+    "x": 324,
+    "y": 396,
     "checkbox": false,
-    "mask": {
-      "x": 229.572,
-      "y": 398,
-      "width": 73,
-      "height": 30
-    }
+    "label": "Reference number"
   }
 ]

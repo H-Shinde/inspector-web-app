@@ -4,7 +4,7 @@ import { FIELDS, CONDITIONS, emptyPart, partStatus } from "./parts";
 
 /**
  * Screens 8 & 9 — Inspection sheet. Edit a part (pass `part`) or add one (omit `part`).
- * Props: job, part?, userName, logoSrc, onBack, onTab, onSave(part) => Promise (throw to show an error)
+ * Props: job, part?, userName, logoSrc, onBack, onTab, onSave(part, revision) => Promise
  */
 const css = `
 .sh__rise { animation: sh-rise 480ms cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--i, 0) * 60ms); }
@@ -67,6 +67,7 @@ export default function InspectionSheet({
   const readOnly = ["pending-review", "completed", "submitted"].includes(job.status);
   const adding = !part;
   const initial = useRef({ ...(part || emptyPart()), photos: part?.photos || [] }).current;
+  const initialRevision = useRef(job.revision).current;
   const [form, setForm] = useState(initial);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -112,7 +113,7 @@ export default function InspectionSheet({
     setTried(true);
     setErr("");
     if (!form.name.trim()) return;
-    try { setBusy(true); await onSave({ ...form, name: form.name.trim() }); }
+    try { setBusy(true); await onSave({ ...form, name: form.name.trim() }, initialRevision); }
     catch (e) { setErr(e?.message || "Couldn't save. Please try again."); setBusy(false); }
   }
 

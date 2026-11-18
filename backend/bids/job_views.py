@@ -6,8 +6,8 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
-from .models import initial_job_items, bid_item_count, Job, Bid, Inspector, initial_job_section_details
-from .inspection_items import merge_inspection_items, parts_from_items, current_job_items, inspection_quantity
+from .models import bid_item_count, Job, Bid, Inspector, initial_job_section_details
+from .inspection_items import merge_inspection_items, parts_from_items, current_job_items, inspection_quantity, validate_unique_serial_numbers
 
 RATES = ['count', 'inspectionRate', 'customInspectionRate', 'additionalInspectionCharge', 'appraisalRate', 'customAppraisalRate', 'additionalAppraisalCharge']
 SECTIONS = {
@@ -28,6 +28,10 @@ def serialize_job(job, inspector_app=False):
         photo_groups.setdefault(photo.partId, []).append({'id': photo.pk, 'name': photo.name, 'url': f'{prefix}{photo.pk}/'})
     current_items = [{**item, 'photos': photo_groups.get(item['itemId'], [])} for item in current_items]
     current_parts = [{**part, 'photos': photo_groups.get(part['id'], [])} for part in parts_from_items(current_items, job.inspectionParts)]
+    section_details = job.sectionDetails.copy()
+    bid_sections = initial_job_section_details(job.source_bid)
+    for section in ('Appraised Items', 'Non Appraised Items'):
+        section_details[section] = {**bid_sections[section], **section_details.get(section, {})}
     result.update({
         'id': job.pk, 'jobId': job.pk, 'referenceNumber': f'JOB-{job.pk:06d}', 'sourceBidId': job.source_bid_id,
         'sourceBidReference': job.source_bid.referenceNumber, 'sourceBidBackend': 'django', 'recordType': 'Job',
@@ -35,7 +39,7 @@ def serialize_job(job, inspector_app=False):
         'inspectorId': job.inspector_id, 'inspector': job.inspector.name if job.inspector else '',
         'inspectorEmail': job.inspector.email if job.inspector else '',
         'inspectorEmailFor': job.inspector.name if job.inspector else '',
-        'items': current_items, 'sectionDetails': job.sectionDetails, 'valuationHistory': job.valuationHistory,
+        'items': current_items, 'sectionDetails': section_details, 'valuationHistory': job.valuationHistory,
         'expectedItemCount': bid_item_count(job.source_bid),
         'inspectionParts': current_parts, 'reviewNotes': job.reviewNotes,
         'createdAt': job.createdAt, 'completedAt': job.completedAt, 'deletedAt': job.deletedAt,
@@ -122,7 +126,7 @@ def jobs(request):
             return JsonResponse({'error': 'Only accepted bids can become jobs.'}, status=409)
         job, created = Job.objects.get_or_create(source_bid=bid, defaults={
             'owner': request.user,
-            'sectionDetails': initial_job_section_details(bid), 'items': initial_job_items(bid),
+            'sectionDetails': initial_job_section_details(bid),
         })
         return JsonResponse(serialize_job(job), status=201 if created else 200)
     records = Job.objects.filter(owner=request.user).select_related('source_bid', 'inspector').prefetch_related('inspection_photos').order_by('-createdAt', '-id')
@@ -169,9 +173,10 @@ def job_detail(request, pk):
             if 'revision' not in data:
                 raise ValueError('Provide the job revision when updating items.')
             job.items = clean_items(data['items'])
+            validate_unique_serial_numbers(job.items, 'serialNumber')
             expected = bid_item_count(job.source_bid)
-            if expected and inspection_quantity([{**item, 'qty': item.get('qty') or '1'} for item in job.items]) > expected:
-                raise ValueError(f'The bid contains {expected} items. Edit the existing rows instead of adding extra items.')
+            if expected is not None and inspection_quantity([{**item, 'qty': item.get('qty') or '1'} for item in job.items]) > expected:
+                raise ValueError(f'Total item quantity cannot exceed the bid limit of {expected}.')
             job.inspectionParts = parts_from_items(job.items, job.inspectionParts, only_saved=True)
         if 'sectionDetails' in data:
             for section, changes in clean_sections(data['sectionDetails']).items():

@@ -76,17 +76,17 @@ function AppContent() {
   useEffect(() => {
     if (!window.location.pathname.endsWith('/UpdatePass') && !invitation.get('token')) restoreSession();
   }, []);
+  const viewingJobs = ['dashboard', 'parts', 'sheet', 'job', 'messages', 'profile'].includes(step);
   useEffect(() => {
-    if (!['dashboard', 'parts', 'job', 'messages', 'profile'].includes(step)) return;
+    if (!viewingJobs) return;
     const refresh = () => { void loadJobs().catch((error) => setJobError(error.message)); };
-    refresh();
     const updates = typeof EventSource !== 'undefined' ? new EventSource('/api/inspector/events/', { withCredentials: true }) : null;
     updates?.addEventListener('jobs-changed', refresh);
     updates?.addEventListener('session-expired', () => { updates.close(); setStep('login'); });
     const timer = updates ? null : window.setInterval(refresh, 3000);
     window.addEventListener('focus', refresh);
     return () => { updates?.close(); window.clearInterval(timer); window.removeEventListener('focus', refresh); };
-  }, [step]);
+  }, [viewingJobs]);
   const [activeId, setActiveId] = useState(null);
   const [partId, setPartId] = useState(null); // null = adding a new part
   const [tab, setTab] = useState("jobs");
@@ -277,14 +277,14 @@ function AppContent() {
         userName={name}
         onTab={goTab}
         onBack={() => setStep("parts")}
-        onSave={async (p) => {
+        onSave={async (p, revision) => {
           const files = (p.photos || []).filter(photo => photo.file);
           const part = { ...p, photos: (p.photos || []).filter(photo => !photo.file).map(photo => ({ id: photo.id })) };
-          let payload = { part, revision: job.revision };
+          let payload = { part, revision };
           if (files.length) {
             payload = new FormData();
             payload.append('part', JSON.stringify(part));
-            payload.append('revision', String(job.revision));
+            payload.append('revision', String(revision));
             files.forEach(photo => payload.append('files', photo.file));
           }
           const result = await inspectorRequest(`/api/inspector/jobs/${job.id}/parts/`, payload);

@@ -115,7 +115,7 @@ const sectionFields = {
     ],
 };
 
-function Jobspage() {
+function Jobspage({ navigate = (url) => window.location.assign(url) }) {
     const [menuOpen, setMenuOpen] = useState(false);
     const [viewedItemId, setViewedItemId] = useState(null);
     const [itemSaveError, setItemSaveError] = useState('');
@@ -239,8 +239,8 @@ function Jobspage() {
             }
             itemDialog.current.close(); setItemEditor(null); setItemSaveError('');
             setItemAdded(itemEditor.mode === 'add');
-        } catch {
-            setItemSaveError('Unable to save the item. Please try again.');
+        } catch (error) {
+            setItemSaveError(error.message || 'Unable to save the item. Please try again.');
         } finally { setSavingItem(false); }
     };
     const importCsv = (event) => {
@@ -336,7 +336,7 @@ function Jobspage() {
         {jobError && <p role="alert" className="add_bid_error">{jobError} <button type="button" disabled={saveCount > 0} onClick={() => setAttempt((value) => value + 1)}>Reload job</button></p>}
         <header className="bid_page_header">
             <div className="bid_details_toolbar">
-                <button type="button" className="bid_back_button" onClick={() => { window.location.href = '/JobHomepage'; }}>
+                <button type="button" className="bid_back_button" onClick={() => navigate('/JobHomepage')}>
                     <span className="bid_back_icon" aria-hidden="true">←</span> Back
                 </button>
                 <h1 className="bidspage_header">{activeSection}</h1>
@@ -362,7 +362,7 @@ function Jobspage() {
                 ))}
             </aside>
             <section className="job_details_content" aria-label={activeSection}>
-                {job?.inspector && <SendJobToInspector job={job} sections={details[selectedId]} hideButton openRequest={sendRequest} />}
+                {job && <SendJobToInspector job={job} sections={details[selectedId]} hideButton={activeSection !== 'Assign Inspector'} openRequest={sendRequest} />}
                 {!job ? (
                     <p className="job_empty">Open View from the Jobs table to load job information.</p>
                 ) : activeSection === 'Job Information' ? (
@@ -425,7 +425,7 @@ function Jobspage() {
                 ) : activeSection === 'Items' ? (
                     <div className="job_items_section">
                         <div className="job_items_header">
-                            <h2>Items{job.expectedItemCount > 0 ? ` (${job.expectedItemCount} in bid)` : ''}</h2>
+                            <h2>Items{job.expectedItemCount != null ? ` (limit ${job.expectedItemCount})` : ''}</h2>
                             {!viewedItem && <div className="job_items_actions">
                                 <button type="button" className="add_bid_button" disabled={archived || saveCount > 0} onClick={() => csvInput.current?.click()}>Upload CSV</button>
                                 <input ref={csvInput} type="file" accept=".csv,text/csv" hidden aria-label="Upload items CSV" onChange={importCsv} />

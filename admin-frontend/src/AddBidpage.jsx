@@ -1,5 +1,5 @@
 import { UpdateBadge } from './updates';
-import StateSelect from './StateSelect';
+import StateTypeahead from './StateTypeahead';
 import { assetPercentageFields, calculationTerms, settingAmount } from './bidCalculation';
 import ClientTypeahead from './ClientTypeahead';
 import { usesNewBidTiers, newBidSubtotals } from './newBidPricing';
@@ -17,6 +17,22 @@ import './AddBidpage.css';
 import { businessValuationEmail, machineryEquipmentEmail, bidEmailLink } from './bidEmail';
 import navLogo from './bison_logo_nav.png';
 
+function calculateValueDate(requestDate, completionDays) {
+    const days = Number(completionDays);
+    if (!requestDate || completionDays === '' || !Number.isSafeInteger(days) || days < 0) return '';
+
+    const date = new Date(`${requestDate}T00:00:00Z`);
+    if (Number.isNaN(date.getTime())) return '';
+    if (days === 0) return requestDate;
+
+    // Start weekend requests from Friday so the first business day counted is Monday.
+    const weekday = date.getUTCDay();
+    if (weekday === 0 || weekday === 6) date.setUTCDate(date.getUTCDate() - (weekday === 0 ? 2 : 1));
+    const remainingDays = days % 5;
+    const weekendDays = date.getUTCDay() + remainingDays > 5 ? 2 : 0;
+    date.setUTCDate(date.getUTCDate() + Math.floor(days / 5) * 7 + remainingDays + weekendDays);
+    return date.getUTCFullYear() <= 9999 ? date.toISOString().slice(0, 10) : '';
+}
 
 function AddBidpage() {
     const calculationSettings = useBidSettings();
@@ -38,11 +54,12 @@ function AddBidpage() {
     const [draft, setDraft] = useState(() => {
         const today = new Date();
         const requestDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+        const completionDays = '5';
         return {
             ...Object.fromEntries(sections.flatMap(([, fields]) => fields.map(([field, , type]) => [field, field === 'status' ? 'Pending' : type === 'checkbox' ? false : '']))),
-            completionDays: '5',
+            completionDays,
             date: requestDate,
-            valueDate: '',
+            valueDate: calculateValueDate(requestDate, completionDays),
         };
     });
     const [error, setError] = useState('');
@@ -292,7 +309,7 @@ function AddBidpage() {
                                 field === 'reportFormat' ? null :
                                 <div className={`bid_detail_field add_bid_${field}${type === 'checkbox' ? ' add_bid_checkbox' : ''}`} key={field}>
                                     <label htmlFor={`add-${field}`}>{label}{type === 'checkbox' && assetPercentageFields.includes(field) && (() => { const rule = calculationTerms(submissionDraft).find((term) => term.field === field && term.mode === 'percentage'); return rule ? ` (+${rule.multiplier}%)` : ''; })()}</label>
-                                    {['state', 'clientState'].includes(field) ? <StateSelect id={`add-${field}`} name={field} value={draft[field]} onChange={(event) => setDraft({ ...draft, [field]: event.target.value })} /> : type === 'tier' ? (
+                                    {['state', 'clientState'].includes(field) ? <StateTypeahead id={`add-${field}`} name={field} value={draft[field]} onChange={(value) => setDraft((previous) => ({ ...previous, [field]: value }))} /> : type === 'tier' ? (
                                         <select id={`add-${field}`} name={field} value={draft.tier || '1'} onChange={(event) => setDraft({ ...draft, tier: event.target.value })}>{[1,2,3,4,5].map((tier) => <option key={tier} value={tier}>Tier {tier}</option>)}</select>
                                     ) : usesTiers && ['inspectionRate', 'appraisalRate', 'nonAppraisedInspectionRate'].includes(field) ? (
                                         <input id={`add-${field}`} readOnly value={subtotals[field].toFixed(2)} />
@@ -330,6 +347,7 @@ function AddBidpage() {
                                                 const value = type === 'checkbox' ? event.target.checked : event.target.value;
                                                 setDraft((previous) => {
                                                     const next = { ...previous, [field]: value };
+                                                    if (field === 'date' || field === 'completionDays') next.valueDate = calculateValueDate(next.date, next.completionDays);
                                                     if (field === 'pdfOnly') next.discount = value ? feeDefault(next, 'discount') : '';
                                                     if (field === 'rush') next.rushFee = value ? feeDefault(next, 'rushDiscount') : '';
                                                     return next;
