@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import InspectorShell from "./InspectorShell";
 import { partStatus, STATUS_LABEL } from "./parts";
+import { formatCompensation } from "../inspectorApi";
 
 /**
  * Screen 7 — Part analysis (opens when an inspector taps a current job).
@@ -135,6 +136,7 @@ export default function PartAnalysis({
         <h1>{job.businessName || job.title}</h1>
         <span className="pa__prog">Progress: <b>{completedQuantity}/{totalQuantity}</b> items complete</span>
       </div>
+      {job.compensation != null && <p className="pa__prog">Compensation <b>{formatCompensation(job.compensation)}</b></p>}
       <div className="pa__bar pa__rise" style={{ "--i": 1 }} role="progressbar" aria-label="Items complete" aria-valuemin={0} aria-valuemax={totalQuantity} aria-valuenow={progressQuantity}>
         <i style={{ "--w": totalQuantity ? `${(progressQuantity / totalQuantity) * 100}%` : "0%" }} />
       </div>

@@ -15,6 +15,9 @@ export async function inspectorRequest(path, data) {
     if (path.includes('inspector-login/') || path.includes('inspector-logout/')) window.dispatchEvent(new Event('app-session-changed'));
     return result;
 }
+const compensationFormat = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
+export const formatCompensation = (amount) => compensationFormat.format(amount ?? 0);
+
 export function inspectorJob(row) {
     const parts = row.inspectionParts?.length ? row.inspectionParts : (row.items || []).map((item, index) => ({
         id: String(item.itemId || `item-${index}`), name: item.name || '', qty: item.qty || '', type: item.type || '', make: item.make || '', model: item.model || '', serial: item.serialNumber || '', condition: item.condition || '', year: item.year || '', mileage: item.hoursMiles || '', comments: item.comments || '', photos: item.photos || [],

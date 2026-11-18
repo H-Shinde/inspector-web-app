@@ -13,7 +13,7 @@ RATES = ['count', 'inspectionRate', 'customInspectionRate', 'additionalInspectio
 SECTIONS = {
     'Appraised Items': RATES, 'Non Appraised Items': RATES,
     'Asset Valuation': ['fmvContinuedUse', 'fairMarketValueRemoved', 'orderlyLiquidationValue', 'forcedLiquidationValue', 'other', 'additionalLocations'],
-    'Inspection Fees': ['totalInspectedItems', 'totalNonInspectedItems', 'totalAppraisal', 'rush', 'pdfDiscount', 'total', 'nonRushTotal', 'meNote'],
+    'Inspection Fees': ['totalInspectedItems', 'totalNonInspectedItems', 'locationSurcharge', 'totalAppraisal', 'rush', 'pdfDiscount', 'total', 'nonRushTotal', 'meNote'],
 }
 ITEM_FIELDS = ['name', 'qty', 'condition', 'type', 'make', 'model', 'serialNumber', 'year', 'hoursMiles', 'photoNumber', 'referenceNumber', 'comments']
 
@@ -45,6 +45,15 @@ def serialize_job(job, inspector_app=False):
         'createdAt': job.createdAt, 'completedAt': job.completedAt, 'deletedAt': job.deletedAt,
         'pdf': result.get('engagementAgreement', ''),
     })
+    if inspector_app:
+        appraised = section_details['Appraised Items']
+        fees = section_details.get('Inspection Fees', {})
+        compensation = (
+            Decimal(appraised.get('count') or '0') * Decimal(appraised.get('inspectionRate') or '0')
+            + Decimal(fees.get('locationSurcharge') or '0')
+            + Decimal(appraised.get('additionalInspectionCharge') or '0')
+        )
+        result['compensation'] = f'{compensation:.2f}'
     return result
 
 

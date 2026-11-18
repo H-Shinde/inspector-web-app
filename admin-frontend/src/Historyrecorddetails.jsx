@@ -29,6 +29,7 @@ const sectionFields = {
     'Appraised Items': [['count', '# of appraised items'], ...rateFields],
     'Non Appraised Items': [['count', '# of non appraised items'], ...rateFields],
     'Inspection Fees': [
+        ['locationSurcharge', 'Location surcharge'],
         ['totalInspectedItems', 'Total Inspected Items'], ['totalNonInspectedItems', 'Total Non-Inspected Items'],
         ['totalAppraisal', 'Total Appraisal'], ['rush', 'Rush'], ['pdfDiscount', 'PDF Discount'],
         ['total', 'Total'], ['nonRushTotal', 'Non-Rush Total'], ['meNote', 'M&E Note'],
@@ -206,4 +207,4 @@ export default function HistoryRecordDetails({ record, onBack }) {
             </div>
         </div>
     );
-}   
+}

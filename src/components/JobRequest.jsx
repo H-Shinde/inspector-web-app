@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import InspectorShell from "./InspectorShell";
+import { formatCompensation } from "../inspectorApi";
 
 /**
  * Screen 5 — Client job request (inspector-client-popup).
@@ -57,11 +58,6 @@ function requestDate(value) {
   if (!match) return value;
   return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3])).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
-
-const money = (v) =>
-  typeof v === "number"
-    ? v.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 2 })
-    : v || "$0";
 
 export default function JobRequest({
   job = {},
@@ -121,7 +117,7 @@ export default function JobRequest({
       </div>
       <div className="jr__summary jr__enter">
         <div className="jr__metric"><strong>{job.expectedItemCount ?? 0}</strong><span>Total items</span></div>
-        <div className="jr__metric"><strong>{money(job.compensation)}</strong><span>Compensation</span></div>
+        <div className="jr__metric"><strong>{formatCompensation(job.compensation)}</strong><span>Compensation</span></div>
       </div>
       <section className="ix__card jr__details jr__enter" aria-label="Job details">
       <h2>Job details</h2>

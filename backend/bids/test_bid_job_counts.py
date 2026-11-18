@@ -36,6 +36,18 @@ class BidJobCountTests(TestCase):
         })
         self.assertEqual(sections['Non Appraised Items'], {'count': '2', 'appraisalRate': '10.00'})
 
+    def test_inspector_compensation_uses_appraised_count_rate_and_saved_charges(self):
+        job = Job.objects.create(owner=self.admin, source_bid=self.bid, inspector=self.inspector, status='Assigned')
+        inspector_url = '/api/inspector/jobs/'
+        self.assertEqual(self.client.get(inspector_url).json()['jobs'][0]['compensation'], '75.00')
+        response = self.client.patch(f'/api/jobs/{job.pk}/', data={'revision': 0, 'sectionDetails': {
+            'Appraised Items': {'count': '4', 'inspectionRate': '25.25', 'additionalInspectionCharge': '12.50'},
+            'Inspection Fees': {'locationSurcharge': '30.75'},
+            'Non Appraised Items': {'inspectionRate': '100', 'additionalInspectionCharge': '100'},
+        }}, content_type='application/json')
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(self.client.get(inspector_url).json()['jobs'][0]['compensation'], '144.25')
+
     def test_job_item_updates_cap_total_quantity_across_rows(self):
         job = Job.objects.create(owner=self.admin, source_bid=self.bid)
         url = f'/api/jobs/{job.pk}/'
